@@ -28,6 +28,8 @@
 #include "Kismet/KismetSystemLibrary.h"
 #include "GameFramework/GameStateBase.h"
 #include "EngineUtils.h"
+#include "Misc/CommandLine.h"
+#include "Misc/Parse.h"
 #include "Sound/SoundBase.h"
 
 namespace
@@ -106,6 +108,26 @@ void UAWHUDWidget::NativeConstruct()
         Sub->OnSessionsRefreshed.AddDynamic(this, &UAWHUDWidget::OnSessionsRefreshed);
     }
     ShowScreen(EAWScreen::MainMenu);
+
+#if !UE_BUILD_SHIPPING
+    FString CaptureMode;
+    if (FParse::Value(FCommandLine::Get(), TEXT("AutomataCapture="), CaptureMode))
+    {
+        if (CaptureMode.Equals(TEXT("Programming"), ESearchCase::IgnoreCase))
+        {
+            OnLocalMatch();
+        }
+        else if (CaptureMode.Equals(TEXT("Replay"), ESearchCase::IgnoreCase))
+        {
+            OnLocalMatch();
+            if (UAWGameSubsystem *Sub = GetSubsystem())
+            {
+                Sub->SubmitLocalScript(0, FAWExampleScripts::Aggressor());
+                Sub->SubmitLocalScript(1, FAWExampleScripts::Camper());
+            }
+        }
+    }
+#endif
 }
 
 void UAWHUDWidget::NativeDestruct()

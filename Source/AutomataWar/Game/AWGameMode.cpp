@@ -62,6 +62,30 @@ void AAWGameMode::Logout(AController *Exiting)
     Super::Logout(Exiting);
 }
 
+void AAWGameMode::BeginLocalMatch()
+{
+    bLocalMatch = true;
+    GetWorld()->GetTimerManager().ClearTimer(SubmissionTimerHandle);
+
+    AcceptedSource[0] = FAWExampleScripts::DefaultBot();
+    AcceptedSource[1] = FAWExampleScripts::DefaultBot();
+    bSlotSubmitted[0] = false;
+    bSlotSubmitted[1] = false;
+
+    if (AAWGameState *GS = GetGameState<AAWGameState>())
+    {
+        GS->RoundNumber = 1;
+        GS->SubmissionTimeRemaining = -1.f;
+        GS->RevealedSource0.Empty();
+        GS->RevealedSource1.Empty();
+        GS->AuthoritativeHash = 0;
+        GS->SimSeed = 0;
+        GS->Outcome = FAWMatchOutcome();
+    }
+
+    SetPhase(EAWMatchPhase::Programming);
+}
+
 FAWValidationResult AAWGameMode::HandleSubmission(int32 Slot, const FString &Source)
 {
     AAWGameState *GS = GetGameState<AAWGameState>();

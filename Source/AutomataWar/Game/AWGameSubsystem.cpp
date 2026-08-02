@@ -23,7 +23,7 @@ void UAWGameSubsystem::Deinitialize()
     Super::Deinitialize();
 }
 
-// ─── Local Match ─────────────────────────────────────────────────────────────
+// --- Local Match ------------------------------------------------------------
 
 void UAWGameSubsystem::StartLocalMatch()
 {
@@ -35,8 +35,13 @@ void UAWGameSubsystem::StartLocalMatch()
     if (!World)
         return;
 
-    // Open the arena map in standalone
-    UGameplayStatics::OpenLevel(World, TEXT("L_AutomataArena"), true, TEXT("?listen"));
+    if (AAWGameMode *GM = World->GetAuthGameMode<AAWGameMode>())
+    {
+        GM->BeginLocalMatch();
+        return;
+    }
+
+    OnError.Broadcast(TEXT("Local match requires the Automata War arena."));
 }
 
 FAWValidationResult UAWGameSubsystem::SubmitLocalScript(int32 Slot, const FString &Source)

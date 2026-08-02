@@ -34,6 +34,9 @@ public:
     virtual void PostLogin(APlayerController *NewPlayer) override;
     virtual void Logout(AController *Exiting) override;
 
+    /** Reset the current standalone world for a fresh local hot-seat match. */
+    void BeginLocalMatch();
+
     /**
      * @brief Handle a script submission for a given slot.
      * @param Slot 0 or 1.
