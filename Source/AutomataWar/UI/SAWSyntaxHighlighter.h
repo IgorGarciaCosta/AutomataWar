@@ -28,40 +28,40 @@
 class AUTOMATAWAR_API FAWSyntaxHighlighter : public FSyntaxHighlighterTextLayoutMarshaller
 {
 public:
-	FAWSyntaxHighlighter();
-	virtual ~FAWSyntaxHighlighter() override = default;
+    FAWSyntaxHighlighter();
+    virtual ~FAWSyntaxHighlighter() override = default;
 
-	static TSharedRef<FAWSyntaxHighlighter> Create();
+    static TSharedRef<FAWSyntaxHighlighter> Create();
 
 protected:
-	virtual void ParseTokens(const FString& SourceString, FTextLayout& TargetTextLayout,
-		TArray<FSyntaxTokenizer::FTokenizedLine> TokenizedLines) override;
+    virtual void ParseTokens(const FString &SourceString, FTextLayout &TargetTextLayout,
+                             TArray<FSyntaxTokenizer::FTokenizedLine> TokenizedLines) override;
 
 private:
-	/** Token types for internal classification. */
-	enum class ETokenType : uint8
-	{
-		Instruction,
-		Register,
-		Label,
-		Number,
-		Comment,
-		Comparison,
-		Default
-	};
+    /** Token types for internal classification. */
+    enum class ETokenType : uint8
+    {
+        Instruction,
+        Register,
+        Label,
+        Number,
+        Comment,
+        Comparison,
+        Default
+    };
 
-	/** Classify a single token word. */
-	static ETokenType ClassifyToken(const FString& Token, bool bIsFirstToken, bool bHasColon);
+    /** Classify a single token word. */
+    static ETokenType ClassifyToken(const FString &Token, bool bIsFirstToken, bool bHasColon);
 
-	/** Get the FTextBlockStyle for a token type. */
-	const FTextBlockStyle& GetStyleForToken(ETokenType Type) const;
+    /** Get the FTextBlockStyle for a token type. */
+    const FTextBlockStyle &GetStyleForToken(ETokenType Type) const;
 
-	/** Registered text block styles. */
-	FTextBlockStyle InstructionStyle;
-	FTextBlockStyle RegisterStyle;
-	FTextBlockStyle LabelStyle;
-	FTextBlockStyle NumberStyle;
-	FTextBlockStyle CommentStyle;
-	FTextBlockStyle ComparisonStyle;
-	FTextBlockStyle DefaultStyle;
+    /** Registered text block styles. */
+    FTextBlockStyle InstructionStyle;
+    FTextBlockStyle RegisterStyle;
+    FTextBlockStyle LabelStyle;
+    FTextBlockStyle NumberStyle;
+    FTextBlockStyle CommentStyle;
+    FTextBlockStyle ComparisonStyle;
+    FTextBlockStyle DefaultStyle;
 };

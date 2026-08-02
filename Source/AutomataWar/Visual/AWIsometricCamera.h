@@ -20,18 +20,18 @@ class UCameraComponent;
 UCLASS()
 class AUTOMATAWAR_API AAWIsometricCamera : public AActor
 {
-	GENERATED_BODY()
+    GENERATED_BODY()
 
 public:
-	AAWIsometricCamera();
+    AAWIsometricCamera();
 
-	/** Get the camera component. */
-	UCameraComponent* GetCameraComponent() const { return Camera; }
+    /** Get the camera component. */
+    UCameraComponent *GetCameraComponent() const { return Camera; }
 
-	/** Reposition to frame a grid of given dimensions. */
-	void FrameArena(int32 GridWidth, int32 GridHeight, float CellSize);
+    /** Reposition to frame a grid of given dimensions. */
+    void FrameArena(int32 GridWidth, int32 GridHeight, float CellSize);
 
 protected:
-	UPROPERTY(VisibleAnywhere, Category = "Camera")
-	TObjectPtr<UCameraComponent> Camera;
+    UPROPERTY(VisibleAnywhere, Category = "Camera")
+    TObjectPtr<UCameraComponent> Camera;
 };

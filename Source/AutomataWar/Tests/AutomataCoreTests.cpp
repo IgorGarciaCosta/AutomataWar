@@ -17,9 +17,9 @@
 // ============================================================================
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCompilerValidProgram, "AutomataWar.Core.Compiler.ValidProgram",
-    EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 
-bool FCompilerValidProgram::RunTest(const FString& Parameters)
+bool FCompilerValidProgram::RunTest(const FString &Parameters)
 {
     using namespace Automata;
     auto r = Compile("MOVE FWD\nTURN RIGHT\nSCAN\nFIRE\nSHIELD\nSET R0 42\nWAIT\n");
@@ -30,17 +30,16 @@ bool FCompilerValidProgram::RunTest(const FString& Parameters)
 }
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FInstructionDefinitions, "AutomataWar.Core.Compiler.ExactInstructionDefinitions",
-    EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 
-bool FInstructionDefinitions::RunTest(const FString& Parameters)
+bool FInstructionDefinitions::RunTest(const FString &Parameters)
 {
     using namespace Automata;
     const int32_t expectedTicks[] = {2, 1, 1, 4, 3, 1, 1, 1};
     const int32_t expectedEnergy[] = {2, 1, 3, 12, 15, 0, 0, 0};
-    const char* expectedSyntax[] = {
+    const char *expectedSyntax[] = {
         "MOVE <FWD|BACK>", "TURN <LEFT|RIGHT>", "SCAN", "FIRE", "SHIELD",
-        "SET <Rn> <imm>", "IF <reg> <OP> <imm> JUMP <label>", "WAIT"
-    };
+        "SET <Rn> <imm>", "IF <reg> <OP> <imm> JUMP <label>", "WAIT"};
 
     TestEqual(TEXT("Exactly eight definitions"), static_cast<int32>(InstructionDefs.size()), 8);
     for (int32_t index = 0; index < OpcodeCount; ++index)
@@ -53,9 +52,9 @@ bool FInstructionDefinitions::RunTest(const FString& Parameters)
 }
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCompilerMoveFwdBack, "AutomataWar.Core.Compiler.MoveFwdBack",
-    EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 
-bool FCompilerMoveFwdBack::RunTest(const FString& Parameters)
+bool FCompilerMoveFwdBack::RunTest(const FString &Parameters)
 {
     using namespace Automata;
     auto r = Compile("MOVE FWD\nMOVE BACK\n");
@@ -69,9 +68,9 @@ bool FCompilerMoveFwdBack::RunTest(const FString& Parameters)
 }
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCompilerTurnLeftRight, "AutomataWar.Core.Compiler.TurnLeftRight",
-    EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 
-bool FCompilerTurnLeftRight::RunTest(const FString& Parameters)
+bool FCompilerTurnLeftRight::RunTest(const FString &Parameters)
 {
     using namespace Automata;
     auto r = Compile("TURN LEFT\nTURN RIGHT\n");
@@ -85,9 +84,9 @@ bool FCompilerTurnLeftRight::RunTest(const FString& Parameters)
 }
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCompilerIFSixTokens, "AutomataWar.Core.Compiler.IFSixTokens",
-    EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 
-bool FCompilerIFSixTokens::RunTest(const FString& Parameters)
+bool FCompilerIFSixTokens::RunTest(const FString &Parameters)
 {
     using namespace Automata;
     // Valid: IF reg op imm JUMP label
@@ -103,17 +102,18 @@ bool FCompilerIFSixTokens::RunTest(const FString& Parameters)
 }
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCompilerRejectAliases, "AutomataWar.Core.Compiler.RejectAliases",
-    EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 
-bool FCompilerRejectAliases::RunTest(const FString& Parameters)
+bool FCompilerRejectAliases::RunTest(const FString &Parameters)
 {
     using namespace Automata;
     // EQ alias
     auto r = Compile("loop: WAIT\nIF R0 EQ 0 JUMP loop\n");
     TestFalse(TEXT("EQ alias rejected"), r.Ok());
     bool found = false;
-    for (auto& d : r.diagnostics)
-        if (d.kind == Automata::DiagKind::AliasRejected) found = true;
+    for (auto &d : r.diagnostics)
+        if (d.kind == Automata::DiagKind::AliasRejected)
+            found = true;
     TestTrue(TEXT("AliasRejected diagnostic"), found);
     // GOTO alias
     auto r2 = Compile("loop: WAIT\nIF R0 == 0 GOTO loop\n");
@@ -122,9 +122,9 @@ bool FCompilerRejectAliases::RunTest(const FString& Parameters)
 }
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCompilerIFImmediateOnly, "AutomataWar.Core.Compiler.IFImmediateOnly",
-    EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 
-bool FCompilerIFImmediateOnly::RunTest(const FString& Parameters)
+bool FCompilerIFImmediateOnly::RunTest(const FString &Parameters)
 {
     using namespace Automata;
     // Register as right operand should be rejected.
@@ -134,9 +134,9 @@ bool FCompilerIFImmediateOnly::RunTest(const FString& Parameters)
 }
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCompilerUnknownInstruction, "AutomataWar.Core.Compiler.UnknownInstruction",
-    EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 
-bool FCompilerUnknownInstruction::RunTest(const FString& Parameters)
+bool FCompilerUnknownInstruction::RunTest(const FString &Parameters)
 {
     using namespace Automata;
     auto r = Compile("MAVE FWD\n");
@@ -148,65 +148,73 @@ bool FCompilerUnknownInstruction::RunTest(const FString& Parameters)
 }
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCompilerDuplicateLabel, "AutomataWar.Core.Compiler.DuplicateLabel",
-    EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 
-bool FCompilerDuplicateLabel::RunTest(const FString& Parameters)
+bool FCompilerDuplicateLabel::RunTest(const FString &Parameters)
 {
     using namespace Automata;
     auto r = Compile("loop: MOVE FWD\nloop: FIRE\n");
     TestFalse(TEXT("Has errors"), r.Ok());
     bool found = false;
-    for (auto& d : r.diagnostics) if (d.kind == DiagKind::DuplicateLabel) found = true;
+    for (auto &d : r.diagnostics)
+        if (d.kind == DiagKind::DuplicateLabel)
+            found = true;
     TestTrue(TEXT("DuplicateLabel diagnostic"), found);
     return true;
 }
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCompilerUnknownLabel, "AutomataWar.Core.Compiler.UnknownLabel",
-    EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 
-bool FCompilerUnknownLabel::RunTest(const FString& Parameters)
+bool FCompilerUnknownLabel::RunTest(const FString &Parameters)
 {
     using namespace Automata;
     auto r = Compile("IF R0 == 0 JUMP nowhere\n");
     TestFalse(TEXT("Has errors"), r.Ok());
     bool found = false;
-    for (auto& d : r.diagnostics) if (d.kind == DiagKind::UnknownLabel) found = true;
+    for (auto &d : r.diagnostics)
+        if (d.kind == DiagKind::UnknownLabel)
+            found = true;
     TestTrue(TEXT("UnknownLabel diagnostic"), found);
     return true;
 }
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCompilerSetReadOnly, "AutomataWar.Core.Compiler.SetReadOnly",
-    EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 
-bool FCompilerSetReadOnly::RunTest(const FString& Parameters)
+bool FCompilerSetReadOnly::RunTest(const FString &Parameters)
 {
     using namespace Automata;
     auto r = Compile("SET R_HP 100\n");
     TestFalse(TEXT("Has errors"), r.Ok());
     bool found = false;
-    for (auto& d : r.diagnostics) if (d.kind == DiagKind::SetToReadOnly) found = true;
+    for (auto &d : r.diagnostics)
+        if (d.kind == DiagKind::SetToReadOnly)
+            found = true;
     TestTrue(TEXT("SetToReadOnly diagnostic"), found);
     return true;
 }
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCompilerImmediateRange, "AutomataWar.Core.Compiler.ImmediateRange",
-    EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 
-bool FCompilerImmediateRange::RunTest(const FString& Parameters)
+bool FCompilerImmediateRange::RunTest(const FString &Parameters)
 {
     using namespace Automata;
     auto r = Compile("SET R0 99999\n");
     TestFalse(TEXT("Has errors"), r.Ok());
     bool found = false;
-    for (auto& d : r.diagnostics) if (d.kind == DiagKind::ImmediateOutOfRange) found = true;
+    for (auto &d : r.diagnostics)
+        if (d.kind == DiagKind::ImmediateOutOfRange)
+            found = true;
     TestTrue(TEXT("ImmediateOutOfRange diagnostic"), found);
     return true;
 }
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCompilerMultiError, "AutomataWar.Core.Compiler.MultiError",
-    EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 
-bool FCompilerMultiError::RunTest(const FString& Parameters)
+bool FCompilerMultiError::RunTest(const FString &Parameters)
 {
     using namespace Automata;
     auto r = Compile("MAVE FWD\nSET R_HP 99999\n");
@@ -220,9 +228,9 @@ bool FCompilerMultiError::RunTest(const FString& Parameters)
 // ============================================================================
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FVMBasicDispatch, "AutomataWar.Core.VM.BasicDispatch",
-    EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 
-bool FVMBasicDispatch::RunTest(const FString& Parameters)
+bool FVMBasicDispatch::RunTest(const FString &Parameters)
 {
     using namespace Automata;
     auto r = Compile("MOVE FWD\nFIRE\n");
@@ -237,9 +245,9 @@ bool FVMBasicDispatch::RunTest(const FString& Parameters)
 }
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FVMMoveBusyTwoTicks, "AutomataWar.Core.VM.MoveBusyTwoTicks",
-    EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 
-bool FVMMoveBusyTwoTicks::RunTest(const FString& Parameters)
+bool FVMMoveBusyTwoTicks::RunTest(const FString &Parameters)
 {
     using namespace Automata;
     auto r = Compile("MOVE FWD\nFIRE\n");
@@ -259,9 +267,9 @@ bool FVMMoveBusyTwoTicks::RunTest(const FString& Parameters)
 }
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FVMFireBusyFourTicks, "AutomataWar.Core.VM.FireBusyFourTicks",
-    EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 
-bool FVMFireBusyFourTicks::RunTest(const FString& Parameters)
+bool FVMFireBusyFourTicks::RunTest(const FString &Parameters)
 {
     using namespace Automata;
     auto r = Compile("FIRE\nWAIT\n");
@@ -283,9 +291,9 @@ bool FVMFireBusyFourTicks::RunTest(const FString& Parameters)
 }
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FVMShieldBusy, "AutomataWar.Core.VM.ShieldBusyThreeTicks",
-    EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 
-bool FVMShieldBusy::RunTest(const FString& Parameters)
+bool FVMShieldBusy::RunTest(const FString &Parameters)
 {
     using namespace Automata;
     auto r = Compile("SHIELD\nWAIT\n");
@@ -305,9 +313,9 @@ bool FVMShieldBusy::RunTest(const FString& Parameters)
 }
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FVMWrap, "AutomataWar.Core.VM.ProgramWrap",
-    EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 
-bool FVMWrap::RunTest(const FString& Parameters)
+bool FVMWrap::RunTest(const FString &Parameters)
 {
     using namespace Automata;
     auto r = Compile("WAIT\n");
@@ -320,9 +328,9 @@ bool FVMWrap::RunTest(const FString& Parameters)
 }
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FVMEmptyHalt, "AutomataWar.Core.VM.EmptyProgramHalt",
-    EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 
-bool FVMEmptyHalt::RunTest(const FString& Parameters)
+bool FVMEmptyHalt::RunTest(const FString &Parameters)
 {
     using namespace Automata;
     Program empty;
@@ -334,9 +342,9 @@ bool FVMEmptyHalt::RunTest(const FString& Parameters)
 }
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FVMSetAndIF, "AutomataWar.Core.VM.SetAndIF",
-    EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 
-bool FVMSetAndIF::RunTest(const FString& Parameters)
+bool FVMSetAndIF::RunTest(const FString &Parameters)
 {
     using namespace Automata;
     auto r = Compile("SET R0 5\nIF R0 == 5 JUMP target\nWAIT\ntarget: FIRE\n");
@@ -353,17 +361,22 @@ bool FVMSetAndIF::RunTest(const FString& Parameters)
 }
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FVMAllComparisons, "AutomataWar.Core.VM.AllComparisons",
-    EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 
-bool FVMAllComparisons::RunTest(const FString& Parameters)
+bool FVMAllComparisons::RunTest(const FString &Parameters)
 {
     using namespace Automata;
 
-    auto testCmp = [&](const char* op, int32_t lhs, int32_t rhs, bool expectTaken) {
+    auto testCmp = [&](const char *op, int32_t lhs, int32_t rhs, bool expectTaken)
+    {
         std::string src = "SET R0 " + std::to_string(lhs) + "\n";
         src += "IF R0 " + std::string(op) + " " + std::to_string(rhs) + " JUMP target\nWAIT\ntarget: FIRE\n";
         auto r = Compile(src);
-        if (!r.Ok()) { TestTrue(TEXT("Compiles"), false); return; }
+        if (!r.Ok())
+        {
+            TestTrue(TEXT("Compiles"), false);
+            return;
+        }
         VMState state;
         VMTick(state, r.program); // SET
         VMTick(state, r.program); // IF
@@ -372,19 +385,25 @@ bool FVMAllComparisons::RunTest(const FString& Parameters)
         TestEqual(desc, taken, expectTaken);
     };
 
-    testCmp("==", 5, 5, true);  testCmp("==", 5, 3, false);
-    testCmp("!=", 5, 3, true);  testCmp("!=", 5, 5, false);
-    testCmp("<",  3, 5, true);  testCmp("<",  5, 3, false);
-    testCmp("<=", 5, 5, true);  testCmp("<=", 6, 5, false);
-    testCmp(">",  5, 3, true);  testCmp(">",  3, 5, false);
-    testCmp(">=", 5, 5, true);  testCmp(">=", 4, 5, false);
+    testCmp("==", 5, 5, true);
+    testCmp("==", 5, 3, false);
+    testCmp("!=", 5, 3, true);
+    testCmp("!=", 5, 5, false);
+    testCmp("<", 3, 5, true);
+    testCmp("<", 5, 3, false);
+    testCmp("<=", 5, 5, true);
+    testCmp("<=", 6, 5, false);
+    testCmp(">", 5, 3, true);
+    testCmp(">", 3, 5, false);
+    testCmp(">=", 5, 5, true);
+    testCmp(">=", 4, 5, false);
     return true;
 }
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FVMEnergyInert, "AutomataWar.Core.VM.EnergyInert",
-    EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 
-bool FVMEnergyInert::RunTest(const FString& Parameters)
+bool FVMEnergyInert::RunTest(const FString &Parameters)
 {
     using namespace Automata;
     auto r = Compile("SET R0 1\nIF R0 == 1 JUMP loop\nloop: WAIT\n");
@@ -404,9 +423,9 @@ bool FVMEnergyInert::RunTest(const FString& Parameters)
 }
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FVMInstrCount, "AutomataWar.Core.VM.InstructionCount",
-    EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 
-bool FVMInstrCount::RunTest(const FString& Parameters)
+bool FVMInstrCount::RunTest(const FString &Parameters)
 {
     using namespace Automata;
     auto r = Compile("WAIT\nWAIT\nWAIT\n");
@@ -425,9 +444,9 @@ bool FVMInstrCount::RunTest(const FString& Parameters)
 // ============================================================================
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FSimDeterminism, "AutomataWar.Core.Sim.Determinism",
-    EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 
-bool FSimDeterminism::RunTest(const FString& Parameters)
+bool FSimDeterminism::RunTest(const FString &Parameters)
 {
     using namespace Automata;
     std::string srcA = "SCAN\nIF R_ENEMY_DIST > 0 JUMP attack\nMOVE FWD\nIF R0 == 0 JUMP top\ntop: SCAN\nattack: FIRE\nTURN RIGHT\n";
@@ -454,9 +473,9 @@ bool FSimDeterminism::RunTest(const FString& Parameters)
 }
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FSimMoveBlocked, "AutomataWar.Core.Sim.MoveBlocked",
-    EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 
-bool FSimMoveBlocked::RunTest(const FString& Parameters)
+bool FSimMoveBlocked::RunTest(const FString &Parameters)
 {
     using namespace Automata;
     // Robot 0 faces South at (1,1). Turn to face North (TURN LEFT twice) then move into wall.
@@ -469,16 +488,20 @@ bool FSimMoveBlocked::RunTest(const FString& Parameters)
     sim.RunMatch(prog.program, progB.program);
 
     bool blockedWall = false;
-    for (auto& e : sim.GetEvents())
-        if (e.robot == 0 && e.type == EventType::MoveBlockedWall) { blockedWall = true; break; }
+    for (auto &e : sim.GetEvents())
+        if (e.robot == 0 && e.type == EventType::MoveBlockedWall)
+        {
+            blockedWall = true;
+            break;
+        }
     TestTrue(TEXT("Blocked by wall"), blockedWall);
     return true;
 }
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FSimScanHitMiss, "AutomataWar.Core.Sim.ScanHitMiss",
-    EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 
-bool FSimScanHitMiss::RunTest(const FString& Parameters)
+bool FSimScanHitMiss::RunTest(const FString &Parameters)
 {
     using namespace Automata;
     // Tiny grid, no cover (seed chosen for minimal cover).
@@ -501,7 +524,7 @@ bool FSimScanHitMiss::RunTest(const FString& Parameters)
 
     // Check first scan event for robot 0.
     bool foundScan = false;
-    for (auto& e : sim.GetEvents())
+    for (auto &e : sim.GetEvents())
     {
         if (e.robot == 0 && e.type == EventType::Scan)
         {
@@ -516,9 +539,9 @@ bool FSimScanHitMiss::RunTest(const FString& Parameters)
 }
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FSimExactCosts, "AutomataWar.Core.Sim.ExactEnergyCosts",
-    EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 
-bool FSimExactCosts::RunTest(const FString& Parameters)
+bool FSimExactCosts::RunTest(const FString &Parameters)
 {
     using namespace Automata;
     // Single MOVE FWD costs energy 2.
@@ -541,9 +564,9 @@ bool FSimExactCosts::RunTest(const FString& Parameters)
 }
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FSimEnergyExhaustion, "AutomataWar.Core.Sim.UnaffordableActionExhaustsEnergy",
-    EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 
-bool FSimEnergyExhaustion::RunTest(const FString& Parameters)
+bool FSimEnergyExhaustion::RunTest(const FString &Parameters)
 {
     using namespace Automata;
     const auto shooter = Compile("FIRE\n");
@@ -553,8 +576,9 @@ bool FSimEnergyExhaustion::RunTest(const FString& Parameters)
     Simulation sim;
     const MatchResult result = sim.RunMatch(shooter.program, idle.program);
     int32_t depletedEvents = 0;
-    for (const SimEvent& event : sim.GetEvents())
-        if (event.robot == 0 && event.type == EventType::EnergyDepleted) ++depletedEvents;
+    for (const SimEvent &event : sim.GetEvents())
+        if (event.robot == 0 && event.type == EventType::EnergyDepleted)
+            ++depletedEvents;
 
     TestEqual(TEXT("Unaffordable FIRE exhausts remaining energy"), result.finalEnergy[0], 0);
     TestEqual(TEXT("Energy depletion is surfaced once"), depletedEvents, 1);
@@ -562,9 +586,9 @@ bool FSimEnergyExhaustion::RunTest(const FString& Parameters)
 }
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FSimProjectileSpeed, "AutomataWar.Core.Sim.ProjectileTravelsFourCellsPerTick",
-    EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 
-bool FSimProjectileSpeed::RunTest(const FString& Parameters)
+bool FSimProjectileSpeed::RunTest(const FString &Parameters)
 {
     using namespace Automata;
     const auto shooter = Compile("FIRE\n");
@@ -583,10 +607,12 @@ bool FSimProjectileSpeed::RunTest(const FString& Parameters)
         sim.RunMatch(shooter.program, idle.program, config);
         int32_t fireTick = -1;
         int32_t hitTick = -1;
-        for (const SimEvent& event : sim.GetEvents())
+        for (const SimEvent &event : sim.GetEvents())
         {
-            if (event.robot == 0 && event.type == EventType::Fire && fireTick < 0) fireTick = event.tick;
-            if (event.robot == 1 && event.type == EventType::Hit && hitTick < 0) hitTick = event.tick;
+            if (event.robot == 0 && event.type == EventType::Fire && fireTick < 0)
+                fireTick = event.tick;
+            if (event.robot == 1 && event.type == EventType::Hit && hitTick < 0)
+                hitTick = event.tick;
         }
         if (hitTick >= 0)
         {
@@ -600,9 +626,9 @@ bool FSimProjectileSpeed::RunTest(const FString& Parameters)
 }
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FSimRelativeScanDirection, "AutomataWar.Core.Sim.ScanDirectionIsRelative",
-    EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 
-bool FSimRelativeScanDirection::RunTest(const FString& Parameters)
+bool FSimRelativeScanDirection::RunTest(const FString &Parameters)
 {
     using namespace Automata;
     const auto scanner = Compile("SCAN\n");
@@ -619,7 +645,7 @@ bool FSimRelativeScanDirection::RunTest(const FString& Parameters)
 
         Simulation sim;
         sim.RunMatch(scanner.program, idle.program, config);
-        for (const SimEvent& event : sim.GetEvents())
+        for (const SimEvent &event : sim.GetEvents())
         {
             if (event.robot == 0 && event.type == EventType::Scan && event.paramA == 1)
             {
@@ -636,9 +662,9 @@ bool FSimRelativeScanDirection::RunTest(const FString& Parameters)
 }
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FSimFireHit, "AutomataWar.Core.Sim.FireHit",
-    EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 
-bool FSimFireHit::RunTest(const FString& Parameters)
+bool FSimFireHit::RunTest(const FString &Parameters)
 {
     using namespace Automata;
     SimConfig cfg;
@@ -660,9 +686,9 @@ bool FSimFireHit::RunTest(const FString& Parameters)
 }
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FSimShieldAbsorb, "AutomataWar.Core.Sim.ShieldAbsorb",
-    EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 
-bool FSimShieldAbsorb::RunTest(const FString& Parameters)
+bool FSimShieldAbsorb::RunTest(const FString &Parameters)
 {
     using namespace Automata;
     SimConfig cfg;
@@ -684,9 +710,9 @@ bool FSimShieldAbsorb::RunTest(const FString& Parameters)
 }
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FSimHeadless, "AutomataWar.Core.Sim.HeadlessNoUObject",
-    EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 
-bool FSimHeadless::RunTest(const FString& Parameters)
+bool FSimHeadless::RunTest(const FString &Parameters)
 {
     using namespace Automata;
     std::string srcA = "MOVE FWD\nTURN RIGHT\nSCAN\nIF R_ENEMY_DIST > 0 JUMP fire\nMOVE FWD\nIF R0 == 0 JUMP top\ntop: MOVE FWD\nfire: FIRE\n";
@@ -708,9 +734,9 @@ bool FSimHeadless::RunTest(const FString& Parameters)
 // ============================================================================
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FReplayRoundtrip, "AutomataWar.Core.Replay.Roundtrip",
-    EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 
-bool FReplayRoundtrip::RunTest(const FString& Parameters)
+bool FReplayRoundtrip::RunTest(const FString &Parameters)
 {
     using namespace Automata;
     ReplayData data;
@@ -730,9 +756,9 @@ bool FReplayRoundtrip::RunTest(const FString& Parameters)
 }
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FReplayBase64, "AutomataWar.Core.Replay.Base64",
-    EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 
-bool FReplayBase64::RunTest(const FString& Parameters)
+bool FReplayBase64::RunTest(const FString &Parameters)
 {
     using namespace Automata;
     ReplayData data;
@@ -752,9 +778,9 @@ bool FReplayBase64::RunTest(const FString& Parameters)
 }
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FReplayResimHash, "AutomataWar.Core.Replay.ResimHash",
-    EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 
-bool FReplayResimHash::RunTest(const FString& Parameters)
+bool FReplayResimHash::RunTest(const FString &Parameters)
 {
     using namespace Automata;
     std::string srcA = "MOVE FWD\nFIRE\nTURN RIGHT\n";

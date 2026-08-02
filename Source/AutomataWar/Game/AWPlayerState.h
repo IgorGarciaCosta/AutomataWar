@@ -18,22 +18,22 @@
 UCLASS()
 class AUTOMATAWAR_API AAWPlayerState : public APlayerState
 {
-	GENERATED_BODY()
+    GENERATED_BODY()
 
 public:
-	AAWPlayerState();
+    AAWPlayerState();
 
-	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
+    virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty> &OutLifetimeProps) const override;
 
-	/** Which script slot this player controls (0 or 1). */
-	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Match")
-	int32 ScriptSlot = -1;
+    /** Which script slot this player controls (0 or 1). */
+    UPROPERTY(Replicated, BlueprintReadOnly, Category = "Match")
+    int32 ScriptSlot = -1;
 
-	/** Whether this player has submitted/locked their script this round. */
-	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Match")
-	bool bSubmitted = false;
+    /** Whether this player has submitted/locked their script this round. */
+    UPROPERTY(Replicated, BlueprintReadOnly, Category = "Match")
+    bool bSubmitted = false;
 
-	/** Last validation error message (client-only, not replicated). */
-	UPROPERTY(BlueprintReadOnly, Category = "Match")
-	FString LastError;
+    /** Last validation error message (client-only, not replicated). */
+    UPROPERTY(BlueprintReadOnly, Category = "Match")
+    FString LastError;
 };

@@ -16,13 +16,13 @@
  */
 struct FAWDesyncDetector
 {
-	/**
-	 * @brief Re-simulate a match locally and compare hash to authority.
-	 * @param Source0 Script for slot 0.
-	 * @param Source1 Script for slot 1.
-	 * @param Seed The simulation seed.
-	 * @param AuthoritativeHash The server's final hash.
-	 * @return True if hashes match (no desync).
-	 */
-	static bool VerifyMatch(const FString& Source0, const FString& Source1, uint64 Seed, uint64 AuthoritativeHash);
+    /**
+     * @brief Re-simulate a match locally and compare hash to authority.
+     * @param Source0 Script for slot 0.
+     * @param Source1 Script for slot 1.
+     * @param Seed The simulation seed.
+     * @param AuthoritativeHash The server's final hash.
+     * @return True if hashes match (no desync).
+     */
+    static bool VerifyMatch(const FString &Source0, const FString &Source1, uint64 Seed, uint64 AuthoritativeHash);
 };

@@ -19,51 +19,51 @@
 UCLASS()
 class AUTOMATAWAR_API AAWGameState : public AGameStateBase
 {
-	GENERATED_BODY()
+    GENERATED_BODY()
 
 public:
-	AAWGameState();
+    AAWGameState();
 
-	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
+    virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty> &OutLifetimeProps) const override;
 
-	/** Current match phase. */
-	UPROPERTY(ReplicatedUsing = OnRep_Phase, BlueprintReadOnly, Category = "Match")
-	EAWMatchPhase Phase = EAWMatchPhase::Programming;
+    /** Current match phase. */
+    UPROPERTY(ReplicatedUsing = OnRep_Phase, BlueprintReadOnly, Category = "Match")
+    EAWMatchPhase Phase = EAWMatchPhase::Programming;
 
-	/** Current round number (1-based). */
-	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Match")
-	int32 RoundNumber = 1;
+    /** Current round number (1-based). */
+    UPROPERTY(Replicated, BlueprintReadOnly, Category = "Match")
+    int32 RoundNumber = 1;
 
-	/** Submission time remaining (seconds). -1 = no timer (standalone). */
-	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Match")
-	float SubmissionTimeRemaining = -1.f;
+    /** Submission time remaining (seconds). -1 = no timer (standalone). */
+    UPROPERTY(Replicated, BlueprintReadOnly, Category = "Match")
+    float SubmissionTimeRemaining = -1.f;
 
-	/** Revealed script for slot 0 (only valid in ReplayAutopsy phase). */
-	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Match")
-	FString RevealedSource0;
+    /** Revealed script for slot 0 (only valid in ReplayAutopsy phase). */
+    UPROPERTY(Replicated, BlueprintReadOnly, Category = "Match")
+    FString RevealedSource0;
 
-	/** Revealed script for slot 1 (only valid in ReplayAutopsy phase). */
-	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Match")
-	FString RevealedSource1;
+    /** Revealed script for slot 1 (only valid in ReplayAutopsy phase). */
+    UPROPERTY(Replicated, BlueprintReadOnly, Category = "Match")
+    FString RevealedSource1;
 
-	/** Authoritative final state hash for desync detection. */
-	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Match")
-	int64 AuthoritativeHash = 0;
+    /** Authoritative final state hash for desync detection. */
+    UPROPERTY(Replicated, BlueprintReadOnly, Category = "Match")
+    int64 AuthoritativeHash = 0;
 
-	/** Simulation seed used for this round. */
-	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Match")
-	int64 SimSeed = 0;
+    /** Simulation seed used for this round. */
+    UPROPERTY(Replicated, BlueprintReadOnly, Category = "Match")
+    int64 SimSeed = 0;
 
-	/** Match outcome (valid in ReplayAutopsy). */
-	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Match")
-	FAWMatchOutcome Outcome;
+    /** Match outcome (valid in ReplayAutopsy). */
+    UPROPERTY(Replicated, BlueprintReadOnly, Category = "Match")
+    FAWMatchOutcome Outcome;
 
-	/** Delegate broadcast on phase change. */
-	DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnPhaseChanged, EAWMatchPhase, NewPhase);
-	UPROPERTY(BlueprintAssignable, Category = "Match")
-	FOnPhaseChanged OnPhaseChanged;
+    /** Delegate broadcast on phase change. */
+    DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnPhaseChanged, EAWMatchPhase, NewPhase);
+    UPROPERTY(BlueprintAssignable, Category = "Match")
+    FOnPhaseChanged OnPhaseChanged;
 
 protected:
-	UFUNCTION()
-	void OnRep_Phase();
+    UFUNCTION()
+    void OnRep_Phase();
 };

@@ -33,54 +33,54 @@ class SVerticalBox;
 class AUTOMATAWAR_API SAWCodeEditor : public SCompoundWidget
 {
 public:
-	SLATE_BEGIN_ARGS(SAWCodeEditor)
-		: _InitialText(FText::GetEmpty())
-		, _IsReadOnly(false)
-	{}
-		SLATE_ARGUMENT(FText, InitialText)
-		SLATE_ARGUMENT(bool, IsReadOnly)
-		SLATE_EVENT(FSimpleDelegate, OnCompileSuccess)
-	SLATE_END_ARGS()
+    SLATE_BEGIN_ARGS(SAWCodeEditor)
+        : _InitialText(FText::GetEmpty()), _IsReadOnly(false)
+    {
+    }
+    SLATE_ARGUMENT(FText, InitialText)
+    SLATE_ARGUMENT(bool, IsReadOnly)
+    SLATE_EVENT(FSimpleDelegate, OnCompileSuccess)
+    SLATE_END_ARGS()
 
-	void Construct(const FArguments& InArgs);
+    void Construct(const FArguments &InArgs);
 
-	/** Get the current source text. */
-	FString GetSourceText() const;
+    /** Get the current source text. */
+    FString GetSourceText() const;
 
-	/** Set source text programmatically. */
-	void SetSourceText(const FString& InText);
+    /** Set source text programmatically. */
+    void SetSourceText(const FString &InText);
 
-	/** Get the latest compile result (diagnostics). */
-	const Automata::CompileResult& GetCompileResult() const { return LastCompileResult; }
+    /** Get the latest compile result (diagnostics). */
+    const Automata::CompileResult &GetCompileResult() const { return LastCompileResult; }
 
-	/** Returns true if last compilation had zero errors. */
-	bool IsCompileOk() const { return LastCompileResult.Ok(); }
+    /** Returns true if last compilation had zero errors. */
+    bool IsCompileOk() const { return LastCompileResult.Ok(); }
 
 private:
-	/** Called when text changes. Starts debounce timer. */
-	void OnTextChanged(const FText& NewText);
+    /** Called when text changes. Starts debounce timer. */
+    void OnTextChanged(const FText &NewText);
 
-	/** Actually compile the current text. */
-	void DoCompile();
+    /** Actually compile the current text. */
+    void DoCompile();
 
-	/** Rebuild the gutter line-number display. */
-	void RebuildGutter();
+    /** Rebuild the gutter line-number display. */
+    void RebuildGutter();
 
-	/** Rebuild the diagnostics panel. */
-	void RebuildDiagnostics();
+    /** Rebuild the diagnostics panel. */
+    void RebuildDiagnostics();
 
-	TSharedPtr<SMultiLineEditableTextBox> TextEditor;
-	TSharedPtr<SVerticalBox> GutterBox;
-	TSharedPtr<SVerticalBox> DiagnosticsBox;
-	TSharedPtr<SScrollBar> ScrollBar;
+    TSharedPtr<SMultiLineEditableTextBox> TextEditor;
+    TSharedPtr<SVerticalBox> GutterBox;
+    TSharedPtr<SVerticalBox> DiagnosticsBox;
+    TSharedPtr<SScrollBar> ScrollBar;
 
-	FText CurrentText;
-	Automata::CompileResult LastCompileResult;
-	FSimpleDelegate OnCompileSuccess;
-	bool bReadOnly = false;
+    FText CurrentText;
+    Automata::CompileResult LastCompileResult;
+    FSimpleDelegate OnCompileSuccess;
+    bool bReadOnly = false;
 
-	/** Debounce timer handle. */
-	FTimerHandle DebounceHandle;
-	/** Time of last text change for debounce. */
-	double LastEditTime = 0.0;
+    /** Debounce timer handle. */
+    FTimerHandle DebounceHandle;
+    /** Time of last text change for debounce. */
+    double LastEditTime = 0.0;
 };

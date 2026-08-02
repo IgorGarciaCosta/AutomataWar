@@ -25,133 +25,133 @@ class AAWGameMode;
 UCLASS()
 class AUTOMATAWAR_API UAWGameSubsystem : public UGameInstanceSubsystem
 {
-	GENERATED_BODY()
+    GENERATED_BODY()
 
 public:
-	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
-	virtual void Deinitialize() override;
+    virtual void Initialize(FSubsystemCollectionBase &Collection) override;
+    virtual void Deinitialize() override;
 
-	// ─── Local Match ─────────────────────────────────────────────────────────
+    // ─── Local Match ─────────────────────────────────────────────────────────
 
-	/** Start a local hot-seat match (two script slots, one process). */
-	UFUNCTION(BlueprintCallable, Category = "AutomataWar|Local")
-	void StartLocalMatch();
+    /** Start a local hot-seat match (two script slots, one process). */
+    UFUNCTION(BlueprintCallable, Category = "AutomataWar|Local")
+    void StartLocalMatch();
 
-	/** Submit a script for a specific local slot (0 or 1). */
-	UFUNCTION(BlueprintCallable, Category = "AutomataWar|Local")
-	FAWValidationResult SubmitLocalScript(int32 Slot, const FString& Source);
+    /** Submit a script for a specific local slot (0 or 1). */
+    UFUNCTION(BlueprintCallable, Category = "AutomataWar|Local")
+    FAWValidationResult SubmitLocalScript(int32 Slot, const FString &Source);
 
-	/** Advance to next round (local or host). */
-	UFUNCTION(BlueprintCallable, Category = "AutomataWar|Match")
-	void NextRound();
+    /** Advance to next round (local or host). */
+    UFUNCTION(BlueprintCallable, Category = "AutomataWar|Match")
+    void NextRound();
 
-	// ─── Networking ──────────────────────────────────────────────────────────
+    // ─── Networking ──────────────────────────────────────────────────────────
 
-	/** Host a LAN listen-server session. */
-	UFUNCTION(BlueprintCallable, Category = "AutomataWar|Network")
-	void HostSession(const FString& SessionName);
+    /** Host a LAN listen-server session. */
+    UFUNCTION(BlueprintCallable, Category = "AutomataWar|Network")
+    void HostSession(const FString &SessionName);
 
-	/** Refresh LAN session list. */
-	UFUNCTION(BlueprintCallable, Category = "AutomataWar|Network")
-	void RefreshSessions();
+    /** Refresh LAN session list. */
+    UFUNCTION(BlueprintCallable, Category = "AutomataWar|Network")
+    void RefreshSessions();
 
-	/** Join a session by index in the last search results. */
-	UFUNCTION(BlueprintCallable, Category = "AutomataWar|Network")
-	void JoinSessionByIndex(int32 Index);
+    /** Join a session by index in the last search results. */
+    UFUNCTION(BlueprintCallable, Category = "AutomataWar|Network")
+    void JoinSessionByIndex(int32 Index);
 
-	/** Join a session by direct IP address. */
-	UFUNCTION(BlueprintCallable, Category = "AutomataWar|Network")
-	void JoinByIP(const FString& IPAddress);
+    /** Join a session by direct IP address. */
+    UFUNCTION(BlueprintCallable, Category = "AutomataWar|Network")
+    void JoinByIP(const FString &IPAddress);
 
-	/** Destroy current session and return to menu. */
-	UFUNCTION(BlueprintCallable, Category = "AutomataWar|Network")
-	void DestroySession();
+    /** Destroy current session and return to menu. */
+    UFUNCTION(BlueprintCallable, Category = "AutomataWar|Network")
+    void DestroySession();
 
-	/** Discovered sessions from last refresh. */
-	UFUNCTION(BlueprintCallable, Category = "AutomataWar|Network")
-	TArray<FAWSessionInfo> GetSessionList() const { return CachedSessions; }
+    /** Discovered sessions from last refresh. */
+    UFUNCTION(BlueprintCallable, Category = "AutomataWar|Network")
+    TArray<FAWSessionInfo> GetSessionList() const { return CachedSessions; }
 
-	/** Delegate for session list update. */
-	DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnSessionsRefreshed);
-	UPROPERTY(BlueprintAssignable, Category = "AutomataWar|Network")
-	FOnSessionsRefreshed OnSessionsRefreshed;
+    /** Delegate for session list update. */
+    DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnSessionsRefreshed);
+    UPROPERTY(BlueprintAssignable, Category = "AutomataWar|Network")
+    FOnSessionsRefreshed OnSessionsRefreshed;
 
-	/** Delegate for network errors. */
-	DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnNetworkError, const FString&, ErrorMessage);
-	UPROPERTY(BlueprintAssignable, Category = "AutomataWar|Network")
-	FOnNetworkError OnNetworkError;
+    /** Delegate for network errors. */
+    DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnNetworkError, const FString &, ErrorMessage);
+    UPROPERTY(BlueprintAssignable, Category = "AutomataWar|Network")
+    FOnNetworkError OnNetworkError;
 
-	// ─── Training ────────────────────────────────────────────────────────────
+    // ─── Training ────────────────────────────────────────────────────────────
 
-	/**
-	 * @brief Run a training match: user script vs default bot, no state mutation.
-	 * @param UserSource The script to train with.
-	 * @param Iterations Number of matches to run.
-	 * @param OutWins Wins for the user script.
-	 * @param OutLosses Losses.
-	 * @param OutDraws Draws.
-	 */
-	UFUNCTION(BlueprintCallable, Category = "AutomataWar|Training")
-	void RunTraining(const FString& UserSource, int32 Iterations, int32& OutWins, int32& OutLosses, int32& OutDraws);
+    /**
+     * @brief Run a training match: user script vs default bot, no state mutation.
+     * @param UserSource The script to train with.
+     * @param Iterations Number of matches to run.
+     * @param OutWins Wins for the user script.
+     * @param OutLosses Losses.
+     * @param OutDraws Draws.
+     */
+    UFUNCTION(BlueprintCallable, Category = "AutomataWar|Training")
+    void RunTraining(const FString &UserSource, int32 Iterations, int32 &OutWins, int32 &OutLosses, int32 &OutDraws);
 
-	// ─── Replay ──────────────────────────────────────────────────────────────
+    // ─── Replay ──────────────────────────────────────────────────────────────
 
-	/** List all saved replays. */
-	UFUNCTION(BlueprintCallable, Category = "AutomataWar|Replay")
-	TArray<FAWReplayInfo> GetReplayList();
+    /** List all saved replays. */
+    UFUNCTION(BlueprintCallable, Category = "AutomataWar|Replay")
+    TArray<FAWReplayInfo> GetReplayList();
 
-	/** Save current match as replay. */
-	UFUNCTION(BlueprintCallable, Category = "AutomataWar|Replay")
-	bool SaveReplay(const FString& Filename);
+    /** Save current match as replay. */
+    UFUNCTION(BlueprintCallable, Category = "AutomataWar|Replay")
+    bool SaveReplay(const FString &Filename);
 
-	/** Load a replay by filename; returns scripts/seed for re-simulation. */
-	UFUNCTION(BlueprintCallable, Category = "AutomataWar|Replay")
-	bool LoadReplay(const FString& Filename, FString& OutSource0, FString& OutSource1, int64& OutSeed, FString& OutError);
+    /** Load a replay by filename; returns scripts/seed for re-simulation. */
+    UFUNCTION(BlueprintCallable, Category = "AutomataWar|Replay")
+    bool LoadReplay(const FString &Filename, FString &OutSource0, FString &OutSource1, int64 &OutSeed, FString &OutError);
 
-	/** Delete a replay. */
-	UFUNCTION(BlueprintCallable, Category = "AutomataWar|Replay")
-	bool DeleteReplay(const FString& Filename);
+    /** Delete a replay. */
+    UFUNCTION(BlueprintCallable, Category = "AutomataWar|Replay")
+    bool DeleteReplay(const FString &Filename);
 
-	/** Export replay to base64. */
-	UFUNCTION(BlueprintCallable, Category = "AutomataWar|Replay")
-	bool ExportReplayBase64(const FString& Filename, FString& OutBase64);
+    /** Export replay to base64. */
+    UFUNCTION(BlueprintCallable, Category = "AutomataWar|Replay")
+    bool ExportReplayBase64(const FString &Filename, FString &OutBase64);
 
-	/** Import replay from base64. */
-	UFUNCTION(BlueprintCallable, Category = "AutomataWar|Replay")
-	bool ImportReplayBase64(const FString& Base64Data, const FString& Filename, FString& OutError);
+    /** Import replay from base64. */
+    UFUNCTION(BlueprintCallable, Category = "AutomataWar|Replay")
+    bool ImportReplayBase64(const FString &Base64Data, const FString &Filename, FString &OutError);
 
-	// ─── Status / Delegates ──────────────────────────────────────────────────
+    // ─── Status / Delegates ──────────────────────────────────────────────────
 
-	/** Get the current match phase. */
-	UFUNCTION(BlueprintCallable, Category = "AutomataWar|Status")
-	EAWMatchPhase GetCurrentPhase() const;
+    /** Get the current match phase. */
+    UFUNCTION(BlueprintCallable, Category = "AutomataWar|Status")
+    EAWMatchPhase GetCurrentPhase() const;
 
-	/** Get the current match outcome (valid in ReplayAutopsy). */
-	UFUNCTION(BlueprintCallable, Category = "AutomataWar|Status")
-	FAWMatchOutcome GetOutcome() const;
+    /** Get the current match outcome (valid in ReplayAutopsy). */
+    UFUNCTION(BlueprintCallable, Category = "AutomataWar|Status")
+    FAWMatchOutcome GetOutcome() const;
 
-	/** Get revealed scripts (valid in ReplayAutopsy). */
-	UFUNCTION(BlueprintCallable, Category = "AutomataWar|Status")
-	void GetRevealedScripts(FString& OutSource0, FString& OutSource1) const;
+    /** Get revealed scripts (valid in ReplayAutopsy). */
+    UFUNCTION(BlueprintCallable, Category = "AutomataWar|Status")
+    void GetRevealedScripts(FString &OutSource0, FString &OutSource1) const;
 
-	/** Delegate broadcast on any error from this subsystem. */
-	DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnError, const FString&, Message);
-	UPROPERTY(BlueprintAssignable, Category = "AutomataWar|Status")
-	FOnError OnError;
+    /** Delegate broadcast on any error from this subsystem. */
+    DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnError, const FString &, Message);
+    UPROPERTY(BlueprintAssignable, Category = "AutomataWar|Status")
+    FOnError OnError;
 
 protected:
-	void OnCreateSessionComplete(FName SessionName, bool bSuccess);
-	void OnFindSessionsComplete(bool bSuccess);
-	void OnJoinSessionComplete(FName SessionName, EOnJoinSessionCompleteResult::Type Result);
-	void OnDestroySessionComplete(FName SessionName, bool bSuccess);
+    void OnCreateSessionComplete(FName SessionName, bool bSuccess);
+    void OnFindSessionsComplete(bool bSuccess);
+    void OnJoinSessionComplete(FName SessionName, EOnJoinSessionCompleteResult::Type Result);
+    void OnDestroySessionComplete(FName SessionName, bool bSuccess);
 
-	void CleanupSessionDelegates();
+    void CleanupSessionDelegates();
 
-	TArray<FAWSessionInfo> CachedSessions;
-	TSharedPtr<FOnlineSessionSearch> SessionSearch;
+    TArray<FAWSessionInfo> CachedSessions;
+    TSharedPtr<FOnlineSessionSearch> SessionSearch;
 
-	FDelegateHandle CreateHandle;
-	FDelegateHandle FindHandle;
-	FDelegateHandle JoinHandle;
-	FDelegateHandle DestroyHandle;
+    FDelegateHandle CreateHandle;
+    FDelegateHandle FindHandle;
+    FDelegateHandle JoinHandle;
+    FDelegateHandle DestroyHandle;
 };

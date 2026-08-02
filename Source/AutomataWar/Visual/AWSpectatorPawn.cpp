@@ -8,10 +8,10 @@
 
 AAWSpectatorPawn::AAWSpectatorPawn()
 {
-	// Disable collision entirely
-	if (UPrimitiveComponent* Collision = Cast<UPrimitiveComponent>(GetRootComponent()))
-	{
-		Collision->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-	}
-	bAddDefaultMovementBindings = false;
+    // Disable collision entirely
+    if (UPrimitiveComponent *Collision = Cast<UPrimitiveComponent>(GetRootComponent()))
+    {
+        Collision->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+    }
+    bAddDefaultMovementBindings = false;
 }

@@ -19,27 +19,27 @@
 UCLASS()
 class AUTOMATAWAR_API AAWPlayerController : public APlayerController
 {
-	GENERATED_BODY()
+    GENERATED_BODY()
 
 public:
-	AAWPlayerController();
+    AAWPlayerController();
 
-	virtual void BeginPlay() override;
+    virtual void BeginPlay() override;
 
-	UFUNCTION(BlueprintCallable, Category = "AutomataWar")
-	void SubmitScript(const FString& Source);
+    UFUNCTION(BlueprintCallable, Category = "AutomataWar")
+    void SubmitScript(const FString &Source);
 
-	DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnSubmissionResult, const FAWValidationResult&, Result);
-	UPROPERTY(BlueprintAssignable, Category = "AutomataWar")
-	FOnSubmissionResult OnSubmissionResult;
+    DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnSubmissionResult, const FAWValidationResult &, Result);
+    UPROPERTY(BlueprintAssignable, Category = "AutomataWar")
+    FOnSubmissionResult OnSubmissionResult;
 
 protected:
-	UFUNCTION(Server, Reliable)
-	void Server_SubmitScript(const FString& Source);
+    UFUNCTION(Server, Reliable)
+    void Server_SubmitScript(const FString &Source);
 
-	UFUNCTION(Client, Reliable)
-	void Client_SubmissionResult(bool bSuccess, const FString& ErrorMessage);
+    UFUNCTION(Client, Reliable)
+    void Client_SubmissionResult(bool bSuccess, const FString &ErrorMessage);
 
-	UPROPERTY()
-	TObjectPtr<class UAWHUDWidget> HUDWidget;
+    UPROPERTY()
+    TObjectPtr<class UAWHUDWidget> HUDWidget;
 };

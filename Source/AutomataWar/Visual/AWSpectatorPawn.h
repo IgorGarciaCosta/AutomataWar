@@ -18,8 +18,8 @@
 UCLASS()
 class AUTOMATAWAR_API AAWSpectatorPawn : public ASpectatorPawn
 {
-	GENERATED_BODY()
+    GENERATED_BODY()
 
 public:
-	AAWSpectatorPawn();
+    AAWSpectatorPawn();
 };

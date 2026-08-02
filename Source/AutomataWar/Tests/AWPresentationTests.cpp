@@ -20,27 +20,31 @@
 #include "AutomataWar/UI/AWHUDWidget.h"
 #include "AutomataWar/UI/SAWCodeEditor.h"
 #include "AutomataWar/Visual/AWVisualTypes.h"
+#include "Engine/EngineTypes.h"
+#include "Materials/MaterialInterface.h"
+#include "NiagaraSystem.h"
+#include "Sound/SoundBase.h"
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // Language Reference Definitions Count
 // ═══════════════════════════════════════════════════════════════════════════════
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FLangRefInstructionCount, "AutomataWar.UI.LangRef.InstructionCountIs8",
-	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 
-bool FLangRefInstructionCount::RunTest(const FString& Parameters)
+bool FLangRefInstructionCount::RunTest(const FString &Parameters)
 {
-	TestEqual(TEXT("OpcodeCount == 8"), Automata::OpcodeCount, 8);
-	return true;
+    TestEqual(TEXT("OpcodeCount == 8"), Automata::OpcodeCount, 8);
+    return true;
 }
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FLangRefRegisterCount, "AutomataWar.UI.LangRef.RegisterCountIs9",
-	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 
-bool FLangRefRegisterCount::RunTest(const FString& Parameters)
+bool FLangRefRegisterCount::RunTest(const FString &Parameters)
 {
-	TestEqual(TEXT("TotalRegisterCount == 9"), Automata::TotalRegisterCount, 9);
-	return true;
+    TestEqual(TEXT("TotalRegisterCount == 9"), Automata::TotalRegisterCount, 9);
+    return true;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -48,89 +52,89 @@ bool FLangRefRegisterCount::RunTest(const FString& Parameters)
 // ═══════════════════════════════════════════════════════════════════════════════
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FReplayResimDeterminism, "AutomataWar.UI.Replay.ResimDeterminism",
-	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 
-bool FReplayResimDeterminism::RunTest(const FString& Parameters)
+bool FReplayResimDeterminism::RunTest(const FString &Parameters)
 {
-	FString Src0 = FAWExampleScripts::Aggressor();
-	FString Src1 = FAWExampleScripts::Kiter();
-	std::string S0 = TCHAR_TO_UTF8(*Src0);
-	std::string S1 = TCHAR_TO_UTF8(*Src1);
-	Automata::CompileResult C0 = Automata::Compile(S0);
-	Automata::CompileResult C1 = Automata::Compile(S1);
-	TestTrue(TEXT("Both compile"), C0.Ok() && C1.Ok());
+    FString Src0 = FAWExampleScripts::Aggressor();
+    FString Src1 = FAWExampleScripts::Kiter();
+    std::string S0 = TCHAR_TO_UTF8(*Src0);
+    std::string S1 = TCHAR_TO_UTF8(*Src1);
+    Automata::CompileResult C0 = Automata::Compile(S0);
+    Automata::CompileResult C1 = Automata::Compile(S1);
+    TestTrue(TEXT("Both compile"), C0.Ok() && C1.Ok());
 
-	Automata::SimConfig Config;
-	Config.seed = 42;
+    Automata::SimConfig Config;
+    Config.seed = 42;
 
-	// Full sim
-	Automata::Simulation SimFull;
-	SimFull.RunMatch(C0.program, C1.program, Config);
-	const auto& FullSnaps = SimFull.GetSnapshots();
-	TestTrue(TEXT("Has snapshots"), FullSnaps.size() > 10);
+    // Full sim
+    Automata::Simulation SimFull;
+    SimFull.RunMatch(C0.program, C1.program, Config);
+    const auto &FullSnaps = SimFull.GetSnapshots();
+    TestTrue(TEXT("Has snapshots"), FullSnaps.size() > 10);
 
-	// Re-sim (simulating "scrub to tick 0 and replay forward")
-	Automata::Simulation SimResim;
-	SimResim.RunMatch(C0.program, C1.program, Config);
-	const auto& ResimSnaps = SimResim.GetSnapshots();
+    // Re-sim (simulating "scrub to tick 0 and replay forward")
+    Automata::Simulation SimResim;
+    SimResim.RunMatch(C0.program, C1.program, Config);
+    const auto &ResimSnaps = SimResim.GetSnapshots();
 
-	// Compare every snapshot hash
-	TestEqual(TEXT("Same snapshot count"), (int32)FullSnaps.size(), (int32)ResimSnaps.size());
-	bool bAllMatch = true;
-	for (size_t i = 0; i < FullSnaps.size() && i < ResimSnaps.size(); ++i)
-	{
-		if (FullSnaps[i].stateHash != ResimSnaps[i].stateHash)
-		{
-			bAllMatch = false;
-			AddError(FString::Printf(TEXT("Hash mismatch at tick %d: %llu vs %llu"),
-				(int32)i, FullSnaps[i].stateHash, ResimSnaps[i].stateHash));
-			break;
-		}
-	}
-	TestTrue(TEXT("All snapshot hashes match"), bAllMatch);
+    // Compare every snapshot hash
+    TestEqual(TEXT("Same snapshot count"), (int32)FullSnaps.size(), (int32)ResimSnaps.size());
+    bool bAllMatch = true;
+    for (size_t i = 0; i < FullSnaps.size() && i < ResimSnaps.size(); ++i)
+    {
+        if (FullSnaps[i].stateHash != ResimSnaps[i].stateHash)
+        {
+            bAllMatch = false;
+            AddError(FString::Printf(TEXT("Hash mismatch at tick %d: %llu vs %llu"),
+                                     (int32)i, FullSnaps[i].stateHash, ResimSnaps[i].stateHash));
+            break;
+        }
+    }
+    TestTrue(TEXT("All snapshot hashes match"), bAllMatch);
 
-	return true;
+    return true;
 }
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FReplayStepBackResim, "AutomataWar.UI.Replay.StepBackResim",
-	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 
-bool FReplayStepBackResim::RunTest(const FString& Parameters)
+bool FReplayStepBackResim::RunTest(const FString &Parameters)
 {
-	FString Src0 = FAWExampleScripts::Camper();
-	FString Src1 = FAWExampleScripts::DefaultBot();
-	std::string S0 = TCHAR_TO_UTF8(*Src0);
-	std::string S1 = TCHAR_TO_UTF8(*Src1);
-	Automata::CompileResult C0 = Automata::Compile(S0);
-	Automata::CompileResult C1 = Automata::Compile(S1);
-	TestTrue(TEXT("Both compile"), C0.Ok() && C1.Ok());
+    FString Src0 = FAWExampleScripts::Camper();
+    FString Src1 = FAWExampleScripts::DefaultBot();
+    std::string S0 = TCHAR_TO_UTF8(*Src0);
+    std::string S1 = TCHAR_TO_UTF8(*Src1);
+    Automata::CompileResult C0 = Automata::Compile(S0);
+    Automata::CompileResult C1 = Automata::Compile(S1);
+    TestTrue(TEXT("Both compile"), C0.Ok() && C1.Ok());
 
-	Automata::SimConfig Config;
-	Config.seed = 777;
+    Automata::SimConfig Config;
+    Config.seed = 777;
 
-	Automata::Simulation Sim;
-	Sim.RunMatch(C0.program, C1.program, Config);
-	const auto& Snaps = Sim.GetSnapshots();
+    Automata::Simulation Sim;
+    Sim.RunMatch(C0.program, C1.program, Config);
+    const auto &Snaps = Sim.GetSnapshots();
 
-	// Pick a mid-point tick and verify re-sim to that point gives same state
-	if (Snaps.size() > 20)
-	{
-		int32 TargetTick = 20;
-		uint64 ExpectedHash = Snaps[TargetTick].stateHash;
+    // Pick a mid-point tick and verify re-sim to that point gives same state
+    if (Snaps.size() > 20)
+    {
+        int32 TargetTick = 20;
+        uint64 ExpectedHash = Snaps[TargetTick].stateHash;
 
-		// Re-sim
-		Automata::Simulation Sim2;
-		Sim2.RunMatch(C0.program, C1.program, Config);
-		const auto& Snaps2 = Sim2.GetSnapshots();
+        // Re-sim
+        Automata::Simulation Sim2;
+        Sim2.RunMatch(C0.program, C1.program, Config);
+        const auto &Snaps2 = Sim2.GetSnapshots();
 
-		TestTrue(TEXT("Re-sim has enough ticks"), (int32)Snaps2.size() > TargetTick);
-		if ((int32)Snaps2.size() > TargetTick)
-		{
-			TestEqual(TEXT("Step-back hash matches"), Snaps2[TargetTick].stateHash, ExpectedHash);
-		}
-	}
+        TestTrue(TEXT("Re-sim has enough ticks"), (int32)Snaps2.size() > TargetTick);
+        if ((int32)Snaps2.size() > TargetTick)
+        {
+            TestEqual(TEXT("Step-back hash matches"), Snaps2[TargetTick].stateHash, ExpectedHash);
+        }
+    }
 
-	return true;
+    return true;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -138,35 +142,38 @@ bool FReplayStepBackResim::RunTest(const FString& Parameters)
 // ═══════════════════════════════════════════════════════════════════════════════
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FAssetPathsCentralized, "AutomataWar.Visual.AssetPaths.AreCentralized",
-	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 
-bool FAssetPathsCentralized::RunTest(const FString& Parameters)
+bool FAssetPathsCentralized::RunTest(const FString &Parameters)
 {
-	// Verify all asset paths are non-empty and follow UE path format
-	auto CheckPath = [this](const TCHAR* Path, const TCHAR* Name)
-	{
-		FString P(Path);
-		TestTrue(FString::Printf(TEXT("%s not empty"), Name), P.Len() > 0);
-		TestTrue(FString::Printf(TEXT("%s starts with /"), Name), P.StartsWith(TEXT("/")));
-		TestTrue(FString::Printf(TEXT("%s contains dot"), Name), P.Contains(TEXT(".")));
-	};
+    // Verify all asset paths are non-empty and follow UE path format
+    auto CheckPath = [this](const TCHAR *Path, const TCHAR *Name)
+    {
+        FString P(Path);
+        TestTrue(FString::Printf(TEXT("%s not empty"), Name), P.Len() > 0);
+        TestTrue(FString::Printf(TEXT("%s starts with /"), Name), P.StartsWith(TEXT("/")));
+        TestTrue(FString::Printf(TEXT("%s contains dot"), Name), P.Contains(TEXT(".")));
+    };
 
-	CheckPath(AWVisualAssets::NS_MuzzleFlash, TEXT("NS_MuzzleFlash"));
-	CheckPath(AWVisualAssets::NS_ProjectileTrail, TEXT("NS_ProjectileTrail"));
-	CheckPath(AWVisualAssets::NS_Impact, TEXT("NS_Impact"));
-	CheckPath(AWVisualAssets::NS_Shield, TEXT("NS_Shield"));
-	CheckPath(AWVisualAssets::NS_Destruction, TEXT("NS_Destruction"));
-	CheckPath(AWVisualAssets::SFX_Fire, TEXT("SFX_Fire"));
-	CheckPath(AWVisualAssets::SFX_Impact, TEXT("SFX_Impact"));
-	CheckPath(AWVisualAssets::SFX_Shield, TEXT("SFX_Shield"));
-	CheckPath(AWVisualAssets::SFX_Move, TEXT("SFX_Move"));
-	CheckPath(AWVisualAssets::SFX_Destroy, TEXT("SFX_Destroy"));
-	CheckPath(AWUIAssets::MonoFontPath, TEXT("MonoFontPath"));
-	CheckPath(AWUIAssets::FallbackMonoFontPath, TEXT("FallbackMonoFontPath"));
-	CheckPath(AWUIAssets::SFX_UIConfirm, TEXT("SFX_UIConfirm"));
-	CheckPath(AWUIAssets::SFX_UINavigate, TEXT("SFX_UINavigate"));
+    CheckPath(AWVisualAssets::NS_MuzzleFlash, TEXT("NS_MuzzleFlash"));
+    CheckPath(AWVisualAssets::NS_ProjectileTrail, TEXT("NS_ProjectileTrail"));
+    CheckPath(AWVisualAssets::NS_Impact, TEXT("NS_Impact"));
+    CheckPath(AWVisualAssets::NS_Shield, TEXT("NS_Shield"));
+    CheckPath(AWVisualAssets::NS_Destruction, TEXT("NS_Destruction"));
+    CheckPath(AWVisualAssets::SFX_Fire, TEXT("SFX_Fire"));
+    CheckPath(AWVisualAssets::SFX_Impact, TEXT("SFX_Impact"));
+    CheckPath(AWVisualAssets::SFX_Shield, TEXT("SFX_Shield"));
+    CheckPath(AWVisualAssets::SFX_Move, TEXT("SFX_Move"));
+    CheckPath(AWVisualAssets::SFX_Destroy, TEXT("SFX_Destroy"));
+    CheckPath(AWVisualAssets::SFX_MatchStart, TEXT("SFX_MatchStart"));
+    CheckPath(AWVisualAssets::SFX_MatchEnd, TEXT("SFX_MatchEnd"));
+    CheckPath(AWUIAssets::MonoFontPath, TEXT("MonoFontPath"));
+    CheckPath(AWUIAssets::FallbackMonoFontPath, TEXT("FallbackMonoFontPath"));
+    CheckPath(AWUIAssets::SFX_UIConfirm, TEXT("SFX_UIConfirm"));
+    CheckPath(AWUIAssets::SFX_UINavigate, TEXT("SFX_UINavigate"));
+    CheckPath(AWUIAssets::SFX_UIError, TEXT("SFX_UIError"));
 
-	return true;
+    return true;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -174,36 +181,36 @@ bool FAssetPathsCentralized::RunTest(const FString& Parameters)
 // ═══════════════════════════════════════════════════════════════════════════════
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCodeEditorConstruct, "AutomataWar.UI.CodeEditor.Constructs",
-	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 
-bool FCodeEditorConstruct::RunTest(const FString& Parameters)
+bool FCodeEditorConstruct::RunTest(const FString &Parameters)
 {
-	// Verify SAWCodeEditor can be constructed without crash
-	TSharedPtr<SAWCodeEditor> Editor;
-	SAssignNew(Editor, SAWCodeEditor)
-		.InitialText(FText::FromString(TEXT("MOVE FWD\nFIRE\n")));
+    // Verify SAWCodeEditor can be constructed without crash
+    TSharedPtr<SAWCodeEditor> Editor;
+    SAssignNew(Editor, SAWCodeEditor)
+        .InitialText(FText::FromString(TEXT("MOVE FWD\nFIRE\n")));
 
-	TestTrue(TEXT("Editor constructed"), Editor.IsValid());
-	TestEqual(TEXT("Source matches"), Editor->GetSourceText(), FString(TEXT("MOVE FWD\nFIRE\n")));
-	TestTrue(TEXT("Compiles OK"), Editor->IsCompileOk());
+    TestTrue(TEXT("Editor constructed"), Editor.IsValid());
+    TestEqual(TEXT("Source matches"), Editor->GetSourceText(), FString(TEXT("MOVE FWD\nFIRE\n")));
+    TestTrue(TEXT("Compiles OK"), Editor->IsCompileOk());
 
-	return true;
+    return true;
 }
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCodeEditorDiagnostics, "AutomataWar.UI.CodeEditor.ShowsDiagnostics",
-	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 
-bool FCodeEditorDiagnostics::RunTest(const FString& Parameters)
+bool FCodeEditorDiagnostics::RunTest(const FString &Parameters)
 {
-	TSharedPtr<SAWCodeEditor> Editor;
-	SAssignNew(Editor, SAWCodeEditor)
-		.InitialText(FText::FromString(TEXT("MAVE\n")));
+    TSharedPtr<SAWCodeEditor> Editor;
+    SAssignNew(Editor, SAWCodeEditor)
+        .InitialText(FText::FromString(TEXT("MAVE\n")));
 
-	TestTrue(TEXT("Editor constructed"), Editor.IsValid());
-	TestFalse(TEXT("Has compile errors"), Editor->IsCompileOk());
-	TestTrue(TEXT("Has diagnostics"), Editor->GetCompileResult().diagnostics.size() > 0);
+    TestTrue(TEXT("Editor constructed"), Editor.IsValid());
+    TestFalse(TEXT("Has compile errors"), Editor->IsCompileOk());
+    TestTrue(TEXT("Has diagnostics"), Editor->GetCompileResult().diagnostics.size() > 0);
 
-	return true;
+    return true;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -211,59 +218,95 @@ bool FCodeEditorDiagnostics::RunTest(const FString& Parameters)
 // ═══════════════════════════════════════════════════════════════════════════════
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FReplayControllerStepping, "AutomataWar.UI.Replay.ControllerStepping",
-	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 
-bool FReplayControllerStepping::RunTest(const FString& Parameters)
+bool FReplayControllerStepping::RunTest(const FString &Parameters)
 {
-	using namespace Automata;
+    using namespace Automata;
 
-	FString Src0 = FAWExampleScripts::Aggressor();
-	FString Src1 = FAWExampleScripts::Camper();
-	std::string S0 = TCHAR_TO_UTF8(*Src0);
-	std::string S1 = TCHAR_TO_UTF8(*Src1);
+    FString Src0 = FAWExampleScripts::Aggressor();
+    FString Src1 = FAWExampleScripts::Camper();
+    std::string S0 = TCHAR_TO_UTF8(*Src0);
+    std::string S1 = TCHAR_TO_UTF8(*Src1);
 
-	FAWReplayController Controller;
-	bool bInit = Controller.Initialize(S0, S1, 12345);
-	TestTrue(TEXT("Controller initializes"), bInit);
-	TestEqual(TEXT("Starts at tick 0"), Controller.GetCurrentTick(), 0);
-	TestTrue(TEXT("Has ticks"), Controller.GetTotalTicks() > 10);
+    FAWReplayController Controller;
+    bool bInit = Controller.Initialize(S0, S1, 12345);
+    TestTrue(TEXT("Controller initializes"), bInit);
+    TestEqual(TEXT("Starts at tick 0"), Controller.GetCurrentTick(), 0);
+    TestTrue(TEXT("Has ticks"), Controller.GetTotalTicks() > 10);
 
-	// Step forward
-	Controller.StepForward();
-	TestEqual(TEXT("After step forward, tick 1"), Controller.GetCurrentTick(), 1);
+    // Step forward
+    Controller.StepForward();
+    TestEqual(TEXT("After step forward, tick 1"), Controller.GetCurrentTick(), 1);
 
-	// Seek to mid-point
-	int32 Mid = Controller.GetTotalTicks() / 2;
-	Controller.SeekToTick(Mid);
-	TestEqual(TEXT("Seek works"), Controller.GetCurrentTick(), Mid);
+    // Seek to mid-point
+    int32 Mid = Controller.GetTotalTicks() / 2;
+    Controller.SeekToTick(Mid);
+    TestEqual(TEXT("Seek works"), Controller.GetCurrentTick(), Mid);
 
-	// Step backward
-	Controller.StepBackward();
-	TestEqual(TEXT("Step back works"), Controller.GetCurrentTick(), Mid - 1);
+    // Step backward
+    Controller.StepBackward();
+    TestEqual(TEXT("Step back works"), Controller.GetCurrentTick(), Mid - 1);
 
-	// Seek to same tick twice => deterministic hash
-	Controller.SeekToTick(5);
-	uint64_t Hash1 = Controller.GetCurrentSnapshot().stateHash;
-	Controller.SeekToTick(Controller.GetTotalTicks() - 1);
-	Controller.SeekToTick(5);
-	uint64_t Hash2 = Controller.GetCurrentSnapshot().stateHash;
-	TestEqual(TEXT("Seek deterministic"), Hash1, Hash2);
+    // Seek to same tick twice => deterministic hash
+    Controller.SeekToTick(5);
+    uint64_t Hash1 = Controller.GetCurrentSnapshot().stateHash;
+    Controller.SeekToTick(Controller.GetTotalTicks() - 1);
+    Controller.SeekToTick(5);
+    uint64_t Hash2 = Controller.GetCurrentSnapshot().stateHash;
+    TestEqual(TEXT("Seek deterministic"), Hash1, Hash2);
 
-	return true;
+    return true;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // Asset Path Count (catches accidental removal)
 // ═══════════════════════════════════════════════════════════════════════════════
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FAssetPathCount, "AutomataWar.Visual.AssetPaths.CountIs14",
-	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FAssetPathCount, "AutomataWar.Visual.AssetPaths.CountIs16",
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 
-bool FAssetPathCount::RunTest(const FString& Parameters)
+bool FAssetPathCount::RunTest(const FString &Parameters)
 {
-	TestEqual(TEXT("Total asset paths"), AWVisualAssets::TotalAssetPathCount, 14);
-	TestEqual(TEXT("Material asset count"), AWVisualAssets::MaterialAssetCount, 4);
-	return true;
+    TestEqual(TEXT("Total asset paths"), AWVisualAssets::TotalAssetPathCount, 16);
+    TestEqual(TEXT("Material asset count"), AWVisualAssets::MaterialAssetCount, 4);
+    return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FAssetIntegrity, "AutomataWar.Visual.Assets.AllResolve",
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FAssetIntegrity::RunTest(const FString &Parameters)
+{
+    auto CheckMaterial = [this](const TCHAR *Path)
+    { TestNotNull(Path, LoadObject<UMaterialInterface>(nullptr, Path)); };
+    auto CheckNiagara = [this](const TCHAR *Path)
+    { TestNotNull(Path, LoadObject<UNiagaraSystem>(nullptr, Path)); };
+    auto CheckSound = [this](const TCHAR *Path)
+    { TestNotNull(Path, LoadObject<USoundBase>(nullptr, Path)); };
+
+    CheckMaterial(AWVisualAssets::M_ArenaCell);
+    CheckMaterial(AWVisualAssets::M_Robot);
+    CheckMaterial(AWVisualAssets::M_Cover);
+    CheckMaterial(AWVisualAssets::M_Effect);
+    CheckNiagara(AWVisualAssets::NS_MuzzleFlash);
+    CheckNiagara(AWVisualAssets::NS_ProjectileTrail);
+    CheckNiagara(AWVisualAssets::NS_Impact);
+    CheckNiagara(AWVisualAssets::NS_Shield);
+    CheckNiagara(AWVisualAssets::NS_Destruction);
+    CheckSound(AWVisualAssets::SFX_Fire);
+    CheckSound(AWVisualAssets::SFX_Impact);
+    CheckSound(AWVisualAssets::SFX_Shield);
+    CheckSound(AWVisualAssets::SFX_Move);
+    CheckSound(AWVisualAssets::SFX_Destroy);
+    CheckSound(AWVisualAssets::SFX_MatchStart);
+    CheckSound(AWVisualAssets::SFX_MatchEnd);
+    CheckSound(AWUIAssets::SFX_UIConfirm);
+    CheckSound(AWUIAssets::SFX_UINavigate);
+    CheckSound(AWUIAssets::SFX_UIError);
+    TestTrue(TEXT("Roboto Mono font exists"), IFileManager::Get().FileExists(*(FPaths::ProjectContentDir() / AWUIAssets::MonoFontFile)));
+    TestTrue(TEXT("Rajdhani font exists"), IFileManager::Get().FileExists(*(FPaths::ProjectContentDir() / AWUIAssets::DisplayFontFile)));
+    return true;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -271,12 +314,12 @@ bool FAssetPathCount::RunTest(const FString& Parameters)
 // ═══════════════════════════════════════════════════════════════════════════════
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FHUDScreenCount, "AutomataWar.UI.HUD.ScreenCountIs6",
-	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 
-bool FHUDScreenCount::RunTest(const FString& Parameters)
+bool FHUDScreenCount::RunTest(const FString &Parameters)
 {
-	TestEqual(TEXT("EAWScreen count"), (int32)EAWScreen::LanguageReference + 1, 6);
-	return true;
+    TestEqual(TEXT("EAWScreen count"), (int32)EAWScreen::LanguageReference + 1, 6);
+    return true;
 }
 
 #endif // WITH_DEV_AUTOMATION_TESTS
