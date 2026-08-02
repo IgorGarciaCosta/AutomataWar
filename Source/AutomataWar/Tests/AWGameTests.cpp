@@ -54,7 +54,7 @@ bool FValidatorRejectsTooManyLines::RunTest(const FString &Parameters)
     FString ManyLines;
     for (int32 i = 0; i <= FAWScriptValidator::MaxLines; ++i)
     {
-        ManyLines += TEXT("MOVE FWD\n");
+        ManyLines.AppendChar(TEXT('\n'));
     }
     FAWValidationResult R = FAWScriptValidator::Validate(ManyLines);
     TestFalse(TEXT("Too many lines rejected"), R.bSuccess);

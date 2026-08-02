@@ -6,6 +6,7 @@
 #include "AutomataCompiler.h"
 #include <algorithm>
 #include <cctype>
+#include <charconv>
 #include <sstream>
 #include <unordered_map>
 
@@ -76,23 +77,15 @@ namespace Automata
             return u == "EQ" || u == "NE" || u == "LT" || u == "LE" || u == "GT" || u == "GE" || u == "GOTO";
         }
 
-        bool ParseImmediate(const std::string &tok, int32_t &out)
+        bool ParseImmediate(const std::string &tok, int64_t &out)
         {
             if (tok.empty())
                 return false;
-            try
-            {
-                size_t pos = 0;
-                long long val = std::stoll(tok, &pos);
-                if (pos != tok.size())
-                    return false;
-                out = static_cast<int32_t>(val);
-                return true;
-            }
-            catch (...)
-            {
-                return false;
-            }
+
+            const char *Begin = tok.data();
+            const char *End = Begin + tok.size();
+            const std::from_chars_result Parsed = std::from_chars(Begin, End, out);
+            return Parsed.ec == std::errc() && Parsed.ptr == End;
         }
 
         std::vector<std::string> Tokenize(const std::string &line)
@@ -360,7 +353,7 @@ namespace Automata
                         instr.operandA = static_cast<uint8_t>(reg);
                     }
 
-                    int32_t imm = 0;
+                    int64_t imm = 0;
                     if (!ParseImmediate(tokens[2], imm))
                     {
                         diags.push_back({DiagSeverity::Error, DiagKind::BadOperandType, raw.lineNum,
@@ -429,7 +422,7 @@ namespace Automata
                     }
 
                     // tokens[3] = immediate (right operand must be immediate, not register)
-                    int32_t imm = 0;
+                    int64_t imm = 0;
                     if (ParseRegister(tokens[3]) >= 0)
                     {
                         diags.push_back({DiagSeverity::Error, DiagKind::BadOperandType, raw.lineNum,
