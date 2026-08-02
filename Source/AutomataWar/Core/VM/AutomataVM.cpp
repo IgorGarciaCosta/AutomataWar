@@ -11,7 +11,17 @@ namespace Automata
 Intent VMTick(VMState& state, const Program& program)
 {
     if (state.halted)
+    {
+        state.currentInstruction = -1;
         return {IntentType::None, 0};
+    }
+
+    // Energy-inert: robot does nothing, does not advance PC, prevents zero-cost loops.
+    if (state.energyInert)
+    {
+        state.currentInstruction = -1;
+        return {IntentType::Wait, 0};
+    }
 
     // Still busy from multi-tick instruction.
     if (state.busyLeft > 0)
@@ -21,16 +31,21 @@ Intent VMTick(VMState& state, const Program& program)
     }
 
     // PC safety.
-    if (program.code.empty() || state.pc >= static_cast<uint16_t>(program.code.size()))
+    if (program.code.empty())
     {
         state.halted = true;
+        state.currentInstruction = -1;
         return {IntentType::None, 0};
     }
 
+    // Wrap PC if past end.
+    if (state.pc >= static_cast<uint16_t>(program.code.size()))
+        state.pc = static_cast<uint16_t>(state.pc % program.code.size());
+
+    state.currentInstruction = state.pc;
     const Instruction& instr = program.code[state.pc];
     Intent intent{IntentType::None, 0};
 
-    // Advance PC (wraps).
     auto advancePC = [&]() {
         state.pc = static_cast<uint16_t>((state.pc + 1) % program.code.size());
     };
@@ -38,39 +53,45 @@ Intent VMTick(VMState& state, const Program& program)
     switch (instr.opcode)
     {
     case Opcode::MOVE:
-        intent = {IntentType::Move, 0};
+        intent = {IntentType::Move, static_cast<int16_t>(instr.operandA)}; // 0=FWD, 1=BACK
         state.busyLeft = TickCost[static_cast<int>(Opcode::MOVE)] - 1;
         advancePC();
+        ++state.instrExecCount;
         break;
 
     case Opcode::TURN:
-        intent = {IntentType::Turn, instr.imm16};
+        intent = {IntentType::Turn, instr.imm16}; // -1=LEFT, 1=RIGHT
         state.busyLeft = TickCost[static_cast<int>(Opcode::TURN)] - 1;
         advancePC();
+        ++state.instrExecCount;
         break;
 
     case Opcode::SCAN:
         intent = {IntentType::Scan, 0};
         state.busyLeft = TickCost[static_cast<int>(Opcode::SCAN)] - 1;
         advancePC();
+        ++state.instrExecCount;
         break;
 
     case Opcode::FIRE:
         intent = {IntentType::Fire, 0};
         state.busyLeft = TickCost[static_cast<int>(Opcode::FIRE)] - 1;
         advancePC();
+        ++state.instrExecCount;
         break;
 
     case Opcode::SHIELD:
         intent = {IntentType::Shield, 0};
         state.busyLeft = TickCost[static_cast<int>(Opcode::SHIELD)] - 1;
         advancePC();
+        ++state.instrExecCount;
         break;
 
     case Opcode::WAIT:
         intent = {IntentType::Wait, 0};
         state.busyLeft = TickCost[static_cast<int>(Opcode::WAIT)] - 1;
         advancePC();
+        ++state.instrExecCount;
         break;
 
     case Opcode::SET:
@@ -78,9 +99,10 @@ Intent VMTick(VMState& state, const Program& program)
         uint8_t reg = instr.operandA;
         if (reg < GPRegisterCount)
             state.regs[reg] = static_cast<int32_t>(instr.imm16);
+        // SET costs 1 tick, emits Wait intent externally.
         state.busyLeft = TickCost[static_cast<int>(Opcode::SET)] - 1;
         advancePC();
-        // SET is internal; emit Wait intent for tick cost.
+        ++state.instrExecCount;
         intent = {IntentType::Wait, 0};
         break;
     }
@@ -88,9 +110,7 @@ Intent VMTick(VMState& state, const Program& program)
     case Opcode::IF:
     {
         int32_t lhs = state.regs[instr.operandA];
-        int32_t rhs = (instr.reserved == 1)
-            ? state.regs[static_cast<uint8_t>(instr.imm16)]
-            : static_cast<int32_t>(instr.imm16);
+        int32_t rhs = static_cast<int32_t>(instr.imm16); // always immediate
         CmpOp cmp = static_cast<CmpOp>(instr.operandB);
         bool taken = false;
         switch (cmp)
@@ -105,7 +125,6 @@ Intent VMTick(VMState& state, const Program& program)
         if (taken)
         {
             state.pc = instr.target;
-            // Wrap safety.
             if (state.pc >= static_cast<uint16_t>(program.code.size()))
                 state.pc = static_cast<uint16_t>(state.pc % program.code.size());
         }
@@ -114,6 +133,7 @@ Intent VMTick(VMState& state, const Program& program)
             advancePC();
         }
         state.busyLeft = TickCost[static_cast<int>(Opcode::IF)] - 1;
+        ++state.instrExecCount;
         intent = {IntentType::Wait, 0};
         break;
     }

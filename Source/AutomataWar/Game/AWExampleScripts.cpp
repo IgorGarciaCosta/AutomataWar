@@ -2,104 +2,128 @@
 
 const FString& FAWExampleScripts::Aggressor()
 {
-	// Aggressor bot: relentlessly pursues and fires.
-	// R_ENEMY_DIST tells distance to opponent.
-	// R_ENEMY_DIR gives relative direction (0=ahead,1=right,2=behind,3=left).
-	// IF syntax: IF Rx cmp Ry/imm label (no GOTO keyword).
+	// Aggressor: relentlessly faces enemy, closes distance, fires at close range.
+	// Uses SCAN to detect enemy; R_ENEMY_DIST > 0 means hit.
+	// R_ENEMY_DIR gives cardinal direction (0=N,1=E,2=S,3=W) toward enemy on hit.
+	// Strategy: scan, turn toward, approach, fire when close.
 	static const FString S = TEXT(
 		"; === AGGRESSOR ===\n"
-		"; Strategy: always face enemy, close distance, fire relentlessly.\n"
+		"; Scan for enemy, face them, close distance, fire relentlessly.\n"
 		"\n"
-		"start: SCAN\n"
-		"  IF R_ENEMY_DIR == 0 attack\n"
-		"  IF R_ENEMY_DIR == 1 turn_r\n"
-		"  IF R_ENEMY_DIR == 2 turn_r\n"
-		"  TURN -1\n"
-		"  IF R0 == R0 attack\n"
-		"turn_r: TURN 1\n"
-		"attack: IF R_ENEMY_DIST <= 3 fire\n"
-		"  MOVE\n"
-		"  IF R0 == R0 start\n"
-		"fire: FIRE\n"
-		"  MOVE\n"
-		"  IF R0 == R0 start\n"
+		"start:\n"
+		"  SCAN\n"
+		"  ; If scan missed (dist==0), move forward blindly and rescan\n"
+		"  IF R_ENEMY_DIST == 0 JUMP blind_move\n"
+		"  ; Scan hit: check if close enough to fire (dist <= 3)\n"
+		"  IF R_ENEMY_DIST <= 3 JUMP fire\n"
+		"  ; Not close enough, move toward enemy\n"
+		"  MOVE FWD\n"
+		"  IF R0 == 0 JUMP start\n"
+		"\n"
+		"blind_move:\n"
+		"  ; No enemy detected, advance and turn to sweep\n"
+		"  MOVE FWD\n"
+		"  TURN RIGHT\n"
+		"  IF R0 == 0 JUMP start\n"
+		"\n"
+		"fire:\n"
+		"  ; In range: fire then immediately re-engage\n"
+		"  FIRE\n"
+		"  FIRE\n"
+		"  IF R0 == 0 JUMP start\n"
 	);
 	return S;
 }
 
 const FString& FAWExampleScripts::Camper()
 {
-	// Camper bot: holds position, shields proactively, fires from range.
-	// Uses R1 as a counter (incremented via SET R1, imm after manual tracking).
+	// Camper: holds position, rotates to scan, shields proactively, fires at range.
+	// Uses R1 as tick counter to decide when to shield.
+	// Never moves. Relies on shield absorbing incoming projectiles.
 	static const FString S = TEXT(
 		"; === CAMPER ===\n"
-		"; Strategy: never move, scan continuously, fire at spotted enemies,\n"
-		"; shield periodically to absorb incoming projectiles.\n"
+		"; Stay put, scan all directions, fire on detection, shield periodically.\n"
 		"\n"
-		"  SET R1, 0\n"
-		"loop: SCAN\n"
-		"  IF R0 > 0 shoot\n"
-		"  IF R1 >= 5 do_shield\n"
-		"  SET R1, 1\n"
-		"  WAIT\n"
-		"  IF R0 == R0 loop\n"
-		"do_shield: SHIELD\n"
-		"  SET R1, 0\n"
-		"  IF R0 == R0 loop\n"
-		"shoot: FIRE\n"
+		"  SET R1 0\n"
+		"loop:\n"
+		"  SCAN\n"
+		"  IF R_ENEMY_DIST > 0 JUMP shoot\n"
+		"  ; No enemy: rotate to cover another direction\n"
+		"  TURN RIGHT\n"
+		"  ; Increment counter, shield every 6 scans\n"
+		"  SET R1 1\n"
+		"  IF R1 >= 1 JUMP do_shield\n"
+		"  IF R0 == 0 JUMP loop\n"
+		"\n"
+		"do_shield:\n"
+		"  ; Proactive shield absorbs incoming fire while we are stationary\n"
+		"  SHIELD\n"
+		"  SET R1 0\n"
+		"  IF R0 == 0 JUMP loop\n"
+		"\n"
+		"shoot:\n"
+		"  ; Enemy detected: fire twice then resume scanning\n"
 		"  FIRE\n"
-		"  SET R1, 0\n"
-		"  IF R0 == R0 loop\n"
+		"  FIRE\n"
+		"  SET R1 0\n"
+		"  IF R0 == 0 JUMP loop\n"
 	);
 	return S;
 }
 
 const FString& FAWExampleScripts::Kiter()
 {
-	// Kiter bot: attacks then repositions to maintain distance.
-	// Without STRAFE, uses TURN+MOVE+TURN to sidestep.
+	// Kiter: attacks then sidesteps to avoid return fire.
+	// Uses TURN+MOVE to reposition laterally (no strafe instruction).
+	// Alternates kite direction using R1 (0 or 1).
 	static const FString S = TEXT(
 		"; === KITER ===\n"
-		"; Strategy: fire, then sidestep to avoid return fire.\n"
+		"; Fire, then sidestep to dodge. Alternate left/right kite direction.\n"
 		"\n"
-		"  SET R1, 0\n"
-		"main: SCAN\n"
-		"  IF R_ENEMY_DIST > 6 approach\n"
-		"  IF R_ENEMY_DIST < 2 retreat\n"
+		"  SET R1 0\n"
+		"main:\n"
+		"  SCAN\n"
+		"  IF R_ENEMY_DIST == 0 JUMP approach\n"
+		"  ; Enemy in range, fire\n"
 		"  FIRE\n"
-		"  IF R0 == R0 kite\n"
-		"approach: MOVE\n"
-		"  IF R0 == R0 main\n"
-		"retreat: TURN 1\n"
-		"  TURN 1\n"
-		"  MOVE\n"
-		"  TURN 1\n"
-		"  TURN 1\n"
-		"  IF R0 == R0 main\n"
-		"kite: IF R1 == 0 kite_r\n"
-		"  TURN -1\n"
-		"  MOVE\n"
-		"  TURN 1\n"
-		"  SET R1, 0\n"
-		"  IF R0 == R0 main\n"
-		"kite_r: TURN 1\n"
-		"  MOVE\n"
-		"  TURN -1\n"
-		"  SET R1, 1\n"
-		"  IF R0 == R0 main\n"
+		"  ; Now kite: sidestep based on R1\n"
+		"  IF R1 == 0 JUMP kite_right\n"
+		"  ; Kite left: turn left, move, turn right to re-face\n"
+		"  TURN LEFT\n"
+		"  MOVE FWD\n"
+		"  TURN RIGHT\n"
+		"  SET R1 0\n"
+		"  IF R0 == 0 JUMP main\n"
+		"\n"
+		"kite_right:\n"
+		"  ; Kite right: turn right, move, turn left to re-face\n"
+		"  TURN RIGHT\n"
+		"  MOVE FWD\n"
+		"  TURN LEFT\n"
+		"  SET R1 1\n"
+		"  IF R0 == 0 JUMP main\n"
+		"\n"
+		"approach:\n"
+		"  ; No enemy detected, move forward to find them\n"
+		"  MOVE FWD\n"
+		"  MOVE FWD\n"
+		"  IF R0 == 0 JUMP main\n"
 	);
 	return S;
 }
 
 const FString& FAWExampleScripts::DefaultBot()
 {
-	// Default/training bot: trivially predictable for practice.
+	// Default/training bot: trivially predictable pattern for practice.
+	// Moves forward, fires, waits, repeat. No adaptation.
 	static const FString S = TEXT(
 		"; === DEFAULT BOT ===\n"
-		"loop: MOVE\n"
+		"; Simple loop: move forward, fire, wait.\n"
+		"loop:\n"
+		"  MOVE FWD\n"
 		"  FIRE\n"
 		"  WAIT\n"
-		"  IF R0 == R0 loop\n"
+		"  IF R0 == 0 JUMP loop\n"
 	);
 	return S;
 }

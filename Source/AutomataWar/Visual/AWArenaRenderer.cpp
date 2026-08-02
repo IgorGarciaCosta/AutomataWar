@@ -178,6 +178,7 @@ void AAWArenaRenderer::BuildFloorGrid(int32 Width, int32 Height)
 void AAWArenaRenderer::SpawnCoverVisuals(int32 Width, int32 Height, const TArray<Automata::CellType>& Grid)
 {
 	UStaticMesh* CubeMesh = LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Cube.Cube"));
+	UStaticMesh* CylinderMesh = LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Cylinder.Cylinder"));
 	if (!CubeMesh) return;
 
 	int32 CoverIdx = 0;
@@ -190,30 +191,88 @@ void AAWArenaRenderer::SpawnCoverVisuals(int32 Width, int32 Height, const TArray
 
 			if (Grid[CellIdx] == Automata::CellType::Cover || Grid[CellIdx] == Automata::CellType::Wall)
 			{
-				FVector Pos = GridToWorld(X, Y) + FVector(0, 0, 40.f);
+				FVector Pos = GridToWorld(X, Y);
+				bool bIsWall = (Grid[CellIdx] == Automata::CellType::Wall);
 
-				// Variant selection from index for visual variety
-				float ScaleZ = (CoverIdx % 3 == 0) ? 0.8f : (CoverIdx % 3 == 1) ? 1.0f : 0.6f;
 				FLinearColor CoverColor;
-				switch (CoverIdx % 3)
+				switch (CoverIdx % 4)
 				{
 				case 0: CoverColor = FLinearColor(0.15f, 0.12f, 0.08f); break;
 				case 1: CoverColor = FLinearColor(0.08f, 0.12f, 0.15f); break;
-				default: CoverColor = FLinearColor(0.12f, 0.08f, 0.12f); break;
+				case 2: CoverColor = FLinearColor(0.12f, 0.08f, 0.12f); break;
+				default: CoverColor = FLinearColor(0.10f, 0.14f, 0.10f); break;
 				}
 
-				UStaticMeshComponent* Block = NewObject<UStaticMeshComponent>(this);
-				Block->SetupAttachment(GetRootComponent());
-				Block->SetStaticMesh(CubeMesh);
-				Block->SetWorldLocation(Pos);
-				Block->SetWorldScale3D(FVector(0.9f, 0.9f, ScaleZ));
-				Block->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-				Block->RegisterComponent();
-
-				UMaterialInstanceDynamic* Mat = Block->CreateDynamicMaterialInstance(0);
-				if (Mat)
+				// Walls: full-height uniform cubes
+				if (bIsWall)
 				{
-					Mat->SetVectorParameterValue(TEXT("BaseColor"), CoverColor);
+					UStaticMeshComponent* Block = NewObject<UStaticMeshComponent>(this);
+					Block->SetupAttachment(GetRootComponent());
+					Block->SetStaticMesh(CubeMesh);
+					Block->SetWorldLocation(Pos + FVector(0, 0, 50));
+					Block->SetWorldScale3D(FVector(0.95f, 0.95f, 1.0f));
+					Block->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+					Block->RegisterComponent();
+					if (UMaterialInstanceDynamic* Mat = Block->CreateDynamicMaterialInstance(0))
+						Mat->SetVectorParameterValue(TEXT("BaseColor"), FLinearColor(0.04f, 0.04f, 0.05f));
+				}
+				else
+				{
+					// Cover: 3 silhouette variants for visual interest
+					int32 Variant = CoverIdx % 3;
+					switch (Variant)
+					{
+					case 0: // Tall narrow pillar
+					{
+						UStaticMesh* Mesh = CylinderMesh ? CylinderMesh : CubeMesh;
+						UStaticMeshComponent* Block = NewObject<UStaticMeshComponent>(this);
+						Block->SetupAttachment(GetRootComponent());
+						Block->SetStaticMesh(Mesh);
+						Block->SetWorldLocation(Pos + FVector(0, 0, 45));
+						Block->SetWorldScale3D(FVector(0.35f, 0.35f, 0.9f));
+						Block->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+						Block->RegisterComponent();
+						if (UMaterialInstanceDynamic* Mat = Block->CreateDynamicMaterialInstance(0))
+							Mat->SetVectorParameterValue(TEXT("BaseColor"), CoverColor);
+						break;
+					}
+					case 1: // L-shaped: two cubes offset
+					{
+						UStaticMeshComponent* A = NewObject<UStaticMeshComponent>(this);
+						A->SetupAttachment(GetRootComponent());
+						A->SetStaticMesh(CubeMesh);
+						A->SetWorldLocation(Pos + FVector(-15, 0, 30));
+						A->SetWorldScale3D(FVector(0.4f, 0.9f, 0.6f));
+						A->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+						A->RegisterComponent();
+						if (UMaterialInstanceDynamic* Mat = A->CreateDynamicMaterialInstance(0))
+							Mat->SetVectorParameterValue(TEXT("BaseColor"), CoverColor);
+
+						UStaticMeshComponent* B = NewObject<UStaticMeshComponent>(this);
+						B->SetupAttachment(GetRootComponent());
+						B->SetStaticMesh(CubeMesh);
+						B->SetWorldLocation(Pos + FVector(20, -20, 20));
+						B->SetWorldScale3D(FVector(0.35f, 0.35f, 0.4f));
+						B->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+						B->RegisterComponent();
+						if (UMaterialInstanceDynamic* Mat = B->CreateDynamicMaterialInstance(0))
+							Mat->SetVectorParameterValue(TEXT("BaseColor"), CoverColor * 0.8f);
+						break;
+					}
+					default: // Low wide crate
+					{
+						UStaticMeshComponent* Block = NewObject<UStaticMeshComponent>(this);
+						Block->SetupAttachment(GetRootComponent());
+						Block->SetStaticMesh(CubeMesh);
+						Block->SetWorldLocation(Pos + FVector(0, 0, 22));
+						Block->SetWorldScale3D(FVector(0.85f, 0.85f, 0.4f));
+						Block->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+						Block->RegisterComponent();
+						if (UMaterialInstanceDynamic* Mat = Block->CreateDynamicMaterialInstance(0))
+							Mat->SetVectorParameterValue(TEXT("BaseColor"), CoverColor);
+						break;
+					}
+					}
 				}
 
 				++CoverIdx;
@@ -224,76 +283,83 @@ void AAWArenaRenderer::SpawnCoverVisuals(int32 Width, int32 Height, const TArray
 
 void AAWArenaRenderer::BuildRobotVisuals()
 {
-	// Robot 0: tracked/angular chassis (cyan) — uses cube primitives
 	UStaticMesh* CubeMesh = LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Cube.Cube"));
-	if (CubeMesh && RobotRoot0)
+	UStaticMesh* CylinderMesh = LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Cylinder.Cylinder"));
+	if (!CubeMesh) return;
+
+	// Helper to create a sub-part
+	auto MakePart = [&](USceneComponent* Parent, UStaticMesh* Mesh, FVector Loc, FVector Scale, FLinearColor Color) -> UStaticMeshComponent*
 	{
-		// Body
-		UStaticMeshComponent* Body = NewObject<UStaticMeshComponent>(this);
-		Body->SetupAttachment(RobotRoot0);
-		Body->SetStaticMesh(CubeMesh);
-		Body->SetRelativeLocation(FVector(0, 0, 25));
-		Body->SetRelativeScale3D(FVector(0.8f, 1.2f, 0.4f));
-		Body->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-		Body->RegisterComponent();
+		UStaticMeshComponent* Part = NewObject<UStaticMeshComponent>(this);
+		Part->SetupAttachment(Parent);
+		Part->SetStaticMesh(Mesh);
+		Part->SetRelativeLocation(Loc);
+		Part->SetRelativeScale3D(Scale);
+		Part->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+		Part->RegisterComponent();
+		UMaterialInstanceDynamic* Mat = Part->CreateDynamicMaterialInstance(0);
+		if (Mat)
+		{
+			Mat->SetVectorParameterValue(TEXT("BaseColor"), Color);
+			Mat->SetVectorParameterValue(TEXT("EmissiveColor"), Color * 0.5f);
+		}
+		return Part;
+	};
 
+	// Robot 0: tracked tank — broad body, two treads, shoulders, turret, barrel
+	if (RobotRoot0)
+	{
+		FLinearColor CyanBase(0.0f, 0.3f, 0.4f);
+		FLinearColor CyanDark(0.0f, 0.15f, 0.2f);
+		FLinearColor CyanBright(0.0f, 0.6f, 0.7f);
+
+		// Main body (broad box)
+		UStaticMeshComponent* Body = MakePart(RobotRoot0, CubeMesh, FVector(0, 0, 22), FVector(0.7f, 1.1f, 0.35f), CyanBase);
 		RobotMat0 = Body->CreateDynamicMaterialInstance(0);
-		if (RobotMat0)
-		{
-			RobotMat0->SetVectorParameterValue(TEXT("BaseColor"), FLinearColor(0.0f, 0.3f, 0.4f));
-			RobotMat0->SetVectorParameterValue(TEXT("EmissiveColor"), AWUIColors::AccentCyan * 2.f);
-		}
+		if (RobotMat0) { RobotMat0->SetVectorParameterValue(TEXT("BaseColor"), CyanBase); RobotMat0->SetVectorParameterValue(TEXT("EmissiveColor"), AWUIColors::AccentCyan * 2.f); }
 
-		// Turret/barrel
-		UStaticMeshComponent* Turret = NewObject<UStaticMeshComponent>(this);
-		Turret->SetupAttachment(RobotRoot0);
-		Turret->SetStaticMesh(CubeMesh);
-		Turret->SetRelativeLocation(FVector(40, 0, 35));
-		Turret->SetRelativeScale3D(FVector(0.6f, 0.2f, 0.15f));
-		Turret->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-		Turret->RegisterComponent();
-
-		if (UMaterialInstanceDynamic* TM = Turret->CreateDynamicMaterialInstance(0))
-		{
-			TM->SetVectorParameterValue(TEXT("BaseColor"), FLinearColor(0.05f, 0.2f, 0.25f));
-		}
+		// Left tread
+		MakePart(RobotRoot0, CubeMesh, FVector(0, -60, 12), FVector(0.9f, 0.15f, 0.2f), CyanDark);
+		// Right tread
+		MakePart(RobotRoot0, CubeMesh, FVector(0, 60, 12), FVector(0.9f, 0.15f, 0.2f), CyanDark);
+		// Shoulders (wider top plate)
+		MakePart(RobotRoot0, CubeMesh, FVector(0, 0, 38), FVector(0.5f, 1.3f, 0.12f), CyanBright);
+		// Turret base
+		MakePart(RobotRoot0, CubeMesh, FVector(10, 0, 46), FVector(0.35f, 0.35f, 0.2f), CyanBase);
+		// Barrel
+		MakePart(RobotRoot0, CubeMesh, FVector(50, 0, 48), FVector(0.6f, 0.1f, 0.08f), CyanDark);
 	}
 
-	// Robot 1: tripod/hover chassis (coral) — taller, narrower
-	if (CubeMesh && RobotRoot1)
+	// Robot 1: tripod walker — tall cylindrical body, three splayed legs, head, barrel
+	if (RobotRoot1)
 	{
-		UStaticMesh* CylinderMesh = LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Cylinder.Cylinder"));
+		FLinearColor CoralBase(0.4f, 0.1f, 0.08f);
+		FLinearColor CoralDark(0.2f, 0.05f, 0.04f);
+		FLinearColor CoralBright(0.7f, 0.2f, 0.15f);
+
 		UStaticMesh* BodyMesh = CylinderMesh ? CylinderMesh : CubeMesh;
 
-		// Body (tall narrow)
-		UStaticMeshComponent* Body = NewObject<UStaticMeshComponent>(this);
-		Body->SetupAttachment(RobotRoot1);
-		Body->SetStaticMesh(BodyMesh);
-		Body->SetRelativeLocation(FVector(0, 0, 40));
-		Body->SetRelativeScale3D(FVector(0.4f, 0.4f, 0.8f));
-		Body->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-		Body->RegisterComponent();
-
+		// Tall central body
+		UStaticMeshComponent* Body = MakePart(RobotRoot1, BodyMesh, FVector(0, 0, 45), FVector(0.35f, 0.35f, 0.7f), CoralBase);
 		RobotMat1 = Body->CreateDynamicMaterialInstance(0);
-		if (RobotMat1)
+		if (RobotMat1) { RobotMat1->SetVectorParameterValue(TEXT("BaseColor"), CoralBase); RobotMat1->SetVectorParameterValue(TEXT("EmissiveColor"), AWUIColors::AccentCoral * 2.f); }
+
+		// Three splayed legs (120 degrees apart)
+		for (int32 i = 0; i < 3; ++i)
 		{
-			RobotMat1->SetVectorParameterValue(TEXT("BaseColor"), FLinearColor(0.4f, 0.1f, 0.08f));
-			RobotMat1->SetVectorParameterValue(TEXT("EmissiveColor"), AWUIColors::AccentCoral * 2.f);
+			float Angle = i * 120.f;
+			float Rad = FMath::DegreesToRadians(Angle);
+			FVector LegOffset(FMath::Cos(Rad) * 40.f, FMath::Sin(Rad) * 40.f, 8.f);
+			MakePart(RobotRoot1, CubeMesh, LegOffset, FVector(0.12f, 0.12f, 0.35f), CoralDark);
+			// Hover pad at bottom of each leg
+			FVector PadOffset(FMath::Cos(Rad) * 45.f, FMath::Sin(Rad) * 45.f, 2.f);
+			MakePart(RobotRoot1, CubeMesh, PadOffset, FVector(0.2f, 0.2f, 0.05f), CoralBright);
 		}
 
-		// Turret/barrel
-		UStaticMeshComponent* Turret = NewObject<UStaticMeshComponent>(this);
-		Turret->SetupAttachment(RobotRoot1);
-		Turret->SetStaticMesh(CubeMesh);
-		Turret->SetRelativeLocation(FVector(35, 0, 55));
-		Turret->SetRelativeScale3D(FVector(0.5f, 0.15f, 0.12f));
-		Turret->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-		Turret->RegisterComponent();
-
-		if (UMaterialInstanceDynamic* TM = Turret->CreateDynamicMaterialInstance(0))
-		{
-			TM->SetVectorParameterValue(TEXT("BaseColor"), FLinearColor(0.3f, 0.05f, 0.04f));
-		}
+		// Head dome
+		MakePart(RobotRoot1, BodyMesh, FVector(0, 0, 72), FVector(0.22f, 0.22f, 0.2f), CoralBright);
+		// Barrel
+		MakePart(RobotRoot1, CubeMesh, FVector(40, 0, 65), FVector(0.5f, 0.08f, 0.06f), CoralDark);
 	}
 }
 
@@ -307,7 +373,9 @@ void AAWArenaRenderer::SpawnProjectileBolt(int32 OwnerIdx, FVector WorldPos, FVe
 	Bolt->SetStaticMesh(CubeMesh);
 	Bolt->SetWorldLocation(WorldPos + FVector(0, 0, AWVisualConfig::ProjectileZ));
 	Bolt->SetWorldScale3D(FVector(0.3f, 0.08f, 0.08f));
+	Bolt->SetWorldRotation(Direction.Rotation());
 	Bolt->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	Bolt->SetCustomPrimitiveDataFloat(0, OwnerIdx == 0 ? 0.f : 1.f);
 	Bolt->RegisterComponent();
 
 	UMaterialInstanceDynamic* Mat = Bolt->CreateDynamicMaterialInstance(0);
@@ -318,18 +386,24 @@ void AAWArenaRenderer::SpawnProjectileBolt(int32 OwnerIdx, FVector WorldPos, FVe
 		Mat->SetVectorParameterValue(TEXT("EmissiveColor"), Color * 5.f);
 	}
 
-	// Also add a point light for glow
 	UPointLightComponent* Light = NewObject<UPointLightComponent>(Bolt);
 	Light->SetupAttachment(Bolt);
 	Light->SetIntensity(500.f);
 	Light->SetAttenuationRadius(150.f);
 	Light->SetLightColor((OwnerIdx == 0) ? FColor::Cyan : FColor(255, 90, 80));
 	Light->RegisterComponent();
+
+	// Destroy after lifespan
+	FTimerHandle Handle;
+	TWeakObjectPtr<UStaticMeshComponent> WeakBolt = Bolt;
+	GetWorld()->GetTimerManager().SetTimer(Handle, [WeakBolt]()
+	{
+		if (WeakBolt.IsValid()) WeakBolt->DestroyComponent();
+	}, AWVisualConfig::ProjectileBoltLifespan, false);
 }
 
 void AAWArenaRenderer::TriggerMuzzleFlash(FVector WorldPos)
 {
-	// Try Niagara system, fall back to point light flash
 	UNiagaraSystem* NS = LoadObject<UNiagaraSystem>(nullptr, AWVisualAssets::NS_MuzzleFlash);
 	if (NS)
 	{
@@ -337,7 +411,6 @@ void AAWArenaRenderer::TriggerMuzzleFlash(FVector WorldPos)
 	}
 	else
 	{
-		// Fallback: transient point light
 		UPointLightComponent* Flash = NewObject<UPointLightComponent>(this);
 		Flash->SetupAttachment(GetRootComponent());
 		Flash->SetWorldLocation(WorldPos + FVector(0, 0, 50));
@@ -345,7 +418,10 @@ void AAWArenaRenderer::TriggerMuzzleFlash(FVector WorldPos)
 		Flash->SetAttenuationRadius(200.f);
 		Flash->SetLightColor(FColor::Yellow);
 		Flash->RegisterComponent();
-		// Auto-destroy after brief duration handled by separate timer or next tick cleanup
+
+		FTimerHandle H;
+		TWeakObjectPtr<UPointLightComponent> Weak = Flash;
+		GetWorld()->GetTimerManager().SetTimer(H, [Weak]() { if (Weak.IsValid()) Weak->DestroyComponent(); }, AWVisualConfig::TransientVFXLifespan, false);
 	}
 }
 
@@ -365,6 +441,10 @@ void AAWArenaRenderer::TriggerImpact(FVector WorldPos)
 		Flash->SetAttenuationRadius(150.f);
 		Flash->SetLightColor(FColor::Orange);
 		Flash->RegisterComponent();
+
+		FTimerHandle H;
+		TWeakObjectPtr<UPointLightComponent> Weak = Flash;
+		GetWorld()->GetTimerManager().SetTimer(H, [Weak]() { if (Weak.IsValid()) Weak->DestroyComponent(); }, AWVisualConfig::TransientVFXLifespan, false);
 	}
 }
 
@@ -382,7 +462,6 @@ void AAWArenaRenderer::TriggerShieldBubble(int32 RobotIdx)
 	}
 	else
 	{
-		// Fallback: bright sphere-like glow
 		UStaticMesh* SphereMesh = LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Sphere.Sphere"));
 		if (SphereMesh)
 		{
@@ -401,6 +480,10 @@ void AAWArenaRenderer::TriggerShieldBubble(int32 RobotIdx)
 				Mat->SetVectorParameterValue(TEXT("EmissiveColor"), Color * 3.f);
 				Mat->SetScalarParameterValue(TEXT("Opacity"), 0.3f);
 			}
+
+			FTimerHandle H;
+			TWeakObjectPtr<UStaticMeshComponent> Weak = Shield;
+			GetWorld()->GetTimerManager().SetTimer(H, [Weak]() { if (Weak.IsValid()) Weak->DestroyComponent(); }, AWVisualConfig::ShieldBubbleLifespan, false);
 		}
 	}
 }
@@ -421,6 +504,10 @@ void AAWArenaRenderer::TriggerDestruction(FVector WorldPos)
 		Flash->SetAttenuationRadius(400.f);
 		Flash->SetLightColor(FColor::Red);
 		Flash->RegisterComponent();
+
+		FTimerHandle H;
+		TWeakObjectPtr<UPointLightComponent> Weak = Flash;
+		GetWorld()->GetTimerManager().SetTimer(H, [Weak]() { if (Weak.IsValid()) Weak->DestroyComponent(); }, AWVisualConfig::TransientVFXLifespan * 2.f, false);
 	}
 }
 

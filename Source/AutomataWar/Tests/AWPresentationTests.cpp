@@ -14,8 +14,10 @@
 #include "AutomataWar/Core/Lang/AutomataCompiler.h"
 #include "AutomataWar/Core/Sim/AutomataSimulation.h"
 #include "AutomataWar/Core/Replay/AutomataReplay.h"
+#include "AutomataWar/Core/Replay/AWReplayController.h"
 #include "AutomataWar/Game/AWExampleScripts.h"
 #include "AutomataWar/UI/AWUITypes.h"
+#include "AutomataWar/UI/AWHUDWidget.h"
 #include "AutomataWar/UI/SAWCodeEditor.h"
 #include "AutomataWar/Visual/AWVisualTypes.h"
 
@@ -179,10 +181,10 @@ bool FCodeEditorConstruct::RunTest(const FString& Parameters)
 	// Verify SAWCodeEditor can be constructed without crash
 	TSharedPtr<SAWCodeEditor> Editor;
 	SAssignNew(Editor, SAWCodeEditor)
-		.InitialText(FText::FromString(TEXT("MOVE\nFIRE\n")));
+		.InitialText(FText::FromString(TEXT("MOVE FWD\nFIRE\n")));
 
 	TestTrue(TEXT("Editor constructed"), Editor.IsValid());
-	TestEqual(TEXT("Source matches"), Editor->GetSourceText(), FString(TEXT("MOVE\nFIRE\n")));
+	TestEqual(TEXT("Source matches"), Editor->GetSourceText(), FString(TEXT("MOVE FWD\nFIRE\n")));
 	TestTrue(TEXT("Compiles OK"), Editor->IsCompileOk());
 
 	return true;
@@ -201,6 +203,79 @@ bool FCodeEditorDiagnostics::RunTest(const FString& Parameters)
 	TestFalse(TEXT("Has compile errors"), Editor->IsCompileOk());
 	TestTrue(TEXT("Has diagnostics"), Editor->GetCompileResult().diagnostics.size() > 0);
 
+	return true;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Replay Controller: Stepping and Scrubbing
+// ═══════════════════════════════════════════════════════════════════════════════
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FReplayControllerStepping, "AutomataWar.UI.Replay.ControllerStepping",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FReplayControllerStepping::RunTest(const FString& Parameters)
+{
+	using namespace Automata;
+
+	FString Src0 = FAWExampleScripts::Aggressor();
+	FString Src1 = FAWExampleScripts::Camper();
+	std::string S0 = TCHAR_TO_UTF8(*Src0);
+	std::string S1 = TCHAR_TO_UTF8(*Src1);
+
+	FAWReplayController Controller;
+	bool bInit = Controller.Initialize(S0, S1, 12345);
+	TestTrue(TEXT("Controller initializes"), bInit);
+	TestEqual(TEXT("Starts at tick 0"), Controller.GetCurrentTick(), 0);
+	TestTrue(TEXT("Has ticks"), Controller.GetTotalTicks() > 10);
+
+	// Step forward
+	Controller.StepForward();
+	TestEqual(TEXT("After step forward, tick 1"), Controller.GetCurrentTick(), 1);
+
+	// Seek to mid-point
+	int32 Mid = Controller.GetTotalTicks() / 2;
+	Controller.SeekToTick(Mid);
+	TestEqual(TEXT("Seek works"), Controller.GetCurrentTick(), Mid);
+
+	// Step backward
+	Controller.StepBackward();
+	TestEqual(TEXT("Step back works"), Controller.GetCurrentTick(), Mid - 1);
+
+	// Seek to same tick twice => deterministic hash
+	Controller.SeekToTick(5);
+	uint64_t Hash1 = Controller.GetCurrentSnapshot().stateHash;
+	Controller.SeekToTick(Controller.GetTotalTicks() - 1);
+	Controller.SeekToTick(5);
+	uint64_t Hash2 = Controller.GetCurrentSnapshot().stateHash;
+	TestEqual(TEXT("Seek deterministic"), Hash1, Hash2);
+
+	return true;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Asset Path Count (catches accidental removal)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FAssetPathCount, "AutomataWar.Visual.AssetPaths.CountIs14",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FAssetPathCount::RunTest(const FString& Parameters)
+{
+	TestEqual(TEXT("Total asset paths"), AWVisualAssets::TotalAssetPathCount, 14);
+	TestEqual(TEXT("Material asset count"), AWVisualAssets::MaterialAssetCount, 4);
+	return true;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// HUD Widget: Screen count
+// ═══════════════════════════════════════════════════════════════════════════════
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FHUDScreenCount, "AutomataWar.UI.HUD.ScreenCountIs6",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FHUDScreenCount::RunTest(const FString& Parameters)
+{
+	TestEqual(TEXT("EAWScreen count"), (int32)EAWScreen::LanguageReference + 1, 6);
 	return true;
 }
 

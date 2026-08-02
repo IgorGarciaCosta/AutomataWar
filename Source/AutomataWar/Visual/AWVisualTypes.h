@@ -12,39 +12,44 @@ DECLARE_LOG_CATEGORY_EXTERN(LogAutomataVisual, Log, All);
 /** Centralized soft-path references for optional visual/audio assets. */
 namespace AWVisualAssets
 {
-	/** Optional Niagara system: muzzle flash. */
+	// ─── Materials ───────────────────────────────────────────────────────────
+	inline const TCHAR* M_ArenaCell = TEXT("/Game/Materials/M_ArenaCell.M_ArenaCell");
+	inline const TCHAR* M_Robot = TEXT("/Game/Materials/M_Robot.M_Robot");
+	inline const TCHAR* M_Cover = TEXT("/Game/Materials/M_Cover.M_Cover");
+	inline const TCHAR* M_Effect = TEXT("/Game/Materials/M_Effect.M_Effect");
+
+	// ─── Niagara ─────────────────────────────────────────────────────────────
 	inline const TCHAR* NS_MuzzleFlash = TEXT("/Game/VFX/NS_MuzzleFlash.NS_MuzzleFlash");
-	/** Optional Niagara system: projectile trail. */
 	inline const TCHAR* NS_ProjectileTrail = TEXT("/Game/VFX/NS_ProjectileTrail.NS_ProjectileTrail");
-	/** Optional Niagara system: impact spark. */
 	inline const TCHAR* NS_Impact = TEXT("/Game/VFX/NS_Impact.NS_Impact");
-	/** Optional Niagara system: shield bubble. */
 	inline const TCHAR* NS_Shield = TEXT("/Game/VFX/NS_Shield.NS_Shield");
-	/** Optional Niagara system: destruction explosion. */
 	inline const TCHAR* NS_Destruction = TEXT("/Game/VFX/NS_Destruction.NS_Destruction");
-	/** Optional SFX: fire. */
+
+	// ─── SFX ─────────────────────────────────────────────────────────────────
 	inline const TCHAR* SFX_Fire = TEXT("/Game/Audio/SFX/S_Fire.S_Fire");
-	/** Optional SFX: impact. */
 	inline const TCHAR* SFX_Impact = TEXT("/Game/Audio/SFX/S_Impact.S_Impact");
-	/** Optional SFX: shield activate. */
 	inline const TCHAR* SFX_Shield = TEXT("/Game/Audio/SFX/S_Shield.S_Shield");
-	/** Optional SFX: move. */
 	inline const TCHAR* SFX_Move = TEXT("/Game/Audio/SFX/S_Move.S_Move");
-	/** Optional SFX: destruction. */
 	inline const TCHAR* SFX_Destroy = TEXT("/Game/Audio/SFX/S_Destroy.S_Destroy");
+
+	/** Total count of material asset paths (for test validation). */
+	inline constexpr int32 MaterialAssetCount = 4;
+	/** Total count of all soft-path assets. */
+	inline constexpr int32 TotalAssetPathCount = 14;
 }
 
 /** Visual config constants. */
 namespace AWVisualConfig
 {
-	/** World-space cell size in Unreal units. */
 	inline constexpr float CellSize = 100.f;
-	/** Floor Z offset. */
 	inline constexpr float FloorZ = 0.f;
-	/** Robot visual height offset from floor. */
 	inline constexpr float RobotZ = 50.f;
-	/** Projectile Z offset. */
 	inline constexpr float ProjectileZ = 60.f;
-	/** Presentation interpolation speed (units/sec). */
 	inline constexpr float InterpSpeed = 8.f;
+	/** Duration in seconds for transient VFX components before destruction. */
+	inline constexpr float TransientVFXLifespan = 0.3f;
+	/** Duration for projectile bolt visuals. */
+	inline constexpr float ProjectileBoltLifespan = 0.5f;
+	/** Duration for shield bubble visual. */
+	inline constexpr float ShieldBubbleLifespan = 2.0f;
 }

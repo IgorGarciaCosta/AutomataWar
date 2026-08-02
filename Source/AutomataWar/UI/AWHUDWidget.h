@@ -1,20 +1,17 @@
 #pragma once
 
-/**
- * @file AWHUDWidget.h
- * @brief Root UMG widget managing all UI states: main menu, programming/split editors,
- *        in-match HUD, replay debugger, language reference, and replay browser.
- */
-
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
 #include "AutomataWar/Game/AWMatchTypes.h"
+#include "AutomataWar/Core/Replay/AWReplayController.h"
 #include "AWHUDWidget.generated.h"
 
 class SAWCodeEditor;
 class UAWGameSubsystem;
+class AAWArenaRenderer;
+class SEditableTextBox;
+class SSlider;
 
-/** UI screens managed by the root HUD widget. */
 UENUM()
 enum class EAWScreen : uint8
 {
@@ -26,13 +23,6 @@ enum class EAWScreen : uint8
 	LanguageReference
 };
 
-/**
- * @brief Root widget that owns all Automata War UI screens.
- *
- * Built entirely in C++ using Slate/UMG. No Blueprint widget assets.
- * Keyboard and gamepad navigable menu items. Responds to phase changes
- * from GameState to transition screens automatically.
- */
 UCLASS()
 class AUTOMATAWAR_API UAWHUDWidget : public UUserWidget
 {
@@ -43,38 +33,39 @@ public:
 	virtual void NativeDestruct() override;
 	virtual void NativeTick(const FGeometry& MyGeometry, float InDeltaTime) override;
 
-	/** Transition to a specific screen. */
 	UFUNCTION(BlueprintCallable, Category = "AutomataWar|UI")
 	void ShowScreen(EAWScreen Screen);
 
-	/** Get the currently active screen. */
 	UFUNCTION(BlueprintCallable, Category = "AutomataWar|UI")
 	EAWScreen GetCurrentScreen() const { return CurrentScreen; }
 
+	int32 GetScreenCount() const;
+	int32 GetActiveScreenIndex() const;
+
+protected:
+	virtual TSharedRef<SWidget> RebuildWidget() override;
+
 private:
-	/** Build the main menu panel. */
 	TSharedRef<SWidget> BuildMainMenu();
-	/** Build the programming split-editor panel. */
 	TSharedRef<SWidget> BuildProgrammingScreen();
-	/** Build the simulation waiting panel. */
 	TSharedRef<SWidget> BuildSimulationScreen();
-	/** Build the replay autopsy/debugger panel. */
 	TSharedRef<SWidget> BuildReplayAutopsyScreen();
-	/** Build the replay browser panel. */
 	TSharedRef<SWidget> BuildReplayBrowser();
-	/** Build the language reference panel. */
 	TSharedRef<SWidget> BuildLanguageReference();
 
-	/** Handle phase change from GameState. */
 	UFUNCTION()
 	void OnPhaseChanged(EAWMatchPhase NewPhase);
 
-	/** Menu actions. */
+	UFUNCTION()
+	void OnErrorReceived(const FString& Message);
+	UFUNCTION()
+	void OnSessionsRefreshed();
+
 	void OnLocalMatch();
 	void OnHostLAN();
 	void OnFindLAN();
-	void OnJoinIP(const FString& IP);
-	void OnReplayBrowser();
+	void OnJoinIP();
+	void OnReplayBrowserNav();
 	void OnLanguageRef();
 	void OnQuit();
 	void OnSubmitSlot(int32 Slot);
@@ -82,29 +73,53 @@ private:
 	void OnTrainingBot(int32 Slot);
 	void OnNextRound();
 
-	/** Replay debugger state. */
 	void OnReplayPlay();
 	void OnReplayPause();
 	void OnReplayStepTick();
-	void OnReplayStepInstruction();
 	void OnReplayStepBack();
+	void OnReplayStepInstruction(int32 RobotIndex);
 	void OnReplaySetSpeed(float Speed);
 	void OnReplayScrub(int32 Tick);
+	void InitializeReplayFromGameState();
+	void UpdateReplayUI();
+	void UpdateArenaFromReplay();
 
-	/** Utility to get subsystem. */
+	void RefreshReplayList();
+	void RefreshSessionList();
+	void OnReplayLoad(const FString& Filename);
+	void OnReplaySave();
+	void OnReplayExport(const FString& Filename);
+	void OnReplayImport();
+
+	void SetStatus(const FString& Msg, bool bError = false);
+
 	UAWGameSubsystem* GetSubsystem() const;
+	AAWArenaRenderer* FindOrSpawnRenderer();
 
 	EAWScreen CurrentScreen = EAWScreen::MainMenu;
-
-	/** Slate code editors (programming screen). */
 	TSharedPtr<SAWCodeEditor> EditorP1;
 	TSharedPtr<SAWCodeEditor> EditorP2;
-
-	/** Root switchable container. */
 	TSharedPtr<SWidgetSwitcher> ScreenSwitcher;
 
-	/** Replay debugger state. */
-	int32 ReplayCurrentTick = 0;
+	TSharedPtr<STextBlock> StatusText;
+	TSharedPtr<SEditableTextBox> JoinIPField;
+	TSharedPtr<SVerticalBox> SessionListBox;
+	TSharedPtr<SVerticalBox> ReplayListBox;
+	TSharedPtr<SEditableTextBox> ImportField;
+	TSharedPtr<SEditableTextBox> ExportField;
+	TSharedPtr<STextBlock> ReplayBrowserStatus;
+
+	TSharedPtr<STextBlock> ReplayTickText;
+	TSharedPtr<STextBlock> ReplaySpeedText;
+	TSharedPtr<STextBlock> ReplayOutcomeText;
+	TSharedPtr<STextBlock> ReplaySourceAText;
+	TSharedPtr<STextBlock> ReplaySourceBText;
+	TSharedPtr<STextBlock> ReplayRegistersP1;
+	TSharedPtr<STextBlock> ReplayRegistersP2;
+	TSharedPtr<STextBlock> ReplayEventLog;
+	TSharedPtr<SSlider> ReplayScrubSlider;
+
+	TUniquePtr<Automata::FAWReplayController> ReplayController;
 	float ReplaySpeed = 1.f;
 	bool bReplayPlaying = false;
 	double ReplayAccumulator = 0.0;

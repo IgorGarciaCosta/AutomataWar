@@ -1,9 +1,31 @@
 #include "AWPlayerController.h"
 #include "AWGameMode.h"
 #include "AWPlayerState.h"
+#include "AutomataWar/UI/AWHUDWidget.h"
+#include "Blueprint/UserWidget.h"
 
 AAWPlayerController::AAWPlayerController()
 {
+	bShowMouseCursor = true;
+}
+
+void AAWPlayerController::BeginPlay()
+{
+	Super::BeginPlay();
+
+	if (IsLocalController())
+	{
+		HUDWidget = CreateWidget<UAWHUDWidget>(this, UAWHUDWidget::StaticClass());
+		if (HUDWidget)
+		{
+			HUDWidget->AddToViewport(0);
+		}
+
+		FInputModeUIOnly InputMode;
+		InputMode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
+		SetInputMode(InputMode);
+		SetShowMouseCursor(true);
+	}
 }
 
 void AAWPlayerController::SubmitScript(const FString& Source)

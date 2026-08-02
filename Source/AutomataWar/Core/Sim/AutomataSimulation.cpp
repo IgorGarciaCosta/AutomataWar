@@ -4,13 +4,13 @@
  */
 
 #include "AutomataSimulation.h"
-#include <cmath>
 #include <algorithm>
+#include <cstdlib>
 
 namespace Automata
 {
 
-// ─── Grid initialization ─────────────────────────────────────────────────────
+// --- Grid initialization -----------------------------------------------------
 
 void Simulation::InitGrid(int32_t w, int32_t h, Xorshift64& rng)
 {
@@ -18,12 +18,10 @@ void Simulation::InitGrid(int32_t w, int32_t h, Xorshift64& rng)
     gridHeight_ = h;
     grid_.assign(static_cast<size_t>(w * h), CellType::Empty);
 
-    // Place deterministic cover: ~10% of interior cells.
     for (int32_t y = 1; y < h - 1; ++y)
     {
         for (int32_t x = 1; x < w - 1; ++x)
         {
-            // Keep spawn corners clear (2x2 in each corner).
             if ((x < 3 && y < 3) || (x >= w - 3 && y >= h - 3))
                 continue;
             if ((rng.Next() % 100) < 10)
@@ -31,7 +29,6 @@ void Simulation::InitGrid(int32_t w, int32_t h, Xorshift64& rng)
         }
     }
 
-    // Border walls.
     for (int32_t x = 0; x < w; ++x)
     {
         grid_[static_cast<size_t>(x)] = CellType::Wall;
@@ -46,7 +43,6 @@ void Simulation::InitGrid(int32_t w, int32_t h, Xorshift64& rng)
 
 void Simulation::SpawnRobots(int32_t w, int32_t h)
 {
-    // Robot 0: top-left corner facing south-east (South).
     robots_[0] = {};
     robots_[0].x = 1;
     robots_[0].y = 1;
@@ -54,7 +50,6 @@ void Simulation::SpawnRobots(int32_t w, int32_t h)
     robots_[0].hp = MaxHP;
     robots_[0].energy = MaxEnergy;
 
-    // Robot 1: bottom-right corner facing north-west (North).
     robots_[1] = {};
     robots_[1].x = w - 2;
     robots_[1].y = h - 2;
@@ -63,27 +58,21 @@ void Simulation::SpawnRobots(int32_t w, int32_t h)
     robots_[1].energy = MaxEnergy;
 }
 
-// ─── Utilities ───────────────────────────────────────────────────────────────
+// --- Utilities ---------------------------------------------------------------
 
 bool Simulation::InBounds(int32_t x, int32_t y) const
 {
     return x >= 0 && x < gridWidth_ && y >= 0 && y < gridHeight_;
 }
 
-bool Simulation::IsBlocked(int32_t x, int32_t y) const
+CellType Simulation::CellAt(int32_t x, int32_t y) const
 {
-    if (!InBounds(x, y)) return true;
-    CellType c = grid_[static_cast<size_t>(y * gridWidth_ + x)];
-    if (c == CellType::Wall || c == CellType::Cover) return true;
-    // Check robot occupation.
-    for (int32_t i = 0; i < 2; ++i)
-        if (robots_[i].x == x && robots_[i].y == y) return true;
-    return false;
+    if (!InBounds(x, y)) return CellType::Wall;
+    return grid_[static_cast<size_t>(y * gridWidth_ + x)];
 }
 
 bool Simulation::HasLOS(int32_t x0, int32_t y0, int32_t x1, int32_t y1) const
 {
-    // Bresenham line; cover blocks LOS.
     int32_t dx = std::abs(x1 - x0), dy = std::abs(y1 - y0);
     int32_t sx = (x0 < x1) ? 1 : -1;
     int32_t sy = (y0 < y1) ? 1 : -1;
@@ -107,6 +96,8 @@ uint64_t Simulation::ComputeHash() const
     auto mix = [&](int64_t v) {
         for (int i = 0; i < 8; ++i) { h ^= static_cast<uint8_t>(v >> (i*8)); h *= 1099511628211ULL; }
     };
+    mix(gridWidth_); mix(gridHeight_);
+    for (CellType cell : grid_) mix(static_cast<int64_t>(cell));
     for (int32_t i = 0; i < 2; ++i)
     {
         mix(robots_[i].x); mix(robots_[i].y);
@@ -114,37 +105,35 @@ uint64_t Simulation::ComputeHash() const
         mix(robots_[i].hp); mix(robots_[i].energy);
         mix(robots_[i].shielded ? 1 : 0);
         mix(robots_[i].vm.pc); mix(robots_[i].vm.busyLeft);
+        mix(robots_[i].vm.currentInstruction);
+        mix(robots_[i].vm.halted ? 1 : 0);
+        mix(robots_[i].vm.energyInert ? 1 : 0);
+        mix(robots_[i].vm.instrExecCount);
         for (auto r : robots_[i].vm.regs) mix(r);
     }
     for (int32_t i = 0; i < 2; ++i)
-        for (auto& p : projectiles_[i])
-            if (p.active) { mix(p.x); mix(p.y); mix(static_cast<int64_t>(p.dir)); }
+        for (const auto& p : projectiles_[i])
+        {
+            mix(p.active ? 1 : 0);
+            mix(p.x); mix(p.y); mix(static_cast<int64_t>(p.dir)); mix(p.owner);
+        }
     return h;
 }
 
-// ─── System registers ────────────────────────────────────────────────────────
+// --- System registers --------------------------------------------------------
 
 void Simulation::UpdateSystemRegisters(int32_t robotIdx, int32_t tick)
 {
     auto& r = robots_[robotIdx];
     auto& o = robots_[1 - robotIdx];
-    r.vm.regs[static_cast<int>(Reg::R_HP)]         = r.hp;
-    r.vm.regs[static_cast<int>(Reg::R_ENERGY)]     = r.energy;
-    r.vm.regs[static_cast<int>(Reg::R_TICK)]       = tick;
-    r.vm.regs[static_cast<int>(Reg::R_ENEMY_DIST)] = std::abs(r.x - o.x) + std::abs(r.y - o.y);
-
-    // Relative direction: which cardinal direction is the opponent in?
-    int32_t dx = o.x - r.x;
-    int32_t dy = o.y - r.y;
-    Dir eDir;
-    if (std::abs(dx) >= std::abs(dy))
-        eDir = (dx > 0) ? Dir::East : Dir::West;
-    else
-        eDir = (dy > 0) ? Dir::South : Dir::North;
-    r.vm.regs[static_cast<int>(Reg::R_ENEMY_DIR)] = static_cast<int32_t>(eDir);
+    r.vm.regs[static_cast<int>(Reg::R_HP)]     = r.hp;
+    r.vm.regs[static_cast<int>(Reg::R_ENERGY)] = r.energy;
+    r.vm.regs[static_cast<int>(Reg::R_TICK)]   = tick;
+    // R_ENEMY_DIST and R_ENEMY_DIR are updated by SCAN only (not always-visible).
+    // Keep current values from last scan (initialized to 0).
 }
 
-// ─── Intent resolution ───────────────────────────────────────────────────────
+// --- Intent resolution -------------------------------------------------------
 
 void Simulation::ResolveIntent(int32_t robotIdx, const Intent& intent, int32_t tick)
 {
@@ -154,25 +143,41 @@ void Simulation::ResolveIntent(int32_t robotIdx, const Intent& intent, int32_t t
     {
     case IntentType::Move:
     {
-        int32_t nx = r.x + DirDX[static_cast<int>(r.facing)];
-        int32_t ny = r.y + DirDY[static_cast<int>(r.facing)];
-        if (!InBounds(nx, ny) || grid_[static_cast<size_t>(ny * gridWidth_ + nx)] != CellType::Empty)
+        // param: 0=FWD, 1=BACK
+        int32_t facingIdx = static_cast<int32_t>(r.facing);
+        int32_t dirMul = (intent.param == 0) ? 1 : -1;
+        int32_t nx = r.x + DirDX[facingIdx] * dirMul;
+        int32_t ny = r.y + DirDY[facingIdx] * dirMul;
+
+        if (!InBounds(nx, ny))
         {
-            events_.push_back({tick, robotIdx, EventType::MoveBlocked, nx, ny});
+            events_.push_back({tick, robotIdx, EventType::MoveBlockedWall, nx, ny});
         }
         else
         {
-            // Check robot collision.
-            auto& other = robots_[1 - robotIdx];
-            if (other.x == nx && other.y == ny)
+            CellType cell = CellAt(nx, ny);
+            if (cell == CellType::Wall)
             {
-                events_.push_back({tick, robotIdx, EventType::MoveBlocked, nx, ny});
+                events_.push_back({tick, robotIdx, EventType::MoveBlockedWall, nx, ny});
+            }
+            else if (cell == CellType::Cover)
+            {
+                events_.push_back({tick, robotIdx, EventType::MoveBlockedCover, nx, ny});
             }
             else
             {
-                r.x = nx;
-                r.y = ny;
-                events_.push_back({tick, robotIdx, EventType::Move, nx, ny});
+                // Check robot collision.
+                auto& other = robots_[1 - robotIdx];
+                if (other.x == nx && other.y == ny)
+                {
+                    events_.push_back({tick, robotIdx, EventType::MoveBlockedRobot, nx, ny});
+                }
+                else
+                {
+                    r.x = nx;
+                    r.y = ny;
+                    events_.push_back({tick, robotIdx, EventType::Move, nx, ny});
+                }
             }
         }
         break;
@@ -186,7 +191,7 @@ void Simulation::ResolveIntent(int32_t robotIdx, const Intent& intent, int32_t t
     }
     case IntentType::Scan:
     {
-        // 90-degree cardinal cone, range ScanRange, requires LOS.
+        // 90-degree cardinal cone forward, range ScanRange, cover blocks LOS.
         auto& other = robots_[1 - robotIdx];
         int32_t dx = other.x - r.x;
         int32_t dy = other.y - r.y;
@@ -194,7 +199,6 @@ void Simulation::ResolveIntent(int32_t robotIdx, const Intent& intent, int32_t t
         bool detected = false;
         if (dist <= ScanRange && dist > 0)
         {
-            // Check if enemy is in the cone (within 45 degrees of facing).
             Dir facing = r.facing;
             bool inCone = false;
             switch (facing)
@@ -207,20 +211,35 @@ void Simulation::ResolveIntent(int32_t robotIdx, const Intent& intent, int32_t t
             if (inCone && HasLOS(r.x, r.y, other.x, other.y))
                 detected = true;
         }
-        r.vm.regs[0] = detected ? 1 : 0;
+
+        if (detected)
+        {
+            // The signed cross product gives the enemy's side relative to facing.
+            r.vm.regs[static_cast<int>(Reg::R_ENEMY_DIST)] = dist;
+            const int32_t facingIndex = static_cast<int32_t>(r.facing);
+            const int32_t cross = DirDX[facingIndex] * dy - DirDY[facingIndex] * dx;
+            r.vm.regs[static_cast<int>(Reg::R_ENEMY_DIR)] =
+                cross < 0 ? static_cast<int32_t>(RelativeEnemyDir::Left) :
+                cross > 0 ? static_cast<int32_t>(RelativeEnemyDir::Right) :
+                            static_cast<int32_t>(RelativeEnemyDir::Ahead);
+        }
+        else
+        {
+            // Miss: R_ENEMY_DIST = 0.
+            r.vm.regs[static_cast<int>(Reg::R_ENEMY_DIST)] = 0;
+        }
         events_.push_back({tick, robotIdx, EventType::Scan, detected ? 1 : 0, 0});
         break;
     }
     case IntentType::Fire:
     {
-        // Find free projectile slot.
         for (auto& p : projectiles_[robotIdx])
         {
             if (!p.active)
             {
                 p.active = true;
-                p.x = r.x + DirDX[static_cast<int>(r.facing)];
-                p.y = r.y + DirDY[static_cast<int>(r.facing)];
+                p.x = r.x;
+                p.y = r.y;
                 p.dir = r.facing;
                 p.owner = robotIdx;
                 break;
@@ -243,7 +262,7 @@ void Simulation::ResolveIntent(int32_t robotIdx, const Intent& intent, int32_t t
     }
 }
 
-// ─── Projectile advancement ──────────────────────────────────────────────────
+// --- Projectile advancement --------------------------------------------------
 
 void Simulation::AdvanceProjectiles(int32_t tick)
 {
@@ -255,29 +274,10 @@ void Simulation::AdvanceProjectiles(int32_t tick)
             for (int32_t step = 0; step < ProjectileSpeed; ++step)
             {
                 if (!p.active) break;
-                // Check hit on robots at current position before moving.
                 int32_t target = 1 - owner;
-                if (p.x == robots_[target].x && p.y == robots_[target].y)
-                {
-                    if (robots_[target].shielded)
-                    {
-                        robots_[target].shielded = false;
-                        events_.push_back({tick, target, EventType::ShieldAbsorb, 0, 0});
-                    }
-                    else
-                    {
-                        robots_[target].hp -= ProjectileDamage;
-                        events_.push_back({tick, target, EventType::Hit, ProjectileDamage, 0});
-                    }
-                    p.active = false;
-                    break;
-                }
-
-                // Advance.
                 p.x += DirDX[static_cast<int>(p.dir)];
                 p.y += DirDY[static_cast<int>(p.dir)];
 
-                // Bounds/cover/wall check.
                 if (!InBounds(p.x, p.y))
                 {
                     p.active = false;
@@ -291,18 +291,17 @@ void Simulation::AdvanceProjectiles(int32_t tick)
                     break;
                 }
 
-                // Hit check after move.
                 if (p.x == robots_[target].x && p.y == robots_[target].y)
                 {
                     if (robots_[target].shielded)
                     {
                         robots_[target].shielded = false;
-                        events_.push_back({tick, target, EventType::ShieldAbsorb, 0, 0});
+                        events_.push_back({tick, target, EventType::ShieldAbsorb, owner, 0});
                     }
                     else
                     {
                         robots_[target].hp -= ProjectileDamage;
-                        events_.push_back({tick, target, EventType::Hit, ProjectileDamage, 0});
+                        events_.push_back({tick, target, EventType::Hit, ProjectileDamage, owner});
                     }
                     p.active = false;
                     break;
@@ -312,7 +311,7 @@ void Simulation::AdvanceProjectiles(int32_t tick)
     }
 }
 
-// ─── Match execution ─────────────────────────────────────────────────────────
+// --- Match execution ---------------------------------------------------------
 
 MatchResult Simulation::RunMatch(const Program& programA, const Program& programB, const SimConfig& config)
 {
@@ -321,15 +320,16 @@ MatchResult Simulation::RunMatch(const Program& programA, const Program& program
     SpawnRobots(config.gridWidth, config.gridHeight);
 
     events_.clear();
+    events_.reserve(static_cast<size_t>(TickCap * (2 + 2 * MaxProjectiles)));
     snapshots_.clear();
-    instrCount_ = {0, 0};
+    snapshots_.reserve(TickCap);
     projectiles_ = {};
 
     const Program* programs[2] = {&programA, &programB};
 
     for (int32_t tick = 0; tick < TickCap; ++tick)
     {
-        // Determine execution order: robot (tick % 2) goes first.
+        // Fair alternating: first-mover alternates each tick.
         int32_t first  = tick % 2;
         int32_t second = 1 - first;
 
@@ -342,43 +342,52 @@ MatchResult Simulation::RunMatch(const Program& programA, const Program& program
 
             UpdateSystemRegisters(idx, tick);
 
-            // Check energy.
-            Intent intent = VMTick(r.vm, *programs[idx]);
-            if (intent.type != IntentType::None && intent.type != IntentType::Wait)
+            if (r.energy <= 0)
             {
-                int32_t opIdx = -1;
-                switch (intent.type)
-                {
-                case IntentType::Move:   opIdx = static_cast<int>(Opcode::MOVE); break;
-                case IntentType::Turn:   opIdx = static_cast<int>(Opcode::TURN); break;
-                case IntentType::Scan:   opIdx = static_cast<int>(Opcode::SCAN); break;
-                case IntentType::Fire:   opIdx = static_cast<int>(Opcode::FIRE); break;
-                case IntentType::Shield: opIdx = static_cast<int>(Opcode::SHIELD); break;
-                default: break;
-                }
-                if (opIdx >= 0 && r.energy < EnergyCost[opIdx])
-                {
+                if (!r.vm.energyInert)
                     events_.push_back({tick, idx, EventType::EnergyDepleted, 0, 0});
-                    intent = {IntentType::Wait, 0};
-                }
-                else if (opIdx >= 0)
+                r.vm.energyInert = true;
+                ResolveIntent(idx, {IntentType::Wait, 0}, tick);
+                continue;
+            }
+
+            const Program& program = *programs[idx];
+            int32_t pendingCost = 0;
+            if (!r.vm.halted && r.vm.busyLeft == 0 && !program.code.empty())
+            {
+                const size_t instructionIndex = static_cast<size_t>(r.vm.pc) % program.code.size();
+                const int32_t opcodeIndex = static_cast<int32_t>(program.code[instructionIndex].opcode);
+                if (opcodeIndex >= 0 && opcodeIndex < OpcodeCount)
                 {
-                    r.energy -= EnergyCost[opIdx];
+                    pendingCost = EnergyCost[opcodeIndex];
+                    if (pendingCost > r.energy)
+                    {
+                        r.energy = 0;
+                        r.vm.energyInert = true;
+                        events_.push_back({tick, idx, EventType::EnergyDepleted, 0, 0});
+                        ResolveIntent(idx, {IntentType::Wait, 0}, tick);
+                        continue;
+                    }
                 }
             }
 
-            if (intent.type != IntentType::None)
-                instrCount_[idx]++;
+            const int32_t previousInstructionCount = r.vm.instrExecCount;
+            Intent intent = VMTick(r.vm, program);
+            if (r.vm.instrExecCount != previousInstructionCount)
+                r.energy -= pendingCost;
 
             ResolveIntent(idx, intent, tick);
         }
 
-        // Advance projectiles.
         AdvanceProjectiles(tick);
 
         // Clamp HP.
         for (auto& r : robots_)
             if (r.hp < 0) r.hp = 0;
+
+        // Snapshots expose system registers after every effect in this tick.
+        UpdateSystemRegisters(0, tick);
+        UpdateSystemRegisters(1, tick);
 
         // Snapshot.
         TickSnapshot snap;
@@ -387,19 +396,17 @@ MatchResult Simulation::RunMatch(const Program& programA, const Program& program
         snap.stateHash = ComputeHash();
         snapshots_.push_back(snap);
 
-        // Check termination.
         if (robots_[0].hp <= 0 || robots_[1].hp <= 0)
             break;
     }
 
     finalHash_ = ComputeHash();
 
-    // Determine outcome.
     MatchResult result;
     result.finalTick = static_cast<int32_t>(snapshots_.size());
     result.finalHP = {robots_[0].hp, robots_[1].hp};
     result.finalEnergy = {robots_[0].energy, robots_[1].energy};
-    result.instrCount = instrCount_;
+    result.instrCount = {robots_[0].vm.instrExecCount, robots_[1].vm.instrExecCount};
 
     if (robots_[0].hp > robots_[1].hp)
         result.outcome = MatchOutcome::Robot0Wins;
@@ -409,9 +416,9 @@ MatchResult Simulation::RunMatch(const Program& programA, const Program& program
         result.outcome = MatchOutcome::Robot0Wins;
     else if (robots_[1].energy > robots_[0].energy)
         result.outcome = MatchOutcome::Robot1Wins;
-    else if (instrCount_[0] < instrCount_[1])
+    else if (robots_[0].vm.instrExecCount < robots_[1].vm.instrExecCount)
         result.outcome = MatchOutcome::Robot0Wins;
-    else if (instrCount_[1] < instrCount_[0])
+    else if (robots_[1].vm.instrExecCount < robots_[0].vm.instrExecCount)
         result.outcome = MatchOutcome::Robot1Wins;
     else
         result.outcome = MatchOutcome::Draw;

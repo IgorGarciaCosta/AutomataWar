@@ -14,7 +14,8 @@ namespace
 	/** Set of known instruction mnemonics (uppercased). */
 	static const TSet<FString> InstructionSet = {
 		TEXT("MOVE"), TEXT("TURN"), TEXT("SCAN"), TEXT("FIRE"),
-		TEXT("SHIELD"), TEXT("SET"), TEXT("IF"), TEXT("WAIT")
+		TEXT("SHIELD"), TEXT("SET"), TEXT("IF"), TEXT("WAIT"),
+		TEXT("FWD"), TEXT("BACK"), TEXT("LEFT"), TEXT("RIGHT"), TEXT("JUMP")
 	};
 
 	/** Set of known register names (uppercased). */

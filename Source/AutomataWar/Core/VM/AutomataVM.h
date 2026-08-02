@@ -4,8 +4,7 @@
  * @file AutomataVM.h
  * @brief Deterministic virtual machine that executes compiled Automata bytecode.
  *
- * The VM has no arena/opponent access. It emits fixed-size intents that the
- * simulation consumes. One instruction dispatch per tick maximum.
+ * Emits fixed-size intents for the simulation. One instruction dispatch max per tick.
  * Engine-independent: no UObject, no Unreal types.
  */
 
@@ -17,12 +16,11 @@
 namespace Automata
 {
 
-// ─── Intent ──────────────────────────────────────────────────────────────────
+// --- Intent ------------------------------------------------------------------
 
-/** Action the VM requests for the current tick. */
 enum class IntentType : uint8_t
 {
-    None,    ///< No action (busy or halted).
+    None,    // busy or halted
     Move,
     Turn,
     Scan,
@@ -31,37 +29,32 @@ enum class IntentType : uint8_t
     Wait
 };
 
-/** Fixed-size intent emitted by the VM each tick. */
 struct Intent
 {
     IntentType type    = IntentType::None;
-    int16_t    param   = 0; ///< Direction for TURN (-1/1), otherwise unused.
+    int16_t    param   = 0; // TURN: -1/1. MOVE: 0=FWD, 1=BACK.
 };
 
-// ─── VM state ────────────────────────────────────────────────────────────────
+// --- VM state ----------------------------------------------------------------
 
-/** Per-robot VM execution state. */
 struct VMState
 {
-    std::array<int32_t, TotalRegisterCount> regs = {}; ///< Register file.
-    uint16_t pc       = 0;     ///< Program counter.
-    int32_t  busyLeft = 0;     ///< Ticks remaining for multi-tick instruction.
-    bool     halted   = false; ///< Set if PC goes out-of-range on empty program.
+    std::array<int32_t, TotalRegisterCount> regs = {};
+    uint16_t pc             = 0;
+    int32_t  busyLeft       = 0;
+    int32_t  currentInstruction = -1; // Bytecode index executing during this tick, including busy ticks.
+    bool     halted         = false;
+    bool     energyInert    = false; // set by simulation when energy==0
+    int32_t  instrExecCount = 0;    // total instructions dispatched
 };
 
-// ─── VM interface ────────────────────────────────────────────────────────────
+// --- VM interface ------------------------------------------------------------
 
 /**
- * @brief Execute one tick of the VM for a robot.
- * @param state Mutable VM state (registers, PC, busy counter).
- * @param program The compiled bytecode.
- * @return Intent describing what the robot wants to do this tick.
- *
- * Guarantees:
- * - At most one instruction dispatched per call.
- * - PC out-of-range causes safe halt (returns None).
- * - No dynamic allocation.
- * - Energy is tracked externally by the simulation.
+ * Execute one tick. At most one instruction dispatched per call.
+ * Energy checking is external (simulation sets energyInert). When energyInert
+ * the VM returns Wait unconditionally without advancing PC, preventing
+ * zero-cost loops. Program wraps at end.
  */
 Intent VMTick(VMState& state, const Program& program);
 

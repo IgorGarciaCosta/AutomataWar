@@ -22,7 +22,7 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FValidatorAcceptsValid, "AutomataWar.Game.Valid
 
 bool FValidatorAcceptsValid::RunTest(const FString& Parameters)
 {
-	FAWValidationResult R = FAWScriptValidator::Validate(TEXT("MOVE\nFIRE\nWAIT\n"));
+	FAWValidationResult R = FAWScriptValidator::Validate(TEXT("MOVE FWD\nFIRE\nWAIT\n"));
 	TestTrue(TEXT("Valid script accepted"), R.bSuccess);
 	return true;
 }
@@ -53,7 +53,7 @@ bool FValidatorRejectsTooManyLines::RunTest(const FString& Parameters)
 	FString ManyLines;
 	for (int32 i = 0; i <= FAWScriptValidator::MaxLines; ++i)
 	{
-		ManyLines += TEXT("MOVE\n");
+		ManyLines += TEXT("MOVE FWD\n");
 	}
 	FAWValidationResult R = FAWScriptValidator::Validate(ManyLines);
 	TestFalse(TEXT("Too many lines rejected"), R.bSuccess);
@@ -98,7 +98,7 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FValidatorAllowsTabsAndCR, "AutomataWar.Game.Va
 
 bool FValidatorAllowsTabsAndCR::RunTest(const FString& Parameters)
 {
-	FAWValidationResult R = FAWScriptValidator::Validate(TEXT("\tMOVE\r\nFIRE\n"));
+	FAWValidationResult R = FAWScriptValidator::Validate(TEXT("\tMOVE FWD\r\nFIRE\n"));
 	TestTrue(TEXT("Tabs and CR allowed"), R.bSuccess);
 	return true;
 }

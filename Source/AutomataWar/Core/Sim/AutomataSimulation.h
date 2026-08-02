@@ -20,9 +20,8 @@
 namespace Automata
 {
 
-// ─── Grid cell ───────────────────────────────────────────────────────────────
+// --- Grid cell ---------------------------------------------------------------
 
-/** Type of cell content. */
 enum class CellType : uint8_t
 {
     Empty,
@@ -30,21 +29,19 @@ enum class CellType : uint8_t
     Cover
 };
 
-// ─── Projectile ──────────────────────────────────────────────────────────────
+// --- Projectile --------------------------------------------------------------
 
-/** Active projectile in the arena. */
 struct Projectile
 {
     int32_t x      = 0;
     int32_t y      = 0;
     Dir     dir    = Dir::North;
-    int32_t owner  = -1; ///< 0 or 1.
+    int32_t owner  = -1;
     bool    active = false;
 };
 
-// ─── Robot state ─────────────────────────────────────────────────────────────
+// --- Robot state -------------------------------------------------------------
 
-/** Full observable state of one robot. */
 struct RobotState
 {
     int32_t x        = 0;
@@ -56,13 +53,14 @@ struct RobotState
     VMState vm;
 };
 
-// ─── Simulation event ────────────────────────────────────────────────────────
+// --- Simulation event --------------------------------------------------------
 
-/** Event types produced by the simulation each tick. */
 enum class EventType : uint8_t
 {
     Move,
-    MoveBlocked,
+    MoveBlockedWall,
+    MoveBlockedCover,
+    MoveBlockedRobot,
     Turn,
     Scan,
     Fire,
@@ -75,19 +73,17 @@ enum class EventType : uint8_t
     EnergyDepleted
 };
 
-/** A single simulation event for replay/UI. */
 struct SimEvent
 {
     int32_t   tick   = 0;
-    int32_t   robot  = 0; ///< 0 or 1.
+    int32_t   robot  = 0;
     EventType type   = EventType::Wait;
     int32_t   paramA = 0;
     int32_t   paramB = 0;
 };
 
-// ─── Tick snapshot ───────────────────────────────────────────────────────────
+// --- Tick snapshot -----------------------------------------------------------
 
-/** Per-tick snapshot for replay debugger. */
 struct TickSnapshot
 {
     int32_t tick = 0;
@@ -95,9 +91,8 @@ struct TickSnapshot
     uint64_t stateHash = 0;
 };
 
-// ─── Match result ────────────────────────────────────────────────────────────
+// --- Match result ------------------------------------------------------------
 
-/** Outcome of a finished match. */
 enum class MatchOutcome : uint8_t
 {
     Robot0Wins,
@@ -105,7 +100,6 @@ enum class MatchOutcome : uint8_t
     Draw
 };
 
-/** Complete match result. */
 struct MatchResult
 {
     MatchOutcome outcome    = MatchOutcome::Draw;
@@ -115,9 +109,8 @@ struct MatchResult
     std::array<int32_t, 2> instrCount  = {};
 };
 
-// ─── Simulation config ───────────────────────────────────────────────────────
+// --- Simulation config -------------------------------------------------------
 
-/** Configuration for a match. */
 struct SimConfig
 {
     int32_t gridWidth  = DefaultGridWidth;
@@ -125,36 +118,21 @@ struct SimConfig
     uint64_t seed      = 12345;
 };
 
-// ─── Simulation class ────────────────────────────────────────────────────────
+// --- Simulation class --------------------------------------------------------
 
-/**
- * @brief Runs a complete deterministic Automata War match.
- *
- * Call RunMatch() to execute start-to-finish. All state is internal.
- */
 class Simulation
 {
 public:
-    /**
-     * @brief Execute a full match.
-     * @param programA Compiled program for robot 0.
-     * @param programB Compiled program for robot 1.
-     * @param config Grid/seed configuration.
-     * @return MatchResult with outcome and statistics.
-     */
     MatchResult RunMatch(const Program& programA, const Program& programB, const SimConfig& config = {});
 
-    /** Get event log after RunMatch. */
     const std::vector<SimEvent>& GetEvents() const { return events_; }
-
-    /** Get per-tick snapshots after RunMatch. */
     const std::vector<TickSnapshot>& GetSnapshots() const { return snapshots_; }
-
-    /** Get the final 64-bit canonical state hash. */
     uint64_t GetFinalHash() const { return finalHash_; }
+    const std::vector<CellType>& GetGrid() const { return grid_; }
+    int32_t GetGridWidth() const { return gridWidth_; }
+    int32_t GetGridHeight() const { return gridHeight_; }
 
 private:
-    /** Deterministic xorshift64 PRNG. */
     struct Xorshift64
     {
         uint64_t state = 1;
@@ -167,19 +145,18 @@ private:
     void ResolveIntent(int32_t robotIdx, const Intent& intent, int32_t tick);
     void AdvanceProjectiles(int32_t tick);
     bool InBounds(int32_t x, int32_t y) const;
-    bool IsBlocked(int32_t x, int32_t y) const;
+    CellType CellAt(int32_t x, int32_t y) const;
     bool HasLOS(int32_t x0, int32_t y0, int32_t x1, int32_t y1) const;
     uint64_t ComputeHash() const;
 
     int32_t gridWidth_  = 0;
     int32_t gridHeight_ = 0;
-    std::vector<CellType> grid_; // row-major
+    std::vector<CellType> grid_;
     std::array<RobotState, 2> robots_;
     std::array<std::array<Projectile, MaxProjectiles>, 2> projectiles_ = {};
     std::vector<SimEvent> events_;
     std::vector<TickSnapshot> snapshots_;
     uint64_t finalHash_ = 0;
-    std::array<int32_t, 2> instrCount_ = {};
 };
 
 } // namespace Automata

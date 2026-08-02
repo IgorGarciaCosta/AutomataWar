@@ -12,12 +12,9 @@
 namespace Automata
 {
 
-// ─── Helpers ─────────────────────────────────────────────────────────────────
-
 namespace
 {
 
-/** Levenshtein distance between two short strings. */
 int32_t Levenshtein(const std::string& a, const std::string& b)
 {
     const size_t m = a.size(), n = b.size();
@@ -37,19 +34,12 @@ int32_t Levenshtein(const std::string& a, const std::string& b)
     return prev[n];
 }
 
-/** Uppercase a string in place. */
 std::string ToUpper(std::string s)
 {
     for (auto& c : s) c = static_cast<char>(std::toupper(static_cast<unsigned char>(c)));
     return s;
 }
 
-/** Known instruction mnemonics. */
-static const std::array<std::string, OpcodeCount> Mnemonics = {
-    "MOVE", "TURN", "SCAN", "FIRE", "SHIELD", "SET", "IF", "WAIT"
-};
-
-/** Try parse a register name, returns index or -1. */
 int32_t ParseRegister(const std::string& tok)
 {
     static const std::unordered_map<std::string, int32_t> regMap = {
@@ -60,19 +50,24 @@ int32_t ParseRegister(const std::string& tok)
     return it != regMap.end() ? it->second : -1;
 }
 
-/** Try parse a comparison operator string, returns CmpOp or -1. */
+// Only accept symbolic operators, reject aliases EQ/NE/LT/GT/LE/GE and GOTO.
 int32_t ParseCmpOp(const std::string& tok)
 {
-    if (tok == "==" || tok == "EQ") return static_cast<int32_t>(CmpOp::EQ);
-    if (tok == "!=" || tok == "NE") return static_cast<int32_t>(CmpOp::NE);
-    if (tok == "<"  || tok == "LT") return static_cast<int32_t>(CmpOp::LT);
-    if (tok == "<=" || tok == "LE") return static_cast<int32_t>(CmpOp::LE);
-    if (tok == ">"  || tok == "GT") return static_cast<int32_t>(CmpOp::GT);
-    if (tok == ">=" || tok == "GE") return static_cast<int32_t>(CmpOp::GE);
+    if (tok == "==") return static_cast<int32_t>(CmpOp::EQ);
+    if (tok == "!=") return static_cast<int32_t>(CmpOp::NE);
+    if (tok == "<")  return static_cast<int32_t>(CmpOp::LT);
+    if (tok == "<=") return static_cast<int32_t>(CmpOp::LE);
+    if (tok == ">")  return static_cast<int32_t>(CmpOp::GT);
+    if (tok == ">=") return static_cast<int32_t>(CmpOp::GE);
     return -1;
 }
 
-/** Try parse an integer immediate. */
+bool IsRejectedAlias(const std::string& tok)
+{
+    std::string u = ToUpper(tok);
+    return u == "EQ" || u == "NE" || u == "LT" || u == "LE" || u == "GT" || u == "GE" || u == "GOTO";
+}
+
 bool ParseImmediate(const std::string& tok, int32_t& out)
 {
     if (tok.empty()) return false;
@@ -87,7 +82,6 @@ bool ParseImmediate(const std::string& tok, int32_t& out)
     catch (...) { return false; }
 }
 
-/** Tokenize a line into whitespace/comma separated tokens, stripping comments. */
 std::vector<std::string> Tokenize(const std::string& line)
 {
     std::vector<std::string> tokens;
@@ -95,13 +89,10 @@ std::vector<std::string> Tokenize(const std::string& line)
     const size_t len = line.size();
     while (i < len)
     {
-        // skip whitespace/commas
         while (i < len && (line[i] == ' ' || line[i] == '\t' || line[i] == ',')) ++i;
         if (i >= len) break;
-        // comment
         if (line[i] == ';') break;
         if (i + 1 < len && line[i] == '/' && line[i+1] == '/') break;
-        // collect token (operators stick together: ==, !=, <=, >=)
         size_t start = i;
         if (i + 1 < len && ((line[i] == '!' || line[i] == '<' || line[i] == '>' || line[i] == '=') && line[i+1] == '='))
         {
@@ -126,7 +117,6 @@ std::vector<std::string> Tokenize(const std::string& line)
     return tokens;
 }
 
-/** Find column (1-based) of a token in original line. */
 int32_t FindColumn(const std::string& line, const std::string& tok, int32_t hint)
 {
     auto pos = line.find(tok, static_cast<size_t>(hint > 0 ? hint - 1 : 0));
@@ -135,8 +125,6 @@ int32_t FindColumn(const std::string& line, const std::string& tok, int32_t hint
 
 } // anonymous namespace
 
-// ─── CompileResult ───────────────────────────────────────────────────────────
-
 bool CompileResult::Ok() const
 {
     for (auto& d : diagnostics)
@@ -144,14 +132,11 @@ bool CompileResult::Ok() const
     return true;
 }
 
-// ─── Compile ─────────────────────────────────────────────────────────────────
-
 CompileResult Compile(const std::string& source)
 {
     CompileResult result;
     auto& diags = result.diagnostics;
 
-    // Split into lines.
     std::vector<std::string> lines;
     {
         std::istringstream stream(source);
@@ -166,17 +151,15 @@ CompileResult Compile(const std::string& source)
         return result;
     }
 
-    // First pass: collect labels and raw token lines.
     struct RawLine { int32_t lineNum; std::vector<std::string> tokens; };
     std::vector<RawLine> rawLines;
-    std::unordered_map<std::string, int32_t> labelMap; // label -> instruction index
+    std::unordered_map<std::string, int32_t> labelMap;
 
     for (int32_t lineIdx = 0; lineIdx < static_cast<int32_t>(lines.size()); ++lineIdx)
     {
         auto tokens = Tokenize(lines[lineIdx]);
         if (tokens.empty()) continue;
 
-        // Label detection: token ending with ':'
         while (!tokens.empty() && tokens[0].size() > 1 && tokens[0].back() == ':')
         {
             std::string label = ToUpper(tokens[0].substr(0, tokens[0].size() - 1));
@@ -204,13 +187,17 @@ CompileResult Compile(const std::string& source)
         return result;
     }
 
-    // Second pass: encode instructions.
     std::vector<Instruction> code;
+    std::vector<SourceLocation> srcMap;
     code.reserve(rawLines.size());
+    srcMap.reserve(rawLines.size());
 
-    // Track labels that need resolving.
     struct LabelRef { size_t instrIdx; std::string label; int32_t line; int32_t col; };
     std::vector<LabelRef> labelRefs;
+
+    static const std::array<std::string, OpcodeCount> Mnemonics = {
+        "MOVE", "TURN", "SCAN", "FIRE", "SHIELD", "SET", "IF", "WAIT"
+    };
 
     for (auto& raw : rawLines)
     {
@@ -218,14 +205,12 @@ CompileResult Compile(const std::string& source)
         const std::string& origLine = lines[raw.lineNum - 1];
         std::string mnem = ToUpper(tokens[0]);
 
-        // Find opcode.
         int32_t opcodeIdx = -1;
         for (int32_t i = 0; i < OpcodeCount; ++i)
             if (Mnemonics[i] == mnem) { opcodeIdx = i; break; }
 
         if (opcodeIdx < 0)
         {
-            // Suggest closest mnemonic.
             std::string suggestion;
             int32_t bestDist = 999;
             for (auto& m : Mnemonics)
@@ -238,23 +223,69 @@ CompileResult Compile(const std::string& source)
             if (!sugText.empty()) msg += " Did you mean '" + sugText + "'?";
             diags.push_back({DiagSeverity::Error, DiagKind::UnknownInstruction, raw.lineNum,
                              FindColumn(origLine, tokens[0], 0), msg, sugText});
-            code.push_back({}); // placeholder
+            code.push_back({});
+            srcMap.push_back({raw.lineNum, FindColumn(origLine, tokens[0], 0)});
             continue;
         }
 
         Opcode op = static_cast<Opcode>(opcodeIdx);
         Instruction instr;
         instr.opcode = op;
-        int32_t expectedOperands = 0;
 
         switch (op)
         {
         case Opcode::MOVE:
+        {
+            if (static_cast<int32_t>(tokens.size()) - 1 != 1)
+            {
+                diags.push_back({DiagSeverity::Error, DiagKind::BadOperandCount, raw.lineNum, 1,
+                                 "MOVE takes 1 operand (FWD or BACK), got " + std::to_string(tokens.size()-1) + ".", ""});
+            }
+            else
+            {
+                std::string dir = ToUpper(tokens[1]);
+                if (dir == "FWD")
+                    instr.operandA = static_cast<uint8_t>(MoveDir::Forward);
+                else if (dir == "BACK")
+                    instr.operandA = static_cast<uint8_t>(MoveDir::Backward);
+                else
+                {
+                    diags.push_back({DiagSeverity::Error, DiagKind::BadOperandType, raw.lineNum,
+                                     FindColumn(origLine, tokens[1], 0),
+                                     "MOVE operand must be FWD or BACK, got '" + tokens[1] + "'.", ""});
+                }
+            }
+            break;
+        }
+
+        case Opcode::TURN:
+        {
+            if (static_cast<int32_t>(tokens.size()) - 1 != 1)
+            {
+                diags.push_back({DiagSeverity::Error, DiagKind::BadOperandCount, raw.lineNum, 1,
+                                 "TURN takes 1 operand (LEFT or RIGHT), got " + std::to_string(tokens.size()-1) + ".", ""});
+            }
+            else
+            {
+                std::string dir = ToUpper(tokens[1]);
+                if (dir == "LEFT")
+                    instr.imm16 = -1;
+                else if (dir == "RIGHT")
+                    instr.imm16 = 1;
+                else
+                {
+                    diags.push_back({DiagSeverity::Error, DiagKind::BadOperandType, raw.lineNum,
+                                     FindColumn(origLine, tokens[1], 0),
+                                     "TURN operand must be LEFT or RIGHT, got '" + tokens[1] + "'.", ""});
+                }
+            }
+            break;
+        }
+
         case Opcode::SCAN:
         case Opcode::FIRE:
         case Opcode::SHIELD:
         case Opcode::WAIT:
-            expectedOperands = 0;
             if (static_cast<int32_t>(tokens.size()) - 1 != 0)
             {
                 diags.push_back({DiagSeverity::Error, DiagKind::BadOperandCount, raw.lineNum, 1,
@@ -262,38 +293,12 @@ CompileResult Compile(const std::string& source)
             }
             break;
 
-        case Opcode::TURN:
-        {
-            expectedOperands = 1;
-            if (static_cast<int32_t>(tokens.size()) - 1 != 1)
-            {
-                diags.push_back({DiagSeverity::Error, DiagKind::BadOperandCount, raw.lineNum, 1,
-                                 "TURN takes 1 operand (-1 or 1), got " + std::to_string(tokens.size()-1) + ".", ""});
-            }
-            else
-            {
-                int32_t val = 0;
-                if (!ParseImmediate(tokens[1], val) || (val != -1 && val != 1))
-                {
-                    diags.push_back({DiagSeverity::Error, DiagKind::BadOperandType, raw.lineNum,
-                                     FindColumn(origLine, tokens[1], 0),
-                                     "TURN operand must be -1 (left) or 1 (right).", ""});
-                }
-                else
-                {
-                    instr.imm16 = static_cast<int16_t>(val);
-                }
-            }
-            break;
-        }
-
         case Opcode::SET:
         {
-            expectedOperands = 2;
             if (static_cast<int32_t>(tokens.size()) - 1 != 2)
             {
                 diags.push_back({DiagSeverity::Error, DiagKind::BadOperandCount, raw.lineNum, 1,
-                                 "SET takes 2 operands (Rx, imm16), got " + std::to_string(tokens.size()-1) + ".", ""});
+                                 "SET takes 2 operands (Rn imm), got " + std::to_string(tokens.size()-1) + ".", ""});
             }
             else
             {
@@ -338,16 +343,16 @@ CompileResult Compile(const std::string& source)
 
         case Opcode::IF:
         {
-            // IF Rx cmp Ry/imm label
-            expectedOperands = 4;
-            if (static_cast<int32_t>(tokens.size()) - 1 < 4)
+            // IF reg op imm JUMP label = 6 tokens total (IF + 5 operands)
+            if (static_cast<int32_t>(tokens.size()) - 1 != 5)
             {
                 diags.push_back({DiagSeverity::Error, DiagKind::BadOperandCount, raw.lineNum, 1,
-                                 "IF takes 4 operands (Rx cmp Ry/imm label), got " + std::to_string(tokens.size()-1) + ".", ""});
+                                 "IF requires exactly: IF <reg> <op> <imm> JUMP <label> (6 tokens), got " +
+                                 std::to_string(tokens.size()) + ".", ""});
             }
             else
             {
-                // Rx
+                // tokens[1] = reg
                 int32_t regA = ParseRegister(tokens[1]);
                 if (regA < 0)
                 {
@@ -360,51 +365,73 @@ CompileResult Compile(const std::string& source)
                     instr.operandA = static_cast<uint8_t>(regA);
                 }
 
-                // cmp
-                int32_t cmpVal = ParseCmpOp(tokens[2]);
-                if (cmpVal < 0)
+                // tokens[2] = comparison operator
+                if (IsRejectedAlias(tokens[2]))
                 {
-                    diags.push_back({DiagSeverity::Error, DiagKind::MalformedComparison, raw.lineNum,
+                    diags.push_back({DiagSeverity::Error, DiagKind::AliasRejected, raw.lineNum,
                                      FindColumn(origLine, tokens[2], 0),
-                                     "Malformed comparison operator '" + tokens[2] + "'. Use ==, !=, <, <=, >, >=.", ""});
+                                     "Alias '" + tokens[2] + "' rejected. Use symbolic operators: == != < > <= >=.", ""});
                 }
                 else
                 {
-                    instr.operandB = static_cast<uint8_t>(cmpVal);
-                }
-
-                // Ry or imm
-                int32_t regB = ParseRegister(tokens[3]);
-                if (regB >= 0)
-                {
-                    instr.reserved = 1; // flag: operandC is register
-                    instr.imm16 = static_cast<int16_t>(regB);
-                }
-                else
-                {
-                    int32_t imm = 0;
-                    if (!ParseImmediate(tokens[3], imm))
+                    int32_t cmpVal = ParseCmpOp(tokens[2]);
+                    if (cmpVal < 0)
                     {
-                        diags.push_back({DiagSeverity::Error, DiagKind::BadOperandType, raw.lineNum,
-                                         FindColumn(origLine, tokens[3], 0),
-                                         "Expected register or immediate, got '" + tokens[3] + "'.", ""});
-                    }
-                    else if (imm < ImmMin || imm > ImmMax)
-                    {
-                        diags.push_back({DiagSeverity::Error, DiagKind::ImmediateOutOfRange, raw.lineNum,
-                                         FindColumn(origLine, tokens[3], 0),
-                                         "Immediate " + std::to_string(imm) + " outside [-32768, 32767].", ""});
+                        diags.push_back({DiagSeverity::Error, DiagKind::MalformedComparison, raw.lineNum,
+                                         FindColumn(origLine, tokens[2], 0),
+                                         "Unknown comparison operator '" + tokens[2] + "'. Use == != < > <= >=.", ""});
                     }
                     else
                     {
-                        instr.reserved = 0; // flag: operandC is immediate
-                        instr.imm16 = static_cast<int16_t>(imm);
+                        instr.operandB = static_cast<uint8_t>(cmpVal);
                     }
                 }
 
-                // label (resolve later)
-                std::string label = ToUpper(tokens[4]);
-                labelRefs.push_back({code.size(), label, raw.lineNum, FindColumn(origLine, tokens[4], 0)});
+                // tokens[3] = immediate (right operand must be immediate, not register)
+                int32_t imm = 0;
+                if (ParseRegister(tokens[3]) >= 0)
+                {
+                    diags.push_back({DiagSeverity::Error, DiagKind::BadOperandType, raw.lineNum,
+                                     FindColumn(origLine, tokens[3], 0),
+                                     "IF right operand must be an immediate value, not a register. Got '" + tokens[3] + "'.", ""});
+                }
+                else if (!ParseImmediate(tokens[3], imm))
+                {
+                    diags.push_back({DiagSeverity::Error, DiagKind::BadOperandType, raw.lineNum,
+                                     FindColumn(origLine, tokens[3], 0),
+                                     "Expected immediate value, got '" + tokens[3] + "'.", ""});
+                }
+                else if (imm < ImmMin || imm > ImmMax)
+                {
+                    diags.push_back({DiagSeverity::Error, DiagKind::ImmediateOutOfRange, raw.lineNum,
+                                     FindColumn(origLine, tokens[3], 0),
+                                     "Immediate " + std::to_string(imm) + " outside [-32768, 32767].", ""});
+                }
+                else
+                {
+                    instr.imm16 = static_cast<int16_t>(imm);
+                }
+
+                // tokens[4] = must be literal "JUMP"
+                if (ToUpper(tokens[4]) != "JUMP")
+                {
+                    if (ToUpper(tokens[4]) == "GOTO")
+                    {
+                        diags.push_back({DiagSeverity::Error, DiagKind::AliasRejected, raw.lineNum,
+                                         FindColumn(origLine, tokens[4], 0),
+                                         "GOTO rejected. Use JUMP.", ""});
+                    }
+                    else
+                    {
+                        diags.push_back({DiagSeverity::Error, DiagKind::MissingJumpKeyword, raw.lineNum,
+                                         FindColumn(origLine, tokens[4], 0),
+                                         "Expected JUMP keyword, got '" + tokens[4] + "'.", ""});
+                    }
+                }
+
+                // tokens[5] = label (resolve later)
+                std::string label = ToUpper(tokens[5]);
+                labelRefs.push_back({code.size(), label, raw.lineNum, FindColumn(origLine, tokens[5], 0)});
             }
             break;
         }
@@ -414,6 +441,7 @@ CompileResult Compile(const std::string& source)
         }
 
         code.push_back(instr);
+        srcMap.push_back({raw.lineNum, FindColumn(origLine, tokens[0], 0)});
     }
 
     // Resolve label references.
@@ -432,7 +460,10 @@ CompileResult Compile(const std::string& source)
     }
 
     if (result.Ok())
+    {
         result.program.code = std::move(code);
+        result.program.sourceMap = std::move(srcMap);
+    }
 
     return result;
 }
