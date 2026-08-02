@@ -23,7 +23,8 @@ public class AutomataWar : ModuleRules
             "Networking",
             "Sockets",
             "Json",
-            "JsonUtilities"
+            "JsonUtilities",
+            "RenderCore"
         });
     }
 }

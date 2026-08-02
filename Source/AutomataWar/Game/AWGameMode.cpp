@@ -4,6 +4,7 @@
 #include "AWPlayerController.h"
 #include "AutomataWar/Core/Lang/AutomataCompiler.h"
 #include "AutomataWar/Core/Sim/AutomataSimulation.h"
+#include "AutomataWar/Visual/AWSpectatorPawn.h"
 #include "Engine/World.h"
 #include "TimerManager.h"
 
@@ -14,6 +15,7 @@ AAWGameMode::AAWGameMode()
 	GameStateClass = AAWGameState::StaticClass();
 	PlayerStateClass = AAWPlayerState::StaticClass();
 	PlayerControllerClass = AAWPlayerController::StaticClass();
+	DefaultPawnClass = AAWSpectatorPawn::StaticClass();
 
 	// Default sources to DefaultBot template
 	AcceptedSource[0] = FAWExampleScripts::DefaultBot();
