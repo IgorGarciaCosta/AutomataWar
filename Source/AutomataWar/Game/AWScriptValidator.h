@@ -14,10 +14,10 @@
 /** Static utility class for script source validation before compilation. */
 struct FAWScriptValidator
 {
-    /** Maximum UTF-8 bytes per submitted script. */
-    static constexpr int32 MaxSourceBytes = 8192;
-    /** Maximum characters (codepoints) per script. */
-    static constexpr int32 MaxSourceChars = 8192;
+    /** Maximum UTF-8 bytes per script; two maximum scripts keep a replay below 4 KiB. */
+    static constexpr int32 MaxSourceBytes = 1800;
+    /** Maximum characters per script, matching the replay size boundary. */
+    static constexpr int32 MaxSourceChars = 1800;
     /** Maximum lines (newline-separated). */
     static constexpr int32 MaxLines = 512;
     /** Maximum identifier/token length in characters. */

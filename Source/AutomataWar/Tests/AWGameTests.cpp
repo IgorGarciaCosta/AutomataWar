@@ -11,6 +11,7 @@
 #include "AutomataWar/Game/AWReplayService.h"
 #include "AutomataWar/Game/AWExampleScripts.h"
 #include "AutomataWar/Core/Lang/AutomataCompiler.h"
+#include "AutomataWar/Core/Replay/AutomataReplay.h"
 #include "AutomataWar/Core/Sim/AutomataSimulation.h"
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -151,6 +152,20 @@ bool FReplaySanitizeLength::RunTest(const FString &Parameters)
         Long.AppendChar(TEXT('a'));
     FString Safe = FAWReplayService::SanitizeFilename(Long);
     TestTrue(TEXT("Clamped to 64"), Safe.Len() <= 64);
+    return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FReplayMaximumPayloadUnderFourKiB, "AutomataWar.Game.Replay.MaximumPayloadUnderFourKiB",
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FReplayMaximumPayloadUnderFourKiB::RunTest(const FString &Parameters)
+{
+    Automata::ReplayData Replay;
+    Replay.sourceA.assign(FAWScriptValidator::MaxSourceBytes, 'A');
+    Replay.sourceB.assign(FAWScriptValidator::MaxSourceBytes, 'B');
+
+    const std::vector<uint8_t> Encoded = Automata::EncodeReplay(Replay);
+    TestTrue(TEXT("Maximum replay remains below 4 KiB"), Encoded.size() < 4096);
     return true;
 }
 
