@@ -18,6 +18,7 @@ namespace Automata
 
     // --- Intent ------------------------------------------------------------------
 
+    /** Arena-agnostic action categories emitted by a VM dispatch. */
     enum class IntentType : uint8_t
     {
         None, // busy or halted
@@ -29,6 +30,7 @@ namespace Automata
         Wait
     };
 
+    /** Fixed-size request for the simulation to validate and apply. */
     struct Intent
     {
         IntentType type = IntentType::None;
@@ -37,6 +39,7 @@ namespace Automata
 
     // --- VM state ----------------------------------------------------------------
 
+    /** Complete deterministic execution state owned by one robot VM. */
     struct VMState
     {
         std::array<int32_t, TotalRegisterCount> regs = {};
@@ -51,7 +54,11 @@ namespace Automata
     // --- VM interface ------------------------------------------------------------
 
     /**
-     * Execute one tick. At most one instruction dispatched per call.
+     * Execute one VM tick with at most one instruction dispatch.
+     * @param state Mutable execution state for one robot.
+     * @param program Immutable compiled bytecode.
+     * @return An arena-agnostic intent, or None while busy/halted.
+     *
      * Energy checking is external (simulation sets energyInert). When energyInert
      * the VM returns Wait unconditionally without advancing PC, preventing
      * zero-cost loops. Program wraps at end.

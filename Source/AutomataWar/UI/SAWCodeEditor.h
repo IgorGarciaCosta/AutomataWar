@@ -42,6 +42,7 @@ public:
     SLATE_EVENT(FSimpleDelegate, OnCompileSuccess)
     SLATE_END_ARGS()
 
+    /** Construct the editor from its initial text, read-only flag, and compile callback. */
     void Construct(const FArguments &InArgs);
 
     /** Get the current source text. */

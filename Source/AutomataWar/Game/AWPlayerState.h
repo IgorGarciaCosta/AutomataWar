@@ -21,8 +21,10 @@ class AUTOMATAWAR_API AAWPlayerState : public APlayerState
     GENERATED_BODY()
 
 public:
+    /** Initialize an unassigned, unsubmitted player state. */
     AAWPlayerState();
 
+    /** Register slot and submission state for replication. */
     virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty> &OutLifetimeProps) const override;
 
     /** Which script slot this player controls (0 or 1). */

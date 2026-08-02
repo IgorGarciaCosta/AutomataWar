@@ -16,17 +16,23 @@ namespace Automata
 
     // --- Grid -------------------------------------------------------------------
 
+    /** Default arena width: enough maneuvering room while keeping scans relevant. */
     inline constexpr int32_t DefaultGridWidth = 16;
+    /** Default arena height, kept square for symmetric opposite-corner spawns. */
     inline constexpr int32_t DefaultGridHeight = 16;
 
     // --- Robot stats ------------------------------------------------------------
 
+    /** Starting HP; five unshielded projectile hits destroy a robot. */
     inline constexpr int32_t MaxHP = 100;
+    /** Starting energy; long enough for tactics while still rewarding WAIT. */
     inline constexpr int32_t MaxEnergy = 500;
+    /** Hard match cap preventing behavior loops from running indefinitely. */
     inline constexpr int32_t TickCap = 1800;
 
     // --- Opcode identifiers (4 bits) --------------------------------------------
 
+    /** Stable bytecode opcode identifiers for the complete v1 instruction set. */
     enum class Opcode : uint8_t
     {
         MOVE = 0,
@@ -44,6 +50,7 @@ namespace Automata
 
     // --- Instruction definition table (the authoritative balance sheet) ----------
 
+    /** Metadata shared by compiler validation, VM costs, UI reference, and docs. */
     struct InstructionDefinition
     {
         Opcode opcode;
@@ -122,8 +129,11 @@ namespace Automata
 
     // --- Combat / physics -------------------------------------------------------
 
+    /** Cells advanced per simulation tick, making projectiles visible but dangerous. */
     inline constexpr int32_t ProjectileSpeed = 4;
+    /** Damage per hit; exactly one fifth of starting HP. */
     inline constexpr int32_t ProjectileDamage = 20;
+    /** Maximum scan distance, covering half the default arena. */
     inline constexpr int32_t ScanRange = 8;
 
     // --- Registers --------------------------------------------------------------
@@ -131,6 +141,7 @@ namespace Automata
     inline constexpr int32_t GPRegisterCount = 4;
     inline constexpr int32_t TotalRegisterCount = 9;
 
+    /** Stable indices for writable and simulation-maintained registers. */
     enum class Reg : uint8_t
     {
         R0 = 0,
@@ -147,6 +158,7 @@ namespace Automata
     inline constexpr uint8_t FirstSystemReg = static_cast<uint8_t>(Reg::R_HP);
 
     // Register definition table for UI/documentation consumption.
+    /** UI/compiler metadata describing a register and whether SET may write it. */
     struct RegisterDefinition
     {
         const char *name;
@@ -176,6 +188,7 @@ namespace Automata
 
     // --- Comparison operators for IF --------------------------------------------
 
+    /** Comparison operators encoded in the operand byte of IF instructions. */
     enum class CmpOp : uint8_t
     {
         EQ = 0, // ==
@@ -188,6 +201,7 @@ namespace Automata
 
     // --- Directions -------------------------------------------------------------
 
+    /** Cardinal facing values ordered clockwise for deterministic rotation math. */
     enum class Dir : uint8_t
     {
         North = 0,
@@ -201,6 +215,7 @@ namespace Automata
 
     // --- Move direction (relative to facing) ------------------------------------
 
+    /** Relative movement operands accepted by MOVE. */
     enum class MoveDir : uint8_t
     {
         Forward = 0,
@@ -209,17 +224,23 @@ namespace Automata
 
     // --- Bytecode limits --------------------------------------------------------
 
+    /** Bytecode cap bounding memory, PC targets, and hostile-input compile work. */
     inline constexpr int32_t MaxProgramLength = 256;
+    /** Source-line cap allowing comments without permitting unbounded input. */
     inline constexpr int32_t MaxSourceLines = 512;
+    /** Minimum immediate representable by the fixed 16-bit bytecode field. */
     inline constexpr int16_t ImmMin = -32768;
+    /** Maximum immediate representable by the fixed 16-bit bytecode field. */
     inline constexpr int16_t ImmMax = 32767;
 
     // --- Simulation limits ------------------------------------------------------
 
+    /** Fixed projectile slots per player, avoiding per-tick allocation. */
     inline constexpr int32_t MaxProjectiles = 16;
 
     // --- Replay -----------------------------------------------------------------
 
+    /** Current compact replay binary format version. */
     inline constexpr uint16_t ReplayVersion = 2;
 
     // --- Ruleset hash (compile-time FNV-1a of all balance values) ---------------

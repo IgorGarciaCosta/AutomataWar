@@ -21,5 +21,6 @@ class AUTOMATAWAR_API AAWSpectatorPawn : public ASpectatorPawn
     GENERATED_BODY()
 
 public:
+    /** Disable movement and collision for the shared observation pawn. */
     AAWSpectatorPawn();
 };

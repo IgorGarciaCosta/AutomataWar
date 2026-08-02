@@ -39,6 +39,7 @@ namespace Automata
 
     // --- Source map entry --------------------------------------------------------
 
+    /** One-based source origin retained for debugger instruction highlighting. */
     struct SourceLocation
     {
         int32_t line = 0;   // 1-based
@@ -47,6 +48,7 @@ namespace Automata
 
     // --- Compiled program --------------------------------------------------------
 
+    /** Validated bytecode and its parallel source-location map. */
     struct Program
     {
         std::vector<Instruction> code;
@@ -55,12 +57,14 @@ namespace Automata
 
     // --- Diagnostics -------------------------------------------------------------
 
+    /** Severity attached to a compiler diagnostic. */
     enum class DiagSeverity : uint8_t
     {
         Error,
         Warning
     };
 
+    /** Distinct compiler failure categories exposed to editor error reporting. */
     enum class DiagKind : uint8_t
     {
         UnknownInstruction,
@@ -77,6 +81,7 @@ namespace Automata
         AliasRejected
     };
 
+    /** Actionable compiler message with source position and optional suggestion. */
     struct Diagnostic
     {
         DiagSeverity severity = DiagSeverity::Error;
@@ -87,15 +92,22 @@ namespace Automata
         std::string suggestion;
     };
 
+    /** Compiler output; bytecode is populated only when no error diagnostics exist. */
     struct CompileResult
     {
         Program program;
         std::vector<Diagnostic> diagnostics;
+        /** @return True when the result contains no error-severity diagnostics. */
         bool Ok() const;
     };
 
     // --- Compiler entry point ----------------------------------------------------
 
+    /**
+     * Compile Automata source into validated, label-resolved bytecode.
+     * @param source UTF-8/ASCII source text.
+     * @return Bytecode and all diagnostics found without throwing on bad input.
+     */
     CompileResult Compile(const std::string &source);
 
 } // namespace Automata

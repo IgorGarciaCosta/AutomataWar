@@ -22,6 +22,7 @@ namespace Automata
 
     // --- Grid cell ---------------------------------------------------------------
 
+    /** Canonical integer grid occupancy used for movement and line of sight. */
     enum class CellType : uint8_t
     {
         Empty,
@@ -31,6 +32,7 @@ namespace Automata
 
     // --- Projectile --------------------------------------------------------------
 
+    /** One fixed-pool projectile in canonical grid coordinates. */
     struct Projectile
     {
         int32_t x = 0;
@@ -42,6 +44,7 @@ namespace Automata
 
     // --- Robot state -------------------------------------------------------------
 
+    /** Complete canonical combat and VM state for one robot. */
     struct RobotState
     {
         int32_t x = 0;
@@ -55,6 +58,7 @@ namespace Automata
 
     // --- Simulation event --------------------------------------------------------
 
+    /** Replay-visible semantic event categories emitted by simulation effects. */
     enum class EventType : uint8_t
     {
         Move,
@@ -73,6 +77,7 @@ namespace Automata
         EnergyDepleted
     };
 
+    /** Compact event record used by the debugger, VFX, and audio layers. */
     struct SimEvent
     {
         int32_t tick = 0;
@@ -84,6 +89,7 @@ namespace Automata
 
     // --- Tick snapshot -----------------------------------------------------------
 
+    /** Read-only presentation/debug snapshot captured after one canonical tick. */
     struct TickSnapshot
     {
         int32_t tick = 0;
@@ -93,6 +99,7 @@ namespace Automata
 
     // --- Match result ------------------------------------------------------------
 
+    /** Final winner classification after all ordered tie-break rules. */
     enum class MatchOutcome : uint8_t
     {
         Robot0Wins,
@@ -100,6 +107,7 @@ namespace Automata
         Draw
     };
 
+    /** Final match metrics required by gameplay UI and deterministic tests. */
     struct MatchResult
     {
         MatchOutcome outcome = MatchOutcome::Draw;
@@ -111,6 +119,7 @@ namespace Automata
 
     // --- Simulation config -------------------------------------------------------
 
+    /** Explicit deterministic inputs controlling arena dimensions and PRNG seed. */
     struct SimConfig
     {
         int32_t gridWidth = DefaultGridWidth;
@@ -120,19 +129,34 @@ namespace Automata
 
     // --- Simulation class --------------------------------------------------------
 
+    /** Headless deterministic match runner with no Unreal world dependency. */
     class Simulation
     {
     public:
+        /**
+         * Run one complete match from initial state through a win or tick cap.
+         * @param programA Compiled behavior for robot zero.
+         * @param programB Compiled behavior for robot one.
+         * @param config Grid dimensions and deterministic seed.
+         * @return Final outcome and tie-break metrics.
+         */
         MatchResult RunMatch(const Program &programA, const Program &programB, const SimConfig &config = {});
 
+        /** @return Ordered semantic events from the most recent match. */
         const std::vector<SimEvent> &GetEvents() const { return events_; }
+        /** @return Per-tick snapshots from the most recent match. */
         const std::vector<TickSnapshot> &GetSnapshots() const { return snapshots_; }
+        /** @return Canonical final-state hash from the most recent match. */
         uint64_t GetFinalHash() const { return finalHash_; }
+        /** @return Row-major canonical grid generated for the most recent match. */
         const std::vector<CellType> &GetGrid() const { return grid_; }
+        /** @return Width of the most recently generated grid. */
         int32_t GetGridWidth() const { return gridWidth_; }
+        /** @return Height of the most recently generated grid. */
         int32_t GetGridHeight() const { return gridHeight_; }
 
     private:
+        /** Explicit deterministic xorshift64 generator; zero is normalized by setup. */
         struct Xorshift64
         {
             uint64_t state = 1;

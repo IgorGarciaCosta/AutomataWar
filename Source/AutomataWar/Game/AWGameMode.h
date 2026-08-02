@@ -28,10 +28,14 @@ class AUTOMATAWAR_API AAWGameMode : public AGameModeBase
     GENERATED_BODY()
 
 public:
+    /** Configure the authoritative state, controller, player state, and spectator classes. */
     AAWGameMode();
 
+    /** Determine standalone versus network authority when the arena initializes. */
     virtual void InitGame(const FString &MapName, const FString &Options, FString &ErrorMessage) override;
+    /** Assign the next stable script slot to a newly connected player. */
     virtual void PostLogin(APlayerController *NewPlayer) override;
+    /** Convert an online disconnect into a deterministic forfeit and clean logout. */
     virtual void Logout(AController *Exiting) override;
 
     /** Reset the current standalone world for a fresh local hot-seat match. */

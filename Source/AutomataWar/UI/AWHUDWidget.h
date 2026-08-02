@@ -1,5 +1,11 @@
 #pragma once
 
+/**
+ * @file AWHUDWidget.h
+ * @brief C++ Slate workflow for menus, programming, replay autopsy, browsing,
+ *        and the generated language reference.
+ */
+
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
 #include "AutomataWar/Game/AWMatchTypes.h"
@@ -12,6 +18,7 @@ class AAWArenaRenderer;
 class SEditableTextBox;
 class SSlider;
 
+/** Six stable Slate screen indices owned by the HUD widget switcher. */
 UENUM()
 enum class EAWScreen : uint8
 {
@@ -23,23 +30,34 @@ enum class EAWScreen : uint8
     LanguageReference
 };
 
+/**
+ * C++ Slate HUD implementing menu, programming, simulation, replay, browser,
+ * and generated language-reference workflows.
+ */
 UCLASS()
 class AUTOMATAWAR_API UAWHUDWidget : public UUserWidget
 {
     GENERATED_BODY()
 
 public:
+    /** Bind game/session delegates and select the initial or capture-mode screen. */
     virtual void NativeConstruct() override;
+    /** Unbind all delegates before the UObject leaves the viewport. */
     virtual void NativeDestruct() override;
+    /** Advance frame-rate-independent replay playback while the autopsy is active. */
     virtual void NativeTick(const FGeometry &MyGeometry, float InDeltaTime) override;
 
+    /** Select one of the six stable HUD screens. */
     UFUNCTION(BlueprintCallable, Category = "AutomataWar|UI")
     void ShowScreen(EAWScreen Screen);
 
+    /** @return The screen currently selected by the HUD. */
     UFUNCTION(BlueprintCallable, Category = "AutomataWar|UI")
     EAWScreen GetCurrentScreen() const { return CurrentScreen; }
 
+    /** @return Number of Slate screens registered with the switcher. */
     int32 GetScreenCount() const;
+    /** @return Active Slate switcher index, or -1 before construction. */
     int32 GetActiveScreenIndex() const;
 
 protected:

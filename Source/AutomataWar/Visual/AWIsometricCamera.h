@@ -23,6 +23,7 @@ class AUTOMATAWAR_API AAWIsometricCamera : public AActor
     GENERATED_BODY()
 
 public:
+    /** Create the fixed-perspective camera component. */
     AAWIsometricCamera();
 
     /** Get the camera component. */

@@ -28,9 +28,11 @@
 class AUTOMATAWAR_API FAWSyntaxHighlighter : public FSyntaxHighlighterTextLayoutMarshaller
 {
 public:
+    /** Build tokenizer rules and immutable text styles for Automata source. */
     FAWSyntaxHighlighter();
     virtual ~FAWSyntaxHighlighter() override = default;
 
+    /** @return A shared marshaller instance ready for a multiline Slate editor. */
     static TSharedRef<FAWSyntaxHighlighter> Create();
 
 protected:

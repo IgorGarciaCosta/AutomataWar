@@ -22,10 +22,13 @@ class AUTOMATAWAR_API AAWPlayerController : public APlayerController
     GENERATED_BODY()
 
 public:
+    /** Configure UI-capable local controller behavior and replication defaults. */
     AAWPlayerController();
 
+    /** Create the local HUD, presentation camera, and lighting after world startup. */
     virtual void BeginPlay() override;
 
+    /** Submit source through the authoritative server RPC path. */
     UFUNCTION(BlueprintCallable, Category = "AutomataWar")
     void SubmitScript(const FString &Source);
 

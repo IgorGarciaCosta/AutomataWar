@@ -29,9 +29,12 @@ class AUTOMATAWAR_API AAWArenaRenderer : public AActor
     GENERATED_BODY()
 
 public:
+    /** Create presentation components with collision and gameplay feedback disabled. */
     AAWArenaRenderer();
 
+    /** Build initial visual state after the actor enters the world. */
     virtual void BeginPlay() override;
+    /** Interpolate presentation transforms toward the latest immutable snapshot. */
     virtual void Tick(float DeltaTime) override;
 
     /** Initialize the grid and cover visuals from a sim config. */

@@ -22,8 +22,10 @@ class AUTOMATAWAR_API AAWGameState : public AGameStateBase
     GENERATED_BODY()
 
 public:
+    /** Initialize the replicated match state defaults. */
     AAWGameState();
 
+    /** Register all authoritative match fields for Unreal replication. */
     virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty> &OutLifetimeProps) const override;
 
     /** Current match phase. */
