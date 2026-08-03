@@ -1,5 +1,5 @@
 #include "AWHUDWidget.h"
-#include "SAWCodeEditor.h"
+#include "AWCodeEditorWidget.h"
 #include "AWUITypes.h"
 #include "AutomataWar/Game/AWGameSubsystem.h"
 #include "AutomataWar/Game/AWGameState.h"
@@ -13,17 +13,12 @@
 #include "AutomataWar/Core/Replay/AutomataReplay.h"
 #include "AutomataWar/Visual/AWArenaRenderer.h"
 #include "AutomataWar/Visual/AWVisualTypes.h"
-#include "Widgets/Layout/SWidgetSwitcher.h"
-#include "Widgets/Layout/SBox.h"
-#include "Widgets/Layout/SBorder.h"
-#include "Widgets/Layout/SScrollBox.h"
-#include "Widgets/Layout/SSpacer.h"
-#include "Widgets/Layout/SSeparator.h"
-#include "Widgets/Input/SButton.h"
-#include "Widgets/Input/SEditableTextBox.h"
-#include "Widgets/Input/SSlider.h"
-#include "Widgets/Text/STextBlock.h"
-#include "Widgets/SBoxPanel.h"
+#include "Components/Button.h"
+#include "Components/ComboBoxString.h"
+#include "Components/EditableTextBox.h"
+#include "Components/Slider.h"
+#include "Components/TextBlock.h"
+#include "Components/WidgetSwitcher.h"
 #include "Kismet/GameplayStatics.h"
 #include "Kismet/KismetSystemLibrary.h"
 #include "GameFramework/GameStateBase.h"
@@ -94,6 +89,64 @@ namespace
 void UAWHUDWidget::NativeConstruct()
 {
     Super::NativeConstruct();
+
+#define BIND_BUTTON(Name, Handler)                                        \
+    if (UButton *Button = Cast<UButton>(GetWidgetFromName(TEXT(Name))))   \
+    {                                                                     \
+        Button->OnClicked.AddUniqueDynamic(this, &UAWHUDWidget::Handler); \
+    }
+
+    BIND_BUTTON("LocalMatchButton", OnLocalMatch);
+    BIND_BUTTON("HostLanButton", OnHostLAN);
+    BIND_BUTTON("FindLanButton", OnFindLAN);
+    BIND_BUTTON("JoinSessionButton", OnJoinSelectedSession);
+    BIND_BUTTON("JoinIpButton", OnJoinIP);
+    BIND_BUTTON("ReplayBrowserButton", OnReplayBrowserNav);
+    BIND_BUTTON("LanguageReferenceButton", OnLanguageRef);
+    BIND_BUTTON("QuitButton", OnQuit);
+    BIND_BUTTON("SubmitP1Button", OnSubmitP1);
+    BIND_BUTTON("SubmitP2Button", OnSubmitP2);
+    BIND_BUTTON("AggressorP1Button", OnAggressorP1);
+    BIND_BUTTON("AggressorP2Button", OnAggressorP2);
+    BIND_BUTTON("CamperP1Button", OnCamperP1);
+    BIND_BUTTON("CamperP2Button", OnCamperP2);
+    BIND_BUTTON("KiterP1Button", OnKiterP1);
+    BIND_BUTTON("KiterP2Button", OnKiterP2);
+    BIND_BUTTON("TrainingP1Button", OnTrainingP1);
+    BIND_BUTTON("TrainingP2Button", OnTrainingP2);
+    BIND_BUTTON("ProgrammingBackButton", OnBackToMainMenu);
+    BIND_BUTTON("ReplayStartButton", OnReplayScrubStart);
+    BIND_BUTTON("ReplayBackButton", OnReplayStepBack);
+    BIND_BUTTON("ReplayPauseButton", OnReplayPause);
+    BIND_BUTTON("ReplayPlayButton", OnReplayPlay);
+    BIND_BUTTON("ReplayStepButton", OnReplayStepTick);
+    BIND_BUTTON("ReplayStepP1Button", OnReplayStepP1);
+    BIND_BUTTON("ReplayStepP2Button", OnReplayStepP2);
+    BIND_BUTTON("ReplayQuarterButton", OnReplaySpeedQuarter);
+    BIND_BUTTON("ReplayNormalButton", OnReplaySpeedNormal);
+    BIND_BUTTON("ReplayDoubleButton", OnReplaySpeedDouble);
+    BIND_BUTTON("ReplayQuadButton", OnReplaySpeedQuadruple);
+    BIND_BUTTON("NextRoundButton", OnNextRound);
+    BIND_BUTTON("ReplayBackToMenuButton", OnBackToMainMenu);
+    BIND_BUTTON("ReplayBrowserBackButton", OnBackToMainMenu);
+    BIND_BUTTON("ReplayRefreshButton", OnReplayRefresh);
+    BIND_BUTTON("ReplaySaveButton", OnReplaySave);
+    BIND_BUTTON("ReplayLoadButton", OnReplayLoadSelected);
+    BIND_BUTTON("ReplayExportButton", OnReplayExportSelected);
+    BIND_BUTTON("ReplayImportButton", OnReplayImport);
+    BIND_BUTTON("LanguageBackButton", OnBackToMainMenu);
+
+#undef BIND_BUTTON
+
+    if (ReplayScrubSlider)
+        ReplayScrubSlider->OnValueChanged.AddUniqueDynamic(this, &UAWHUDWidget::OnReplayScrubChanged);
+
+    if (EditorP1 && EditorP1->GetSourceText().IsEmpty())
+        EditorP1->SetSourceText(FAWExampleScripts::DefaultBot());
+    if (EditorP2 && EditorP2->GetSourceText().IsEmpty())
+        EditorP2->SetSourceText(FAWExampleScripts::DefaultBot());
+    PopulateLanguageReference();
+
     if (UWorld *World = GetWorld())
     {
         if (AAWGameState *GS = World->GetGameState<AAWGameState>())
@@ -107,7 +160,7 @@ void UAWHUDWidget::NativeConstruct()
         Sub->OnNetworkError.AddDynamic(this, &UAWHUDWidget::OnErrorReceived);
         Sub->OnSessionsRefreshed.AddDynamic(this, &UAWHUDWidget::OnSessionsRefreshed);
     }
-    ShowScreen(EAWScreen::MainMenu);
+    ShowScreen(InitialScreen);
 
 #if !UE_BUILD_SHIPPING
     FString CaptureMode;
@@ -170,24 +223,14 @@ void UAWHUDWidget::NativeTick(const FGeometry &MyGeometry, float InDeltaTime)
     }
 }
 
-TSharedRef<SWidget> UAWHUDWidget::RebuildWidget()
-{
-    TSharedRef<SWidgetSwitcher> Switcher = SAssignNew(ScreenSwitcher, SWidgetSwitcher) + SWidgetSwitcher::Slot()[BuildMainMenu()] + SWidgetSwitcher::Slot()[BuildProgrammingScreen()] + SWidgetSwitcher::Slot()[BuildSimulationScreen()] + SWidgetSwitcher::Slot()[BuildReplayAutopsyScreen()] + SWidgetSwitcher::Slot()[BuildReplayBrowser()] + SWidgetSwitcher::Slot()[BuildLanguageReference()];
-
-    return SNew(SBorder)
-        .BorderBackgroundColor(AWUIColors::Background)
-        .Padding(12.f)
-            [SNew(SVerticalBox) + SVerticalBox::Slot().FillHeight(1.f)[Switcher] + SVerticalBox::Slot().AutoHeight().Padding(4.f)[SAssignNew(StatusText, STextBlock).Text(FText::GetEmpty()).ColorAndOpacity(FSlateColor(AWUIColors::TextSecondary))]];
-}
-
 int32 UAWHUDWidget::GetScreenCount() const
 {
-    return ScreenSwitcher.IsValid() ? ScreenSwitcher->GetNumWidgets() : 0;
+    return ScreenSwitcher ? ScreenSwitcher->GetNumWidgets() : 0;
 }
 
 int32 UAWHUDWidget::GetActiveScreenIndex() const
 {
-    return ScreenSwitcher.IsValid() ? ScreenSwitcher->GetActiveWidgetIndex() : -1;
+    return ScreenSwitcher ? ScreenSwitcher->GetActiveWidgetIndex() : -1;
 }
 
 UAWGameSubsystem *UAWHUDWidget::GetSubsystem() const
@@ -202,7 +245,7 @@ UAWGameSubsystem *UAWHUDWidget::GetSubsystem() const
 void UAWHUDWidget::ShowScreen(EAWScreen Screen)
 {
     CurrentScreen = Screen;
-    if (ScreenSwitcher.IsValid())
+    if (ScreenSwitcher)
     {
         ScreenSwitcher->SetActiveWidgetIndex(static_cast<int32>(Screen));
     }
@@ -241,7 +284,7 @@ void UAWHUDWidget::OnSessionsRefreshed()
 
 void UAWHUDWidget::SetStatus(const FString &Msg, bool bError)
 {
-    if (StatusText.IsValid())
+    if (StatusText)
     {
         StatusText->SetText(FText::FromString(Msg));
         StatusText->SetColorAndOpacity(FSlateColor(bError ? AWUIColors::ErrorRed : AWUIColors::SuccessGreen));
@@ -256,180 +299,6 @@ void UAWHUDWidget::PlayUISound(const TCHAR *AssetPath) const
     {
         UGameplayStatics::PlaySound2D(this, Sound);
     }
-}
-
-// ═══════════════════════════════════════════════════════════════════════════════
-// Main Menu
-// ═══════════════════════════════════════════════════════════════════════════════
-
-TSharedRef<SWidget> UAWHUDWidget::BuildMainMenu()
-{
-    return SNew(SVerticalBox) + SVerticalBox::Slot().AutoHeight().Padding(20)[SNew(STextBlock).Text(FText::FromString(TEXT("AUTOMATA WAR"))).Font(AWUIFonts::Display(32)).ColorAndOpacity(FSlateColor(AWUIColors::AccentCyan))] + SVerticalBox::Slot().AutoHeight().Padding(10, 5)[SNew(SButton).Text(FText::FromString(TEXT("Local Match"))).OnClicked_Lambda([this]()
-                                                                                                                                                                                                                                                                                                                                                               { OnLocalMatch(); return FReply::Handled(); })] +
-           SVerticalBox::Slot().AutoHeight().Padding(10, 5)
-               [SNew(SButton).Text(FText::FromString(TEXT("Host LAN"))).OnClicked_Lambda([this]()
-                                                                                         { OnHostLAN(); return FReply::Handled(); })] +
-           SVerticalBox::Slot().AutoHeight().Padding(10, 5)
-               [SNew(SButton).Text(FText::FromString(TEXT("Find LAN"))).OnClicked_Lambda([this]()
-                                                                                         { OnFindLAN(); return FReply::Handled(); })] +
-           SVerticalBox::Slot().AutoHeight().Padding(10, 2)
-               [SAssignNew(SessionListBox, SVerticalBox)] +
-           SVerticalBox::Slot().AutoHeight().Padding(10, 5)
-               [SNew(SHorizontalBox) + SHorizontalBox::Slot().FillWidth(1.f)[SAssignNew(JoinIPField, SEditableTextBox).HintText(FText::FromString(TEXT("IP Address...")))] + SHorizontalBox::Slot().AutoWidth().Padding(4, 0, 0, 0)[SNew(SButton).Text(FText::FromString(TEXT("Join IP"))).OnClicked_Lambda([this]()
-                                                                                                                                                                                                                                                                                                            { OnJoinIP(); return FReply::Handled(); })]] +
-           SVerticalBox::Slot().AutoHeight().Padding(10, 5)
-               [SNew(SButton).Text(FText::FromString(TEXT("Replay Browser"))).OnClicked_Lambda([this]()
-                                                                                               { OnReplayBrowserNav(); return FReply::Handled(); })] +
-           SVerticalBox::Slot().AutoHeight().Padding(10, 5)
-               [SNew(SButton).Text(FText::FromString(TEXT("Language Reference"))).OnClicked_Lambda([this]()
-                                                                                                   { OnLanguageRef(); return FReply::Handled(); })] +
-           SVerticalBox::Slot().AutoHeight().Padding(10, 5)
-               [SNew(SButton).Text(FText::FromString(TEXT("Quit"))).OnClicked_Lambda([this]()
-                                                                                     { OnQuit(); return FReply::Handled(); })];
-}
-
-// ═══════════════════════════════════════════════════════════════════════════════
-// Programming
-// ═══════════════════════════════════════════════════════════════════════════════
-
-TSharedRef<SWidget> UAWHUDWidget::BuildProgrammingScreen()
-{
-    return SNew(SHorizontalBox) + SHorizontalBox::Slot().FillWidth(1.f).Padding(4)[SNew(SVerticalBox) + SVerticalBox::Slot().AutoHeight()[SNew(STextBlock).Text(FText::FromString(TEXT("PLAYER 1"))).ColorAndOpacity(FSlateColor(AWUIColors::AccentCyan))] + SVerticalBox::Slot().FillHeight(1.f)[SAssignNew(EditorP1, SAWCodeEditor).InitialText(FText::FromString(FAWExampleScripts::DefaultBot()))] + SVerticalBox::Slot().AutoHeight().Padding(0, 4)[SNew(SHorizontalBox) + SHorizontalBox::Slot().AutoWidth().Padding(2, 0)[SNew(SButton).Text(FText::FromString(TEXT("Submit"))).OnClicked_Lambda([this]()
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        { OnSubmitSlot(0); return FReply::Handled(); })] +
-                                                                                                                                                                                                                                                                                                                                                                                                                                                         SHorizontalBox::Slot().AutoWidth().Padding(2, 0)[SNew(SButton).Text(FText::FromString(TEXT("Aggressor"))).OnClicked_Lambda([this]()
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    { OnLoadExample(0, TEXT("Aggressor")); return FReply::Handled(); })] +
-                                                                                                                                                                                                                                                                                                                                                                                                                                                         SHorizontalBox::Slot().AutoWidth().Padding(2, 0)[SNew(SButton).Text(FText::FromString(TEXT("Camper"))).OnClicked_Lambda([this]()
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 { OnLoadExample(0, TEXT("Camper")); return FReply::Handled(); })] +
-                                                                                                                                                                                                                                                                                                                                                                                                                                                         SHorizontalBox::Slot().AutoWidth().Padding(2, 0)[SNew(SButton).Text(FText::FromString(TEXT("Kiter"))).OnClicked_Lambda([this]()
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                { OnLoadExample(0, TEXT("Kiter")); return FReply::Handled(); })] +
-                                                                                                                                                                                                                                                                                                                                                                                                                                                         SHorizontalBox::Slot().AutoWidth().Padding(2, 0)[SNew(SButton).Text(FText::FromString(TEXT("Train"))).OnClicked_Lambda([this]()
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                { OnTrainingBot(0); return FReply::Handled(); })]]] +
-           SHorizontalBox::Slot().AutoWidth()[SNew(SSeparator).Orientation(Orient_Vertical)] + SHorizontalBox::Slot().FillWidth(1.f).Padding(4)[SNew(SVerticalBox) + SVerticalBox::Slot().AutoHeight()[SNew(STextBlock).Text(FText::FromString(TEXT("PLAYER 2"))).ColorAndOpacity(FSlateColor(AWUIColors::AccentCoral))] + SVerticalBox::Slot().FillHeight(1.f)[SAssignNew(EditorP2, SAWCodeEditor).InitialText(FText::FromString(FAWExampleScripts::DefaultBot()))] + SVerticalBox::Slot().AutoHeight().Padding(0, 4)[SNew(SHorizontalBox) + SHorizontalBox::Slot().AutoWidth().Padding(2, 0)[SNew(SButton).Text(FText::FromString(TEXT("Submit"))).OnClicked_Lambda([this]()
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      { OnSubmitSlot(1); return FReply::Handled(); })] +
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       SHorizontalBox::Slot().AutoWidth().Padding(2, 0)[SNew(SButton).Text(FText::FromString(TEXT("Aggressor"))).OnClicked_Lambda([this]()
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  { OnLoadExample(1, TEXT("Aggressor")); return FReply::Handled(); })] +
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       SHorizontalBox::Slot().AutoWidth().Padding(2, 0)[SNew(SButton).Text(FText::FromString(TEXT("Camper"))).OnClicked_Lambda([this]()
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               { OnLoadExample(1, TEXT("Camper")); return FReply::Handled(); })] +
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       SHorizontalBox::Slot().AutoWidth().Padding(2, 0)[SNew(SButton).Text(FText::FromString(TEXT("Kiter"))).OnClicked_Lambda([this]()
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              { OnLoadExample(1, TEXT("Kiter")); return FReply::Handled(); })] +
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       SHorizontalBox::Slot().AutoWidth().Padding(2, 0)[SNew(SButton).Text(FText::FromString(TEXT("Train"))).OnClicked_Lambda([this]()
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              { OnTrainingBot(1); return FReply::Handled(); })]]];
-}
-
-TSharedRef<SWidget> UAWHUDWidget::BuildSimulationScreen()
-{
-    return SNew(SBox).HAlign(HAlign_Center).VAlign(VAlign_Center)[SNew(STextBlock).Text(FText::FromString(TEXT("SIMULATING..."))).Font(AWUIFonts::Display(24)).ColorAndOpacity(FSlateColor(AWUIColors::AccentCyan))];
-}
-
-// ═══════════════════════════════════════════════════════════════════════════════
-// Replay Autopsy
-// ═══════════════════════════════════════════════════════════════════════════════
-
-TSharedRef<SWidget> UAWHUDWidget::BuildReplayAutopsyScreen()
-{
-    return SNew(SVerticalBox) + SVerticalBox::Slot().AutoHeight().Padding(8)[SNew(SHorizontalBox) + SHorizontalBox::Slot().AutoWidth().Padding(2, 0)[SNew(SButton).Text(FText::FromString(TEXT("|<"))).OnClicked_Lambda([this]()
-                                                                                                                                                                                                                        { OnReplayScrub(0); return FReply::Handled(); })] +
-                                                                             SHorizontalBox::Slot().AutoWidth().Padding(2, 0)[SNew(SButton).Text(FText::FromString(TEXT("<"))).OnClicked_Lambda([this]()
-                                                                                                                                                                                                { OnReplayStepBack(); return FReply::Handled(); })] +
-                                                                             SHorizontalBox::Slot().AutoWidth().Padding(2, 0)[SNew(SButton).Text(FText::FromString(TEXT("||"))).OnClicked_Lambda([this]()
-                                                                                                                                                                                                 { OnReplayPause(); return FReply::Handled(); })] +
-                                                                             SHorizontalBox::Slot().AutoWidth().Padding(2, 0)[SNew(SButton).Text(FText::FromString(TEXT(">"))).OnClicked_Lambda([this]()
-                                                                                                                                                                                                { OnReplayPlay(); return FReply::Handled(); })] +
-                                                                             SHorizontalBox::Slot().AutoWidth().Padding(2, 0)[SNew(SButton).Text(FText::FromString(TEXT(">|"))).OnClicked_Lambda([this]()
-                                                                                                                                                                                                 { OnReplayStepTick(); return FReply::Handled(); })] +
-                                                                             SHorizontalBox::Slot().AutoWidth().Padding(2, 0)[SNew(SButton).Text(FText::FromString(TEXT("P1 >|"))).OnClicked_Lambda([this]()
-                                                                                                                                                                                                    { OnReplayStepInstruction(0); return FReply::Handled(); })] +
-                                                                             SHorizontalBox::Slot().AutoWidth().Padding(2, 0)[SNew(SButton).Text(FText::FromString(TEXT("P2 >|"))).OnClicked_Lambda([this]()
-                                                                                                                                                                                                    { OnReplayStepInstruction(1); return FReply::Handled(); })] +
-                                                                             SHorizontalBox::Slot().AutoWidth().Padding(8, 0)[SNew(SButton).Text(FText::FromString(TEXT(".25x"))).OnClicked_Lambda([this]()
-                                                                                                                                                                                                   { OnReplaySetSpeed(0.25f); return FReply::Handled(); })] +
-                                                                             SHorizontalBox::Slot().AutoWidth().Padding(2, 0)[SNew(SButton).Text(FText::FromString(TEXT("1x"))).OnClicked_Lambda([this]()
-                                                                                                                                                                                                 { OnReplaySetSpeed(1.f); return FReply::Handled(); })] +
-                                                                             SHorizontalBox::Slot().AutoWidth().Padding(2, 0)[SNew(SButton).Text(FText::FromString(TEXT("2x"))).OnClicked_Lambda([this]()
-                                                                                                                                                                                                 { OnReplaySetSpeed(2.f); return FReply::Handled(); })] +
-                                                                             SHorizontalBox::Slot().AutoWidth().Padding(2, 0)[SNew(SButton).Text(FText::FromString(TEXT("4x"))).OnClicked_Lambda([this]()
-                                                                                                                                                                                                 { OnReplaySetSpeed(4.f); return FReply::Handled(); })] +
-                                                                             SHorizontalBox::Slot().FillWidth(1.f).Padding(8, 0)[SAssignNew(ReplayScrubSlider, SSlider).OnValueChanged_Lambda([this](float Val)
-                                                                                                                                                                                              {
-					if (ReplayController.IsValid() && ReplayController->IsValid())
-					{
-						int32 Tick = FMath::RoundToInt32(Val * (ReplayController->GetTotalTicks() - 1));
-						OnReplayScrub(Tick);
-					} })]] +
-           SVerticalBox::Slot().AutoHeight().Padding(8, 2)
-               [SNew(SHorizontalBox) + SHorizontalBox::Slot().AutoWidth()[SAssignNew(ReplayTickText, STextBlock).Text(FText::FromString(TEXT("Tick: 0/0"))).ColorAndOpacity(FSlateColor(AWUIColors::TextPrimary))] + SHorizontalBox::Slot().AutoWidth().Padding(16, 0, 0, 0)[SAssignNew(ReplaySpeedText, STextBlock).Text(FText::FromString(TEXT("Speed: 1x"))).ColorAndOpacity(FSlateColor(AWUIColors::TextSecondary))] + SHorizontalBox::Slot().FillWidth(1.f).Padding(16, 0, 0, 0)[SAssignNew(ReplayOutcomeText, STextBlock).Text(FText::GetEmpty()).ColorAndOpacity(FSlateColor(AWUIColors::AccentCyan))]] +
-           SVerticalBox::Slot().FillHeight(1.f).Padding(8, 4)
-               [SNew(SHorizontalBox)
-                // Left panel: P1 source + registers
-                + SHorizontalBox::Slot().FillWidth(1.f).Padding(0, 0, 4, 0)
-                      [SNew(SVerticalBox) + SVerticalBox::Slot().AutoHeight()[SNew(STextBlock).Text(FText::FromString(TEXT("P1 Source"))).ColorAndOpacity(FSlateColor(AWUIColors::AccentCyan))] + SVerticalBox::Slot().FillHeight(1.f)[SNew(SScrollBox) + SScrollBox::Slot()[SAssignNew(ReplaySourceAText, STextBlock).Font(AWUIFonts::Mono(10)).ColorAndOpacity(FSlateColor(AWUIColors::TextPrimary))]] + SVerticalBox::Slot().AutoHeight().Padding(0, 4, 0, 0)[SAssignNew(ReplayRegistersP1, STextBlock).Font(AWUIFonts::Mono(10)).ColorAndOpacity(FSlateColor(AWUIColors::AccentCyan))]]
-                // Right panel: P2 source + registers
-                + SHorizontalBox::Slot().FillWidth(1.f).Padding(4, 0, 0, 0)
-                      [SNew(SVerticalBox) + SVerticalBox::Slot().AutoHeight()[SNew(STextBlock).Text(FText::FromString(TEXT("P2 Source"))).ColorAndOpacity(FSlateColor(AWUIColors::AccentCoral))] + SVerticalBox::Slot().FillHeight(1.f)[SNew(SScrollBox) + SScrollBox::Slot()[SAssignNew(ReplaySourceBText, STextBlock).Font(AWUIFonts::Mono(10)).ColorAndOpacity(FSlateColor(AWUIColors::TextPrimary))]] + SVerticalBox::Slot().AutoHeight().Padding(0, 4, 0, 0)[SAssignNew(ReplayRegistersP2, STextBlock).Font(AWUIFonts::Mono(10)).ColorAndOpacity(FSlateColor(AWUIColors::AccentCoral))]]] +
-           SVerticalBox::Slot().AutoHeight().MaxHeight(120.f).Padding(8, 2)
-               [SNew(SScrollBox) + SScrollBox::Slot()[SAssignNew(ReplayEventLog, STextBlock).Font(AWUIFonts::Mono(9)).ColorAndOpacity(FSlateColor(AWUIColors::TextSecondary))]] +
-           SVerticalBox::Slot().AutoHeight().Padding(8, 4)
-               [SNew(SButton).Text(FText::FromString(TEXT("Next Round"))).OnClicked_Lambda([this]()
-                                                                                           { OnNextRound(); return FReply::Handled(); })];
-}
-
-// ═══════════════════════════════════════════════════════════════════════════════
-// Replay Browser
-// ═══════════════════════════════════════════════════════════════════════════════
-
-TSharedRef<SWidget> UAWHUDWidget::BuildReplayBrowser()
-{
-    return SNew(SVerticalBox) + SVerticalBox::Slot().AutoHeight().Padding(10)[SNew(STextBlock).Text(FText::FromString(TEXT("REPLAY BROWSER"))).Font(AWUIFonts::Display(18)).ColorAndOpacity(FSlateColor(AWUIColors::TextPrimary))] + SVerticalBox::Slot().AutoHeight().Padding(10, 4)[SNew(SHorizontalBox) + SHorizontalBox::Slot().AutoWidth().Padding(2, 0)[SNew(SButton).Text(FText::FromString(TEXT("< Back"))).OnClicked_Lambda([this]()
-                                                                                                                                                                                                                                                                                                                                                                                                                                     { ShowScreen(EAWScreen::MainMenu); return FReply::Handled(); })] +
-                                                                                                                                                                                                                                                                                      SHorizontalBox::Slot().AutoWidth().Padding(2, 0)[SNew(SButton).Text(FText::FromString(TEXT("Refresh"))).OnClicked_Lambda([this]()
-                                                                                                                                                                                                                                                                                                                                                                                                               { RefreshReplayList(); return FReply::Handled(); })] +
-                                                                                                                                                                                                                                                                                      SHorizontalBox::Slot().AutoWidth().Padding(2, 0)[SNew(SButton).Text(FText::FromString(TEXT("Save Current"))).OnClicked_Lambda([this]()
-                                                                                                                                                                                                                                                                                                                                                                                                                    { OnReplaySave(); return FReply::Handled(); })]] +
-           SVerticalBox::Slot().FillHeight(1.f).Padding(10, 4)
-               [SNew(SScrollBox) + SScrollBox::Slot()[SAssignNew(ReplayListBox, SVerticalBox)]] +
-           SVerticalBox::Slot().AutoHeight().Padding(10, 4)
-               [SNew(SHorizontalBox) + SHorizontalBox::Slot().FillWidth(1.f)
-                                           [SAssignNew(ExportField, SEditableTextBox).IsReadOnly(true).HintText(FText::FromString(TEXT("Base64 export appears here...")))]] +
-           SVerticalBox::Slot().AutoHeight().Padding(10, 4)
-               [SNew(SHorizontalBox) + SHorizontalBox::Slot().FillWidth(1.f)[SAssignNew(ImportField, SEditableTextBox).HintText(FText::FromString(TEXT("Paste base64 replay here...")))] + SHorizontalBox::Slot().AutoWidth().Padding(4, 0, 0, 0)[SNew(SButton).Text(FText::FromString(TEXT("Import"))).OnClicked_Lambda([this]()
-                                                                                                                                                                                                                                                                                                                         { OnReplayImport(); return FReply::Handled(); })]] +
-           SVerticalBox::Slot().AutoHeight().Padding(10, 2)
-               [SAssignNew(ReplayBrowserStatus, STextBlock).ColorAndOpacity(FSlateColor(AWUIColors::TextSecondary))];
-}
-
-// ═══════════════════════════════════════════════════════════════════════════════
-// Language Reference (generated from Core definitions)
-// ═══════════════════════════════════════════════════════════════════════════════
-
-TSharedRef<SWidget> UAWHUDWidget::BuildLanguageReference()
-{
-    TSharedRef<SVerticalBox> Content = SNew(SVerticalBox) + SVerticalBox::Slot().AutoHeight().Padding(10)[SNew(STextBlock).Text(FText::FromString(TEXT("LANGUAGE REFERENCE"))).Font(AWUIFonts::Display(18)).ColorAndOpacity(FSlateColor(AWUIColors::TextPrimary))] + SVerticalBox::Slot().AutoHeight().Padding(10, 2)[SNew(STextBlock).Text(FText::FromString(TEXT("Instructions (8 total):"))).ColorAndOpacity(FSlateColor(AWUIColors::TextSecondary))];
-
-    for (const Automata::InstructionDefinition &Definition : Automata::InstructionDefs)
-    {
-        FString Line = FString::Printf(TEXT("  %-34s E:%d T:%d  %s"),
-                                       UTF8_TO_TCHAR(Definition.syntax), Definition.energyCost, Definition.tickCost,
-                                       UTF8_TO_TCHAR(Definition.description));
-        Content->AddSlot().AutoHeight().Padding(10, 1)
-            [SNew(STextBlock).Text(FText::FromString(Line)).Font(AWUIFonts::Mono(11)).ColorAndOpacity(FSlateColor(AWUIColors::SyntaxInstruction))];
-    }
-
-    Content->AddSlot().AutoHeight().Padding(10, 8)
-        [SNew(STextBlock).Text(FText::FromString(FString::Printf(TEXT("Registers (%d total):"), Automata::TotalRegisterCount))).ColorAndOpacity(FSlateColor(AWUIColors::TextSecondary))];
-
-    for (const Automata::RegisterDefinition &Definition : Automata::RegisterDefs)
-    {
-        FString Line = FString::Printf(TEXT("  %-14s  %s%s"), UTF8_TO_TCHAR(Definition.name),
-                                       UTF8_TO_TCHAR(Definition.description), Definition.readOnly ? TEXT(" (read-only)") : TEXT(""));
-        Content->AddSlot().AutoHeight().Padding(10, 1)
-            [SNew(STextBlock).Text(FText::FromString(Line)).Font(AWUIFonts::Mono(11)).ColorAndOpacity(FSlateColor(AWUIColors::SyntaxRegister))];
-    }
-
-    Content->AddSlot().AutoHeight().Padding(10, 12)
-        [SNew(SButton).Text(FText::FromString(TEXT("< Back"))).OnClicked_Lambda([this]()
-                                                                                { ShowScreen(EAWScreen::MainMenu); return FReply::Handled(); })];
-
-    return Content;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -468,34 +337,43 @@ void UAWHUDWidget::OnFindLAN()
 
 void UAWHUDWidget::RefreshSessionList()
 {
-    if (!SessionListBox.IsValid())
-        return;
-    SessionListBox->ClearChildren();
+    SessionComboBox->ClearOptions();
     UAWGameSubsystem *Sub = GetSubsystem();
     if (!Sub)
         return;
 
     const TArray<FAWSessionInfo> Sessions = Sub->GetSessionList();
-    for (int32 Index = 0; Index < Sessions.Num(); ++Index)
+    for (const FAWSessionInfo &Session : Sessions)
     {
-        const FAWSessionInfo &Session = Sessions[Index];
         const FString Label = FString::Printf(TEXT("%s | %s | %d/%d | %d ms"), *Session.SessionName,
                                               *Session.HostName, Session.CurrentPlayers, Session.MaxPlayers, Session.PingMs);
-        SessionListBox->AddSlot().AutoHeight().Padding(2.f)
-            [SNew(SButton).Text(FText::FromString(Label)).OnClicked_Lambda([this, Index]()
-                                                                           {
-				if (UAWGameSubsystem* GameSubsystem = GetSubsystem()) GameSubsystem->JoinSessionByIndex(Index);
-				SetStatus(TEXT("Joining LAN session..."));
-				return FReply::Handled(); })];
+        SessionComboBox->AddOption(Label);
     }
     if (Sessions.IsEmpty())
         SetStatus(TEXT("No LAN sessions found."), true);
+    else
+        SessionComboBox->SetSelectedIndex(0);
+}
+
+void UAWHUDWidget::OnJoinSelectedSession()
+{
+    const int32 SessionIndex = SessionComboBox->GetSelectedIndex();
+    if (SessionIndex == INDEX_NONE)
+    {
+        SetStatus(TEXT("Select a LAN session first."), true);
+        return;
+    }
+
+    if (UAWGameSubsystem *Sub = GetSubsystem())
+    {
+        PlayUISound(AWUIAssets::SFX_UIConfirm);
+        Sub->JoinSessionByIndex(SessionIndex);
+        SetStatus(TEXT("Joining LAN session..."));
+    }
 }
 
 void UAWHUDWidget::OnJoinIP()
 {
-    if (!JoinIPField.IsValid())
-        return;
     FString IP = JoinIPField->GetText().ToString().TrimStartAndEnd();
     if (IP.IsEmpty())
     {
@@ -518,6 +396,8 @@ void UAWHUDWidget::OnReplayBrowserNav()
 
 void UAWHUDWidget::OnLanguageRef() { ShowScreen(EAWScreen::LanguageReference); }
 
+void UAWHUDWidget::OnBackToMainMenu() { ShowScreen(EAWScreen::MainMenu); }
+
 void UAWHUDWidget::OnQuit()
 {
     if (UWorld *World = GetWorld())
@@ -534,9 +414,9 @@ void UAWHUDWidget::OnSubmitSlot(int32 SlotIndex)
     if (UAWGameSubsystem *Sub = GetSubsystem())
     {
         FString Source;
-        if (SlotIndex == 0 && EditorP1.IsValid())
+        if (SlotIndex == 0 && EditorP1)
             Source = EditorP1->GetSourceText();
-        else if (SlotIndex == 1 && EditorP2.IsValid())
+        else if (SlotIndex == 1 && EditorP2)
             Source = EditorP2->GetSourceText();
 
         FAWValidationResult Result = Sub->SubmitLocalScript(SlotIndex, Source);
@@ -563,9 +443,9 @@ void UAWHUDWidget::OnLoadExample(int32 SlotIndex, const FString &ScriptName)
     else
         Source = FAWExampleScripts::DefaultBot();
 
-    if (SlotIndex == 0 && EditorP1.IsValid())
+    if (SlotIndex == 0 && EditorP1)
         EditorP1->SetSourceText(Source);
-    else if (SlotIndex == 1 && EditorP2.IsValid())
+    else if (SlotIndex == 1 && EditorP2)
         EditorP2->SetSourceText(Source);
 }
 
@@ -574,9 +454,9 @@ void UAWHUDWidget::OnTrainingBot(int32 SlotIndex)
     if (UAWGameSubsystem *Sub = GetSubsystem())
     {
         FString Source;
-        if (SlotIndex == 0 && EditorP1.IsValid())
+        if (SlotIndex == 0 && EditorP1)
             Source = EditorP1->GetSourceText();
-        else if (SlotIndex == 1 && EditorP2.IsValid())
+        else if (SlotIndex == 1 && EditorP2)
             Source = EditorP2->GetSourceText();
 
         int32 Wins, Losses, Draws;
@@ -584,6 +464,17 @@ void UAWHUDWidget::OnTrainingBot(int32 SlotIndex)
         SetStatus(FString::Printf(TEXT("Training: W%d L%d D%d"), Wins, Losses, Draws));
     }
 }
+
+void UAWHUDWidget::OnSubmitP1() { OnSubmitSlot(0); }
+void UAWHUDWidget::OnSubmitP2() { OnSubmitSlot(1); }
+void UAWHUDWidget::OnAggressorP1() { OnLoadExample(0, TEXT("Aggressor")); }
+void UAWHUDWidget::OnAggressorP2() { OnLoadExample(1, TEXT("Aggressor")); }
+void UAWHUDWidget::OnCamperP1() { OnLoadExample(0, TEXT("Camper")); }
+void UAWHUDWidget::OnCamperP2() { OnLoadExample(1, TEXT("Camper")); }
+void UAWHUDWidget::OnKiterP1() { OnLoadExample(0, TEXT("Kiter")); }
+void UAWHUDWidget::OnKiterP2() { OnLoadExample(1, TEXT("Kiter")); }
+void UAWHUDWidget::OnTrainingP1() { OnTrainingBot(0); }
+void UAWHUDWidget::OnTrainingP2() { OnTrainingBot(1); }
 
 void UAWHUDWidget::OnNextRound()
 {
@@ -632,7 +523,7 @@ void UAWHUDWidget::InitializeReplayFromGameState()
     }
 
     // Display sources with line numbers
-    if (ReplaySourceAText.IsValid())
+    if (ReplaySourceAText)
     {
         FString Src = GS->RevealedSource0;
         TArray<FString> Lines;
@@ -644,7 +535,7 @@ void UAWHUDWidget::InitializeReplayFromGameState()
         }
         ReplaySourceAText->SetText(FText::FromString(Numbered));
     }
-    if (ReplaySourceBText.IsValid())
+    if (ReplaySourceBText)
     {
         FString Src = GS->RevealedSource1;
         TArray<FString> Lines;
@@ -658,7 +549,7 @@ void UAWHUDWidget::InitializeReplayFromGameState()
     }
 
     // Display outcome
-    if (ReplayOutcomeText.IsValid())
+    if (ReplayOutcomeText)
     {
         const auto &R = ReplayController->GetResult();
         FString Outcome;
@@ -690,17 +581,19 @@ void UAWHUDWidget::UpdateReplayUI()
     int32 Tick = ReplayController->GetCurrentTick();
     int32 Total = ReplayController->GetTotalTicks();
 
-    if (ReplayTickText.IsValid())
+    if (ReplayTickText)
     {
         ReplayTickText->SetText(FText::FromString(FString::Printf(TEXT("Tick: %d/%d"), Tick, Total - 1)));
     }
-    if (ReplaySpeedText.IsValid())
+    if (ReplaySpeedText)
     {
         ReplaySpeedText->SetText(FText::FromString(FString::Printf(TEXT("Speed: %.2fx"), ReplaySpeed)));
     }
-    if (ReplayScrubSlider.IsValid() && Total > 1)
+    if (ReplayScrubSlider && Total > 1)
     {
+        bUpdatingReplaySlider = true;
         ReplayScrubSlider->SetValue(static_cast<float>(Tick) / static_cast<float>(Total - 1));
+        bUpdatingReplaySlider = false;
     }
 
     const auto &Snap = ReplayController->GetCurrentSnapshot();
@@ -714,17 +607,17 @@ void UAWHUDWidget::UpdateReplayUI()
                                R.vm.regs[static_cast<int32>(Automata::Reg::R_ENEMY_DIR)], R.vm.regs[static_cast<int32>(Automata::Reg::R_ENERGY)],
                                R.vm.regs[static_cast<int32>(Automata::Reg::R_TICK)]);
     };
-    if (ReplayRegistersP1.IsValid())
+    if (ReplayRegistersP1)
         ReplayRegistersP1->SetText(FText::FromString(FormatRegs(0)));
-    if (ReplayRegistersP2.IsValid())
+    if (ReplayRegistersP2)
         ReplayRegistersP2->SetText(FText::FromString(FormatRegs(1)));
 
-    if (ReplaySourceAText.IsValid())
+    if (ReplaySourceAText)
         ReplaySourceAText->SetText(FText::FromString(FormatReplaySource(ReplayController->GetSourceA(), ReplayController->GetProgramA(), Snap.robots[0].vm.currentInstruction)));
-    if (ReplaySourceBText.IsValid())
+    if (ReplaySourceBText)
         ReplaySourceBText->SetText(FText::FromString(FormatReplaySource(ReplayController->GetSourceB(), ReplayController->GetProgramB(), Snap.robots[1].vm.currentInstruction)));
 
-    if (ReplayEventLog.IsValid())
+    if (ReplayEventLog)
     {
         auto Events = ReplayController->GetEventsInRange(FMath::Max(0, Tick - 8), Tick);
         FString Log;
@@ -814,7 +707,7 @@ void UAWHUDWidget::OnReplayStepInstruction(int32 RobotIndex)
 void UAWHUDWidget::OnReplaySetSpeed(float Speed)
 {
     ReplaySpeed = Speed;
-    if (ReplaySpeedText.IsValid())
+    if (ReplaySpeedText)
     {
         ReplaySpeedText->SetText(FText::FromString(FString::Printf(TEXT("Speed: %.2fx"), Speed)));
     }
@@ -830,15 +723,31 @@ void UAWHUDWidget::OnReplayScrub(int32 Tick)
     }
 }
 
+void UAWHUDWidget::OnReplayScrubStart() { OnReplayScrub(0); }
+void UAWHUDWidget::OnReplayStepP1() { OnReplayStepInstruction(0); }
+void UAWHUDWidget::OnReplayStepP2() { OnReplayStepInstruction(1); }
+void UAWHUDWidget::OnReplaySpeedQuarter() { OnReplaySetSpeed(0.25f); }
+void UAWHUDWidget::OnReplaySpeedNormal() { OnReplaySetSpeed(1.f); }
+void UAWHUDWidget::OnReplaySpeedDouble() { OnReplaySetSpeed(2.f); }
+void UAWHUDWidget::OnReplaySpeedQuadruple() { OnReplaySetSpeed(4.f); }
+
+void UAWHUDWidget::OnReplayScrubChanged(float Value)
+{
+    if (bUpdatingReplaySlider || !ReplayController.IsValid() || !ReplayController->IsValid())
+        return;
+
+    const int32 Tick = FMath::RoundToInt32(Value * (ReplayController->GetTotalTicks() - 1));
+    OnReplayScrub(Tick);
+}
+
 // ═══════════════════════════════════════════════════════════════════════════════
 // Replay Browser Actions
 // ═══════════════════════════════════════════════════════════════════════════════
 
 void UAWHUDWidget::RefreshReplayList()
 {
-    if (!ReplayListBox.IsValid())
-        return;
-    ReplayListBox->ClearChildren();
+    ReplayComboBox->ClearOptions();
+    ReplayFilenames.Reset();
 
     UAWGameSubsystem *Sub = GetSubsystem();
     if (!Sub)
@@ -848,19 +757,14 @@ void UAWHUDWidget::RefreshReplayList()
     for (const FAWReplayInfo &Info : Replays)
     {
         FString Label = FString::Printf(TEXT("%s (%d bytes)"), *Info.Filename, Info.FileSizeBytes);
-        FString Filename = Info.Filename;
-        ReplayListBox->AddSlot().AutoHeight().Padding(2)
-            [SNew(SHorizontalBox) + SHorizontalBox::Slot().FillWidth(1.f)[SNew(STextBlock).Text(FText::FromString(Label)).ColorAndOpacity(FSlateColor(AWUIColors::TextPrimary))] + SHorizontalBox::Slot().AutoWidth().Padding(4, 0)[SNew(SButton).Text(FText::FromString(TEXT("Load"))).OnClicked_Lambda([this, Filename]()
-                                                                                                                                                                                                                                                                                                         { OnReplayLoad(Filename); return FReply::Handled(); })] +
-             SHorizontalBox::Slot().AutoWidth().Padding(2, 0)[SNew(SButton).Text(FText::FromString(TEXT("Export"))).OnClicked_Lambda([this, Filename]()
-                                                                                                                                     { OnReplayExport(Filename); return FReply::Handled(); })]];
+        ReplayComboBox->AddOption(Label);
+        ReplayFilenames.Add(Info.Filename);
     }
 
-    if (Replays.Num() == 0)
-    {
-        ReplayListBox->AddSlot().AutoHeight()
-            [SNew(STextBlock).Text(FText::FromString(TEXT("No replays found in Saved/Replays/"))).ColorAndOpacity(FSlateColor(AWUIColors::TextSecondary))];
-    }
+    if (Replays.IsEmpty())
+        ReplayBrowserStatus->SetText(FText::FromString(TEXT("No replays found in Saved/Replays/")));
+    else
+        ReplayComboBox->SetSelectedIndex(0);
 }
 
 void UAWHUDWidget::OnReplayLoad(const FString &Filename)
@@ -873,7 +777,7 @@ void UAWHUDWidget::OnReplayLoad(const FString &Filename)
     int64 Seed;
     if (!Sub->LoadReplay(Filename, Src0, Src1, Seed, Error))
     {
-        if (ReplayBrowserStatus.IsValid())
+        if (ReplayBrowserStatus)
             ReplayBrowserStatus->SetText(FText::FromString(Error));
         return;
     }
@@ -884,13 +788,13 @@ void UAWHUDWidget::OnReplayLoad(const FString &Filename)
     std::string SB = TCHAR_TO_UTF8(*Src1);
     if (!ReplayController->Initialize(SA, SB, static_cast<uint64_t>(Seed)))
     {
-        if (ReplayBrowserStatus.IsValid())
+        if (ReplayBrowserStatus)
             ReplayBrowserStatus->SetText(FText::FromString(TEXT("Failed to resimulate replay.")));
         return;
     }
 
     // Set source display texts
-    if (ReplaySourceAText.IsValid())
+    if (ReplaySourceAText)
     {
         TArray<FString> Lines;
         Src0.ParseIntoArrayLines(Lines);
@@ -899,7 +803,7 @@ void UAWHUDWidget::OnReplayLoad(const FString &Filename)
             N += FString::Printf(TEXT("%3d| %s\n"), i + 1, *Lines[i]);
         ReplaySourceAText->SetText(FText::FromString(N));
     }
-    if (ReplaySourceBText.IsValid())
+    if (ReplaySourceBText)
     {
         TArray<FString> Lines;
         Src1.ParseIntoArrayLines(Lines);
@@ -908,7 +812,7 @@ void UAWHUDWidget::OnReplayLoad(const FString &Filename)
             N += FString::Printf(TEXT("%3d| %s\n"), i + 1, *Lines[i]);
         ReplaySourceBText->SetText(FText::FromString(N));
     }
-    if (ReplayOutcomeText.IsValid())
+    if (ReplayOutcomeText)
     {
         const auto &R = ReplayController->GetResult();
         FString Outcome;
@@ -953,13 +857,13 @@ void UAWHUDWidget::OnReplaySave()
     FString Filename = FString::Printf(TEXT("replay_%s"), *FDateTime::Now().ToString(TEXT("%Y%m%d_%H%M%S")));
     if (Sub->SaveReplay(Filename))
     {
-        if (ReplayBrowserStatus.IsValid())
+        if (ReplayBrowserStatus)
             ReplayBrowserStatus->SetText(FText::FromString(FString::Printf(TEXT("Saved: %s"), *Filename)));
         RefreshReplayList();
     }
     else
     {
-        if (ReplayBrowserStatus.IsValid())
+        if (ReplayBrowserStatus)
             ReplayBrowserStatus->SetText(FText::FromString(TEXT("Save failed (not in ReplayAutopsy phase?).")));
     }
 }
@@ -973,26 +877,24 @@ void UAWHUDWidget::OnReplayExport(const FString &Filename)
     FString Base64;
     if (Sub->ExportReplayBase64(Filename, Base64))
     {
-        if (ExportField.IsValid())
+        if (ExportField)
             ExportField->SetText(FText::FromString(Base64));
-        if (ReplayBrowserStatus.IsValid())
+        if (ReplayBrowserStatus)
             ReplayBrowserStatus->SetText(FText::FromString(TEXT("Exported to field above.")));
     }
     else
     {
-        if (ReplayBrowserStatus.IsValid())
+        if (ReplayBrowserStatus)
             ReplayBrowserStatus->SetText(FText::FromString(TEXT("Export failed.")));
     }
 }
 
 void UAWHUDWidget::OnReplayImport()
 {
-    if (!ImportField.IsValid())
-        return;
     FString Base64 = ImportField->GetText().ToString().TrimStartAndEnd();
     if (Base64.IsEmpty())
     {
-        if (ReplayBrowserStatus.IsValid())
+        if (ReplayBrowserStatus)
             ReplayBrowserStatus->SetText(FText::FromString(TEXT("Paste base64 data first.")));
         return;
     }
@@ -1005,13 +907,59 @@ void UAWHUDWidget::OnReplayImport()
     FString Error;
     if (Sub->ImportReplayBase64(Base64, Filename, Error))
     {
-        if (ReplayBrowserStatus.IsValid())
+        if (ReplayBrowserStatus)
             ReplayBrowserStatus->SetText(FText::FromString(FString::Printf(TEXT("Imported: %s"), *Filename)));
         RefreshReplayList();
     }
     else
     {
-        if (ReplayBrowserStatus.IsValid())
+        if (ReplayBrowserStatus)
             ReplayBrowserStatus->SetText(FText::FromString(Error));
     }
+}
+
+void UAWHUDWidget::OnReplayLoadSelected()
+{
+    const int32 ReplayIndex = ReplayComboBox->GetSelectedIndex();
+    if (!ReplayFilenames.IsValidIndex(ReplayIndex))
+    {
+        ReplayBrowserStatus->SetText(FText::FromString(TEXT("Select a replay first.")));
+        return;
+    }
+    OnReplayLoad(ReplayFilenames[ReplayIndex]);
+}
+
+void UAWHUDWidget::OnReplayExportSelected()
+{
+    const int32 ReplayIndex = ReplayComboBox->GetSelectedIndex();
+    if (!ReplayFilenames.IsValidIndex(ReplayIndex))
+    {
+        ReplayBrowserStatus->SetText(FText::FromString(TEXT("Select a replay first.")));
+        return;
+    }
+    OnReplayExport(ReplayFilenames[ReplayIndex]);
+}
+
+void UAWHUDWidget::OnReplayRefresh() { RefreshReplayList(); }
+
+void UAWHUDWidget::PopulateLanguageReference()
+{
+    if (!LanguageReferenceText)
+        return;
+
+    FString Reference = FString::Printf(TEXT("INSTRUCTIONS (%d)\n\n"), Automata::OpcodeCount);
+    for (const Automata::InstructionDefinition &Definition : Automata::InstructionDefs)
+    {
+        Reference += FString::Printf(TEXT("%-28s  ENERGY %2d  TICKS %2d\n%s\n\n"),
+                                     UTF8_TO_TCHAR(Definition.syntax), Definition.energyCost, Definition.tickCost,
+                                     UTF8_TO_TCHAR(Definition.description));
+    }
+
+    Reference += FString::Printf(TEXT("\nREGISTERS (%d)\n\n"), Automata::TotalRegisterCount);
+    for (const Automata::RegisterDefinition &Definition : Automata::RegisterDefs)
+    {
+        Reference += FString::Printf(TEXT("%-14s  %s%s\n"), UTF8_TO_TCHAR(Definition.name),
+                                     UTF8_TO_TCHAR(Definition.description), Definition.readOnly ? TEXT("  [READ ONLY]") : TEXT(""));
+    }
+    LanguageReferenceText->SetText(FText::FromString(Reference));
 }

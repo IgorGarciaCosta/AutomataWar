@@ -5,15 +5,16 @@
 #include "AutomataWar/Visual/AWIsometricCamera.h"
 #include "AutomataWar/Visual/AWVisualTypes.h"
 #include "Blueprint/UserWidget.h"
-#include "Engine/DirectionalLight.h"
-#include "Engine/SkyLight.h"
-#include "Components/DirectionalLightComponent.h"
-#include "Components/SkyLightComponent.h"
 #include "EngineUtils.h"
+#include "UObject/ConstructorHelpers.h"
 
 AAWPlayerController::AAWPlayerController()
 {
     bShowMouseCursor = true;
+    static ConstructorHelpers::FClassFinder<UAWHUDWidget> HUDWidgetBlueprint(TEXT("/Game/UI/WBP_AWHUD"));
+    HUDWidgetClass = UAWHUDWidget::StaticClass();
+    if (HUDWidgetBlueprint.Succeeded())
+        HUDWidgetClass = HUDWidgetBlueprint.Class;
 }
 
 void AAWPlayerController::BeginPlay()
@@ -28,50 +29,13 @@ void AAWPlayerController::BeginPlay()
             ArenaCamera = *It;
             break;
         }
-        if (!ArenaCamera)
-        {
-            ArenaCamera = GetWorld()->SpawnActor<AAWIsometricCamera>();
-        }
         if (ArenaCamera)
         {
             ArenaCamera->FrameArena(Automata::DefaultGridWidth, Automata::DefaultGridHeight, AWVisualConfig::CellSize);
             SetViewTarget(ArenaCamera);
         }
 
-        bool bHasKeyLight = false;
-        for (TActorIterator<ADirectionalLight> It(GetWorld()); It; ++It)
-        {
-            bHasKeyLight = true;
-            break;
-        }
-        if (!bHasKeyLight)
-        {
-            ADirectionalLight *KeyLight = GetWorld()->SpawnActor<ADirectionalLight>(FVector::ZeroVector, FRotator(-52.f, -38.f, 0.f));
-            if (KeyLight && KeyLight->GetLightComponent())
-            {
-                KeyLight->GetLightComponent()->SetIntensity(7.5f);
-                KeyLight->GetLightComponent()->SetLightColor(FLinearColor(0.82f, 0.9f, 1.f));
-            }
-        }
-
-        bool bHasSkyLight = false;
-        for (TActorIterator<ASkyLight> It(GetWorld()); It; ++It)
-        {
-            bHasSkyLight = true;
-            break;
-        }
-        if (!bHasSkyLight)
-        {
-            ASkyLight *SkyLight = GetWorld()->SpawnActor<ASkyLight>();
-            if (SkyLight && SkyLight->GetLightComponent())
-            {
-                SkyLight->GetLightComponent()->SetIntensity(0.65f);
-                SkyLight->GetLightComponent()->SetLightColor(FLinearColor(0.38f, 0.45f, 0.55f));
-                SkyLight->GetLightComponent()->RecaptureSky();
-            }
-        }
-
-        HUDWidget = CreateWidget<UAWHUDWidget>(this, UAWHUDWidget::StaticClass());
+        HUDWidget = CreateWidget<UAWHUDWidget>(this, HUDWidgetClass);
         if (HUDWidget)
         {
             HUDWidget->AddToViewport(0);

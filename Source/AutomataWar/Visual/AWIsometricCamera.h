@@ -17,7 +17,7 @@ class UCameraComponent;
 /**
  * @brief Isometric camera providing a top-down-angled view of the arena.
  */
-UCLASS()
+UCLASS(Blueprintable)
 class AUTOMATAWAR_API AAWIsometricCamera : public AActor
 {
     GENERATED_BODY()

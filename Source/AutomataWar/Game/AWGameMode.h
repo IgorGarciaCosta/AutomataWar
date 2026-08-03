@@ -22,7 +22,7 @@
  * In standalone, two script slots are filled by direct calls.
  * In online, slots map to connected players via PlayerState.
  */
-UCLASS()
+UCLASS(Blueprintable)
 class AUTOMATAWAR_API AAWGameMode : public AGameModeBase
 {
     GENERATED_BODY()

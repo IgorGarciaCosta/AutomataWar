@@ -4,6 +4,7 @@
  */
 
 #include "AWArenaRenderer.h"
+#include "AWTankActor.h"
 #include "AWVisualTypes.h"
 #include "AutomataWar/UI/AWUITypes.h"
 #include "ProceduralMeshComponent.h"
@@ -16,13 +17,12 @@
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Materials/MaterialInterface.h"
 #include "Engine/StaticMesh.h"
-#include "UObject/ConstructorHelpers.h"
+#include "EngineUtils.h"
 #include "Sound/SoundBase.h"
 
 AAWArenaRenderer::AAWArenaRenderer()
 {
-    PrimaryActorTick.bCanEverTick = true;
-    PrimaryActorTick.bStartWithTickEnabled = true;
+    PrimaryActorTick.bCanEverTick = false;
 
     USceneComponent *Root = CreateDefaultSubobject<USceneComponent>(TEXT("Root"));
     SetRootComponent(Root);
@@ -32,53 +32,12 @@ AAWArenaRenderer::AAWArenaRenderer()
     FloorMesh->SetupAttachment(Root);
     FloorMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
     FloorMesh->bUseComplexAsSimpleCollision = false;
-
-    RobotRoot0 = CreateDefaultSubobject<USceneComponent>(TEXT("RobotRoot0"));
-    RobotRoot0->SetupAttachment(Root);
-
-    RobotRoot1 = CreateDefaultSubobject<USceneComponent>(TEXT("RobotRoot1"));
-    RobotRoot1->SetupAttachment(Root);
-
-    PlayerOneAccentLight = CreateDefaultSubobject<UPointLightComponent>(TEXT("PlayerOneAccentLight"));
-    PlayerOneAccentLight->SetupAttachment(Root);
-    PlayerOneAccentLight->SetRelativeLocation(FVector(250.f, 250.f, 260.f));
-    PlayerOneAccentLight->SetLightColor(FColor(0, 210, 255));
-    PlayerOneAccentLight->SetIntensity(2600.f);
-    PlayerOneAccentLight->SetAttenuationRadius(850.f);
-
-    PlayerTwoAccentLight = CreateDefaultSubobject<UPointLightComponent>(TEXT("PlayerTwoAccentLight"));
-    PlayerTwoAccentLight->SetupAttachment(Root);
-    PlayerTwoAccentLight->SetRelativeLocation(FVector(1350.f, 1350.f, 260.f));
-    PlayerTwoAccentLight->SetLightColor(FColor(255, 78, 64));
-    PlayerTwoAccentLight->SetIntensity(2600.f);
-    PlayerTwoAccentLight->SetAttenuationRadius(850.f);
 }
 
 void AAWArenaRenderer::BeginPlay()
 {
     Super::BeginPlay();
-    BuildRobotVisuals();
-}
-
-void AAWArenaRenderer::Tick(float DeltaTime)
-{
-    Super::Tick(DeltaTime);
-
-    // Smooth interpolation toward target positions
-    const float Alpha = FMath::Clamp(DeltaTime * AWVisualConfig::InterpSpeed, 0.f, 1.f);
-
-    if (RobotRoot0)
-    {
-        FVector Cur = RobotRoot0->GetComponentLocation();
-        RobotRoot0->SetWorldLocation(FMath::Lerp(Cur, TargetPos0, Alpha));
-        RobotRoot0->SetWorldRotation(FMath::Lerp(RobotRoot0->GetComponentRotation(), TargetRot0, Alpha));
-    }
-    if (RobotRoot1)
-    {
-        FVector Cur = RobotRoot1->GetComponentLocation();
-        RobotRoot1->SetWorldLocation(FMath::Lerp(Cur, TargetPos1, Alpha));
-        RobotRoot1->SetWorldRotation(FMath::Lerp(RobotRoot1->GetComponentRotation(), TargetRot1, Alpha));
-    }
+    ResolveTankActors();
 }
 
 void AAWArenaRenderer::InitializeArena(const Automata::SimConfig &Config, const TArray<Automata::CellType> &Grid)
@@ -92,10 +51,11 @@ void AAWArenaRenderer::InitializeArena(const Automata::SimConfig &Config, const 
 void AAWArenaRenderer::SetSnapshot(const Automata::TickSnapshot &Snapshot)
 {
     CurrentSnapshot = Snapshot;
-    TargetPos0 = GridToWorld(Snapshot.robots[0].x, Snapshot.robots[0].y);
-    TargetPos1 = GridToWorld(Snapshot.robots[1].x, Snapshot.robots[1].y);
-    TargetRot0 = DirToRotation(Snapshot.robots[0].facing);
-    TargetRot1 = DirToRotation(Snapshot.robots[1].facing);
+    ResolveTankActors();
+    if (PlayerOneTank)
+        PlayerOneTank->SetTargetTransform(GridToWorld(Snapshot.robots[0].x, Snapshot.robots[0].y), DirToRotation(Snapshot.robots[0].facing));
+    if (PlayerTwoTank)
+        PlayerTwoTank->SetTargetTransform(GridToWorld(Snapshot.robots[1].x, Snapshot.robots[1].y), DirToRotation(Snapshot.robots[1].facing));
 }
 
 void AAWArenaRenderer::ProcessEvents(const TArray<Automata::SimEvent> &Events, int32 FromTick, int32 ToTick)
@@ -145,12 +105,11 @@ void AAWArenaRenderer::ProcessEvents(const TArray<Automata::SimEvent> &Events, i
 
 void AAWArenaRenderer::ResetVisuals()
 {
-    if (RobotRoot0)
-        RobotRoot0->SetWorldLocation(FVector::ZeroVector);
-    if (RobotRoot1)
-        RobotRoot1->SetWorldLocation(FVector::ZeroVector);
-    TargetPos0 = FVector::ZeroVector;
-    TargetPos1 = FVector::ZeroVector;
+    ResolveTankActors();
+    if (PlayerOneTank)
+        PlayerOneTank->ResetVisual();
+    if (PlayerTwoTank)
+        PlayerTwoTank->ResetVisual();
 }
 
 void AAWArenaRenderer::BuildFloorGrid(int32 Width, int32 Height)
@@ -230,10 +189,9 @@ void AAWArenaRenderer::SpawnCoverVisuals(int32 Width, int32 Height, const TArray
             if (CellIdx >= Grid.Num())
                 break;
 
-            if (Grid[CellIdx] == Automata::CellType::Cover || Grid[CellIdx] == Automata::CellType::Wall)
+            if (Grid[CellIdx] == Automata::CellType::Cover)
             {
                 FVector Pos = GridToWorld(X, Y);
-                bool bIsWall = (Grid[CellIdx] == Automata::CellType::Wall);
 
                 FLinearColor CoverColor;
                 switch (CoverIdx % 4)
@@ -252,170 +210,60 @@ void AAWArenaRenderer::SpawnCoverVisuals(int32 Width, int32 Height, const TArray
                     break;
                 }
 
-                // Walls: full-height uniform cubes
-                if (bIsWall)
+                int32 Variant = CoverIdx % 3;
+                switch (Variant)
+                {
+                case 0:
+                {
+                    UStaticMesh *Mesh = CylinderMesh ? CylinderMesh : CubeMesh;
+                    UStaticMeshComponent *Block = NewObject<UStaticMeshComponent>(this);
+                    Block->SetupAttachment(GetRootComponent());
+                    Block->SetStaticMesh(Mesh);
+                    Block->SetWorldLocation(Pos + FVector(0, 0, 45));
+                    Block->SetWorldScale3D(FVector(0.35f, 0.35f, 0.9f));
+                    Block->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+                    Block->RegisterComponent();
+                    TintCover(Block, CoverColor);
+                    break;
+                }
+                case 1:
+                {
+                    UStaticMeshComponent *A = NewObject<UStaticMeshComponent>(this);
+                    A->SetupAttachment(GetRootComponent());
+                    A->SetStaticMesh(CubeMesh);
+                    A->SetWorldLocation(Pos + FVector(-15, 0, 30));
+                    A->SetWorldScale3D(FVector(0.4f, 0.9f, 0.6f));
+                    A->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+                    A->RegisterComponent();
+                    TintCover(A, CoverColor);
+
+                    UStaticMeshComponent *B = NewObject<UStaticMeshComponent>(this);
+                    B->SetupAttachment(GetRootComponent());
+                    B->SetStaticMesh(CubeMesh);
+                    B->SetWorldLocation(Pos + FVector(20, -20, 20));
+                    B->SetWorldScale3D(FVector(0.35f, 0.35f, 0.4f));
+                    B->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+                    B->RegisterComponent();
+                    TintCover(B, CoverColor * 0.8f);
+                    break;
+                }
+                default:
                 {
                     UStaticMeshComponent *Block = NewObject<UStaticMeshComponent>(this);
                     Block->SetupAttachment(GetRootComponent());
                     Block->SetStaticMesh(CubeMesh);
-                    Block->SetWorldLocation(Pos + FVector(0, 0, 50));
-                    Block->SetWorldScale3D(FVector(0.95f, 0.95f, 1.0f));
+                    Block->SetWorldLocation(Pos + FVector(0, 0, 22));
+                    Block->SetWorldScale3D(FVector(0.85f, 0.85f, 0.4f));
                     Block->SetCollisionEnabled(ECollisionEnabled::NoCollision);
                     Block->RegisterComponent();
-                    TintCover(Block, FLinearColor(0.04f, 0.04f, 0.05f));
+                    TintCover(Block, CoverColor);
+                    break;
                 }
-                else
-                {
-                    // Cover: 3 silhouette variants for visual interest
-                    int32 Variant = CoverIdx % 3;
-                    switch (Variant)
-                    {
-                    case 0: // Tall narrow pillar
-                    {
-                        UStaticMesh *Mesh = CylinderMesh ? CylinderMesh : CubeMesh;
-                        UStaticMeshComponent *Block = NewObject<UStaticMeshComponent>(this);
-                        Block->SetupAttachment(GetRootComponent());
-                        Block->SetStaticMesh(Mesh);
-                        Block->SetWorldLocation(Pos + FVector(0, 0, 45));
-                        Block->SetWorldScale3D(FVector(0.35f, 0.35f, 0.9f));
-                        Block->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-                        Block->RegisterComponent();
-                        TintCover(Block, CoverColor);
-                        break;
-                    }
-                    case 1: // L-shaped: two cubes offset
-                    {
-                        UStaticMeshComponent *A = NewObject<UStaticMeshComponent>(this);
-                        A->SetupAttachment(GetRootComponent());
-                        A->SetStaticMesh(CubeMesh);
-                        A->SetWorldLocation(Pos + FVector(-15, 0, 30));
-                        A->SetWorldScale3D(FVector(0.4f, 0.9f, 0.6f));
-                        A->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-                        A->RegisterComponent();
-                        TintCover(A, CoverColor);
-
-                        UStaticMeshComponent *B = NewObject<UStaticMeshComponent>(this);
-                        B->SetupAttachment(GetRootComponent());
-                        B->SetStaticMesh(CubeMesh);
-                        B->SetWorldLocation(Pos + FVector(20, -20, 20));
-                        B->SetWorldScale3D(FVector(0.35f, 0.35f, 0.4f));
-                        B->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-                        B->RegisterComponent();
-                        TintCover(B, CoverColor * 0.8f);
-                        break;
-                    }
-                    default: // Low wide crate
-                    {
-                        UStaticMeshComponent *Block = NewObject<UStaticMeshComponent>(this);
-                        Block->SetupAttachment(GetRootComponent());
-                        Block->SetStaticMesh(CubeMesh);
-                        Block->SetWorldLocation(Pos + FVector(0, 0, 22));
-                        Block->SetWorldScale3D(FVector(0.85f, 0.85f, 0.4f));
-                        Block->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-                        Block->RegisterComponent();
-                        TintCover(Block, CoverColor);
-                        break;
-                    }
-                    }
                 }
 
                 ++CoverIdx;
             }
         }
-    }
-}
-
-void AAWArenaRenderer::BuildRobotVisuals()
-{
-    UStaticMesh *CubeMesh = LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Cube.Cube"));
-    UStaticMesh *CylinderMesh = LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Cylinder.Cylinder"));
-    UMaterialInterface *RobotMaterial = LoadObject<UMaterialInterface>(nullptr, AWVisualAssets::M_Robot);
-    if (!CubeMesh)
-        return;
-
-    // Helper to create a sub-part
-    auto MakePart = [&](USceneComponent *Parent, UStaticMesh *Mesh, FVector Loc, FVector Scale, FLinearColor Color) -> UStaticMeshComponent *
-    {
-        UStaticMeshComponent *Part = NewObject<UStaticMeshComponent>(this);
-        Part->SetupAttachment(Parent);
-        Part->SetStaticMesh(Mesh);
-        Part->SetRelativeLocation(Loc);
-        Part->SetRelativeScale3D(Scale);
-        Part->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-        Part->RegisterComponent();
-        if (RobotMaterial)
-            Part->SetMaterial(0, RobotMaterial);
-        UMaterialInstanceDynamic *Mat = Part->CreateDynamicMaterialInstance(0);
-        if (Mat)
-        {
-            Mat->SetVectorParameterValue(TEXT("BaseColor"), Color);
-            Mat->SetVectorParameterValue(TEXT("EmissiveColor"), Color * 0.5f);
-        }
-        return Part;
-    };
-
-    // Robot 0: tracked tank — broad body, two treads, shoulders, turret, barrel
-    if (RobotRoot0)
-    {
-        FLinearColor CyanBase(0.0f, 0.3f, 0.4f);
-        FLinearColor CyanDark(0.0f, 0.15f, 0.2f);
-        FLinearColor CyanBright(0.0f, 0.6f, 0.7f);
-
-        // Main body (broad box)
-        UStaticMeshComponent *Body = MakePart(RobotRoot0, CubeMesh, FVector(0, 0, 22), FVector(0.7f, 1.1f, 0.35f), CyanBase);
-        RobotMat0 = Body->CreateDynamicMaterialInstance(0);
-        if (RobotMat0)
-        {
-            RobotMat0->SetVectorParameterValue(TEXT("BaseColor"), CyanBase);
-            RobotMat0->SetVectorParameterValue(TEXT("EmissiveColor"), AWUIColors::AccentCyan * 2.f);
-        }
-
-        // Left tread
-        MakePart(RobotRoot0, CubeMesh, FVector(0, -60, 12), FVector(0.9f, 0.15f, 0.2f), CyanDark);
-        // Right tread
-        MakePart(RobotRoot0, CubeMesh, FVector(0, 60, 12), FVector(0.9f, 0.15f, 0.2f), CyanDark);
-        // Shoulders (wider top plate)
-        MakePart(RobotRoot0, CubeMesh, FVector(0, 0, 38), FVector(0.5f, 1.3f, 0.12f), CyanBright);
-        // Turret base
-        MakePart(RobotRoot0, CubeMesh, FVector(10, 0, 46), FVector(0.35f, 0.35f, 0.2f), CyanBase);
-        // Barrel
-        MakePart(RobotRoot0, CubeMesh, FVector(50, 0, 48), FVector(0.6f, 0.1f, 0.08f), CyanDark);
-    }
-
-    // Robot 1: tripod walker — tall cylindrical body, three splayed legs, head, barrel
-    if (RobotRoot1)
-    {
-        FLinearColor CoralBase(0.4f, 0.1f, 0.08f);
-        FLinearColor CoralDark(0.2f, 0.05f, 0.04f);
-        FLinearColor CoralBright(0.7f, 0.2f, 0.15f);
-
-        UStaticMesh *BodyMesh = CylinderMesh ? CylinderMesh : CubeMesh;
-
-        // Tall central body
-        UStaticMeshComponent *Body = MakePart(RobotRoot1, BodyMesh, FVector(0, 0, 45), FVector(0.35f, 0.35f, 0.7f), CoralBase);
-        RobotMat1 = Body->CreateDynamicMaterialInstance(0);
-        if (RobotMat1)
-        {
-            RobotMat1->SetVectorParameterValue(TEXT("BaseColor"), CoralBase);
-            RobotMat1->SetVectorParameterValue(TEXT("EmissiveColor"), AWUIColors::AccentCoral * 2.f);
-        }
-
-        // Three splayed legs (120 degrees apart)
-        for (int32 i = 0; i < 3; ++i)
-        {
-            float Angle = i * 120.f;
-            float Rad = FMath::DegreesToRadians(Angle);
-            FVector LegOffset(FMath::Cos(Rad) * 40.f, FMath::Sin(Rad) * 40.f, 8.f);
-            MakePart(RobotRoot1, CubeMesh, LegOffset, FVector(0.12f, 0.12f, 0.35f), CoralDark);
-            // Hover pad at bottom of each leg
-            FVector PadOffset(FMath::Cos(Rad) * 45.f, FMath::Sin(Rad) * 45.f, 2.f);
-            MakePart(RobotRoot1, CubeMesh, PadOffset, FVector(0.2f, 0.2f, 0.05f), CoralBright);
-        }
-
-        // Head dome
-        MakePart(RobotRoot1, BodyMesh, FVector(0, 0, 72), FVector(0.22f, 0.22f, 0.2f), CoralBright);
-        // Barrel
-        MakePart(RobotRoot1, CubeMesh, FVector(40, 0, 65), FVector(0.5f, 0.08f, 0.06f), CoralDark);
     }
 }
 
@@ -510,11 +358,12 @@ void AAWArenaRenderer::TriggerImpact(FVector WorldPos)
 
 void AAWArenaRenderer::TriggerShieldBubble(int32 RobotIdx)
 {
-    USceneComponent *RobotRoot = (RobotIdx == 0) ? RobotRoot0.Get() : RobotRoot1.Get();
-    if (!RobotRoot)
+    ResolveTankActors();
+    AAWTankActor *Tank = RobotIdx == 0 ? PlayerOneTank.Get() : PlayerTwoTank.Get();
+    if (!Tank)
         return;
 
-    FVector Pos = RobotRoot->GetComponentLocation();
+    FVector Pos = Tank->GetActorLocation();
 
     UNiagaraSystem *NS = LoadObject<UNiagaraSystem>(nullptr, AWVisualAssets::NS_Shield);
     if (NS)
@@ -607,5 +456,20 @@ FRotator AAWArenaRenderer::DirToRotation(Automata::Dir D) const
         return FRotator(0, 180, 0);
     default:
         return FRotator::ZeroRotator;
+    }
+}
+
+void AAWArenaRenderer::ResolveTankActors()
+{
+    if (PlayerOneTank && PlayerTwoTank)
+        return;
+
+    for (TActorIterator<AAWTankActor> It(GetWorld()); It; ++It)
+    {
+        AAWTankActor *Tank = *It;
+        if (Tank->GetRobotIndex() == 0 && !PlayerOneTank)
+            PlayerOneTank = Tank;
+        else if (Tank->GetRobotIndex() == 1 && !PlayerTwoTank)
+            PlayerTwoTank = Tank;
     }
 }

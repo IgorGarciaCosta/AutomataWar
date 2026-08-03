@@ -16,7 +16,7 @@
  * For online play, SubmitScript sends source via validated Server RPC.
  * For local play, the GameMode calls the same internal handler directly.
  */
-UCLASS()
+UCLASS(Blueprintable)
 class AUTOMATAWAR_API AAWPlayerController : public APlayerController
 {
     GENERATED_BODY()
@@ -25,7 +25,7 @@ public:
     /** Configure UI-capable local controller behavior and replication defaults. */
     AAWPlayerController();
 
-    /** Create the local HUD, presentation camera, and lighting after world startup. */
+    /** Create the local HUD and select the placed presentation camera after world startup. */
     virtual void BeginPlay() override;
 
     /** Submit source through the authoritative server RPC path. */
@@ -42,6 +42,10 @@ protected:
 
     UFUNCTION(Client, Reliable)
     void Client_SubmissionResult(bool bSuccess, const FString &ErrorMessage);
+
+    /** HUD Blueprint created for the local player. */
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "AutomataWar|UI")
+    TSubclassOf<class UAWHUDWidget> HUDWidgetClass;
 
     UPROPERTY()
     TObjectPtr<class UAWHUDWidget> HUDWidget;

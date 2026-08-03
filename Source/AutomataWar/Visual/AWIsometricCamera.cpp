@@ -27,7 +27,7 @@ void AAWIsometricCamera::FrameArena(int32 GridWidth, int32 GridHeight, float Cel
     FVector Center(ArenaW * 0.5f, ArenaH * 0.5f, 0.f);
 
     // Isometric: 45-deg yaw, ~35-deg pitch from above
-    float Distance = FMath::Max(ArenaW, ArenaH) * 1.2f;
+    float Distance = FMath::Max(ArenaW, ArenaH) * 1.45f;
     FVector Offset(-Distance * 0.7f, -Distance * 0.7f, Distance * 0.8f);
 
     SetActorLocation(Center + Offset);

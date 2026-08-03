@@ -90,17 +90,17 @@ This log records decisions made where the build brief allowed or required engine
 
 **Rationale:** Input is tiny, deterministic state is reproducible, and the hash makes divergence loud.
 
-## 2026-08-01 - Assemble readable robot art procedurally
+## 2026-08-01 - Use editor-owned CC0 tank presentation with native fallbacks
 
-**Decision:** Build two distinct robot silhouettes, three cover variants, arena cells, and projectiles at runtime from Unreal basic meshes. Apply project-authored parameterized materials.
+**Decision:** Import two Quaternius CC0 tanks as static meshes selected on a renderer Blueprint. Keep the procedural robot assemblies as native fallbacks, and keep arena cells, cover, and projectiles snapshot-driven at runtime.
 
-**Alternatives:** Download third-party robot packs; import Blender-generated meshes; ship default grey primitives.
+**Alternatives:** Ship only procedural primitives; add skeletal animation; make imported mesh placement part of simulation state.
 
-**Rationale:** Procedural assemblies give exact facing silhouettes, tiny repository size, deterministic placement, and no uncertain model license. Deliberate materials and multi-part silhouettes provide a finished visual identity.
+**Rationale:** CC0 provenance is explicit, the combined static meshes are lightweight, and Blueprint defaults let designers replace presentation without recompiling or affecting deterministic state.
 
 ## 2026-08-01 - Generate materials in Unreal Python
 
-**Decision:** Generate four project materials through `BuildScripts/GenerateAssets.py`.
+**Decision:** Generate nine project materials through `BuildScripts/GenerateAssets.py`.
 
 **Alternatives:** Hand-author binary assets; duplicate materials per player.
 
@@ -130,13 +130,21 @@ This log records decisions made where the build brief allowed or required engine
 
 **Rationale:** Roboto Mono improves code alignment, while Rajdhani gives headings a technical identity. Both are redistributable under OFL 1.1.
 
-## 2026-08-01 - Use C++ Slate instead of Blueprint widgets
+## 2026-08-01 - Keep UI behavior native and expose editor-owned Widget Blueprints
 
-**Decision:** Build the six UI screens and syntax highlighter in C++ Slate.
+**Decision:** Build the six UI screens and syntax highlighter in C++ Slate, then expose Blueprintable `UUserWidget` parents and thin Widget Blueprint assets. Superseded for screen composition by the 2026-08-02 decision below; the code editor remains Slate-backed.
 
-**Alternatives:** UMG Blueprint graphs; web-based editor integration.
+**Alternatives:** Reimplement behavior in UMG Blueprint graphs; use web-based editor integration; keep all UI class selection hard-coded.
 
-**Rationale:** The brief prioritizes C++, and Slate provides deterministic ownership over editor spans, gutter lines, and diagnostic state without Blueprint logic.
+**Rationale:** Slate retains deterministic ownership over editor spans, gutter lines, and diagnostics, while Widget Blueprints provide designer-visible class assets without duplicating logic.
+
+## 2026-08-02 - Author screens and tanks as editor-owned assets
+
+**Decision:** Store the full HUD hierarchy and styling in the Canvas-based `WBP_AWHUD`, keep only behavior and bindings in `UAWHUDWidget`, and represent each simulated robot with a level-authored `BP_TankActor` derived from `AAWTankActor`. Simulation and replay are transparent edge overlays that preserve a central arena viewport. Arena boundary walls belong to the map rather than `AAWArenaRenderer`.
+
+**Alternatives:** Keep screen composition in `RebuildWidget`; retain both tank meshes as renderer components; continue generating boundary cubes from simulation wall cells.
+
+**Rationale:** Designers can edit and preview the menus directly, each tank has an explicit Unreal lifecycle and map identity, and the renderer has a smaller presentation-only responsibility without duplicating walls already present in the level.
 
 ## 2026-08-02 - Keep local mode in the existing world
 

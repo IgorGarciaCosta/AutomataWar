@@ -15,7 +15,7 @@
 /**
  * @brief Default pawn: spectator with no movement, collision disabled.
  */
-UCLASS()
+UCLASS(Blueprintable)
 class AUTOMATAWAR_API AAWSpectatorPawn : public ASpectatorPawn
 {
     GENERATED_BODY()

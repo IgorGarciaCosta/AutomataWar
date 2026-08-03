@@ -21,6 +21,14 @@ PACKS = {
     "ui": "https://kenney.nl/media/pages/assets/ui-audio/490d233f68-1677590494/kenney_ui-audio.zip",
 }
 
+MODEL_FILES = {
+    "SM_Tank_PlayerOne": "https://drive.usercontent.google.com/download?id=13lbAEkwen5bXY2fSiyo4rVt5q_gxy0Fm&export=download&confirm=t",
+    "SM_Tank_PlayerTwo": "https://drive.usercontent.google.com/download?id=1a57hqb1yEdLCbeQiQQjf2mobANJNc5dc&export=download&confirm=t",
+    "SM_BirchTree": "https://drive.usercontent.google.com/download?id=1FmqkvK2dFjcG_Cx4umWDZ5bR7uS2fDuX&export=download&confirm=t",
+    "SM_Rock": "https://drive.usercontent.google.com/download?id=1dQ8kOkuHLvtO7TNxUeyfdPdxje3gn_Aa&export=download&confirm=t",
+    "SM_TreeStump": "https://drive.usercontent.google.com/download?id=1QOtVG-SdMuSkM5OiLyfIjZWvzfvlBY5G&export=download&confirm=t",
+}
+
 AUDIO_FILES = {
     "S_Fire": ("scifi", "Audio/laserSmall_001.ogg"),
     "S_Impact": ("scifi", "Audio/impactMetal_002.ogg"),
@@ -65,7 +73,13 @@ def prepare_sources():
         with zipfile.ZipFile(archive) as package:
             package.extractall(destination)
         pack_dirs[key] = destination
-    return pack_dirs
+
+    model_files = {}
+    for asset_name, url in MODEL_FILES.items():
+        filename = os.path.join(STAGE_DIR, "models", asset_name + ".fbx")
+        download(url, filename)
+        model_files[asset_name] = filename
+    return pack_dirs, model_files
 
 
 def import_audio(pack_dirs):
@@ -84,6 +98,42 @@ def import_audio(pack_dirs):
     for task in tasks:
         if not task.imported_object_paths:
             raise RuntimeError(f"Audio import failed: {task.destination_name}")
+
+
+def import_models(model_files):
+    tasks = []
+    for asset_name, filename in model_files.items():
+        options = unreal.FbxImportUI()
+        options.set_editor_property(
+            "mesh_type_to_import", unreal.FBXImportType.FBXIT_STATIC_MESH)
+        options.set_editor_property(
+            "automated_import_should_detect_type", False)
+        options.set_editor_property("import_as_skeletal", False)
+        options.set_editor_property("import_animations", False)
+        options.set_editor_property("import_materials", False)
+        options.set_editor_property("import_textures", False)
+        options.set_editor_property("override_full_name", True)
+        static_options = options.get_editor_property("static_mesh_import_data")
+        static_options.set_editor_property("combine_meshes", True)
+        static_options.set_editor_property("auto_generate_collision", False)
+        static_options.set_editor_property("generate_lightmap_u_vs", True)
+        static_options.set_editor_property("build_nanite", False)
+
+        task = unreal.AssetImportTask()
+        task.filename = filename
+        task.destination_path = "/Game/Art/Meshes"
+        task.destination_name = asset_name
+        task.automated = True
+        task.replace_existing = True
+        task.save = True
+        task.options = options
+        tasks.append(task)
+
+    unreal.AssetToolsHelpers.get_asset_tools().import_asset_tasks(tasks)
+    for task in tasks:
+        path = f"/Game/Art/Meshes/{task.destination_name}"
+        if not unreal.EditorAssetLibrary.does_asset_exist(path):
+            raise RuntimeError(f"Model import failed: {task.destination_name}")
 
 
 def recreate_material(name):
@@ -114,6 +164,21 @@ def scalar_parameter(material, name, value, x, y):
     expression.set_editor_property("parameter_name", name)
     expression.set_editor_property("default_value", value)
     return expression
+
+
+def create_surface_material(name, color, metallic, roughness):
+    material = recreate_material(name)
+    base = vector_parameter(material, "BaseColor", color, -350, -80)
+    metal = scalar_parameter(material, "Metallic", metallic, -350, 80)
+    rough = scalar_parameter(material, "Roughness", roughness, -350, 160)
+    unreal.MaterialEditingLibrary.connect_material_property(
+        base, "", unreal.MaterialProperty.MP_BASE_COLOR)
+    unreal.MaterialEditingLibrary.connect_material_property(
+        metal, "", unreal.MaterialProperty.MP_METALLIC)
+    unreal.MaterialEditingLibrary.connect_material_property(
+        rough, "", unreal.MaterialProperty.MP_ROUGHNESS)
+    unreal.MaterialEditingLibrary.recompile_material(material)
+    return material
 
 
 def create_materials():
@@ -173,7 +238,18 @@ def create_materials():
         opacity, "", unreal.MaterialProperty.MP_OPACITY)
     unreal.MaterialEditingLibrary.recompile_material(effect)
 
-    for material in (arena, robot, cover, effect):
+    ground = create_surface_material("M_Ground", unreal.LinearColor(
+        0.055, 0.075, 0.07, 1.0), 0.08, 0.82)
+    foliage = create_surface_material("M_Foliage", unreal.LinearColor(
+        0.08, 0.22, 0.12, 1.0), 0.0, 0.88)
+    wood = create_surface_material("M_Wood", unreal.LinearColor(
+        0.16, 0.08, 0.035, 1.0), 0.0, 0.8)
+    stone = create_surface_material("M_Stone", unreal.LinearColor(
+        0.16, 0.18, 0.19, 1.0), 0.0, 0.9)
+    industrial = create_surface_material("M_Industrial", unreal.LinearColor(
+        0.32, 0.18, 0.035, 1.0), 0.45, 0.5)
+
+    for material in (arena, robot, cover, effect, ground, foliage, wood, stone, industrial):
         unreal.EditorAssetLibrary.save_loaded_asset(material)
 
 
@@ -188,8 +264,9 @@ def create_niagara_systems():
 
 
 def main():
-    pack_dirs = prepare_sources()
+    pack_dirs, model_files = prepare_sources()
     import_audio(pack_dirs)
+    import_models(model_files)
     create_materials()
     create_niagara_systems()
     unreal.EditorAssetLibrary.save_directory(

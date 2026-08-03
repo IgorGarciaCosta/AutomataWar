@@ -138,17 +138,17 @@ The global match cap is 1,800 ticks. Resolution priority alternates by tick so n
 
 ## Registers
 
-| Name | Access | Update rule |
-| --- | --- | --- |
-| `R0` | Read/write | Initialized to `0`; changed only by `SET`. |
-| `R1` | Read/write | Initialized to `0`; changed only by `SET`. |
-| `R2` | Read/write | Initialized to `0`; changed only by `SET`. |
-| `R3` | Read/write | Initialized to `0`; changed only by `SET`. |
-| `R_HP` | Read-only | Synchronized from current HP after effects. |
-| `R_ENEMY_DIST` | Read-only | Written by `SCAN`; `0` means no target. |
-| `R_ENEMY_DIR` | Read-only | Written by successful `SCAN`. |
-| `R_ENERGY` | Read-only | Synchronized from remaining energy. |
-| `R_TICK` | Read-only | Synchronized from current simulation tick. |
+| Name           | Access     | Update rule                                 |
+| -------------- | ---------- | ------------------------------------------- |
+| `R0`           | Read/write | Initialized to `0`; changed only by `SET`.  |
+| `R1`           | Read/write | Initialized to `0`; changed only by `SET`.  |
+| `R2`           | Read/write | Initialized to `0`; changed only by `SET`.  |
+| `R3`           | Read/write | Initialized to `0`; changed only by `SET`.  |
+| `R_HP`         | Read-only  | Synchronized from current HP after effects. |
+| `R_ENEMY_DIST` | Read-only  | Written by `SCAN`; `0` means no target.     |
+| `R_ENEMY_DIR`  | Read-only  | Written by successful `SCAN`.               |
+| `R_ENERGY`     | Read-only  | Synchronized from remaining energy.         |
+| `R_TICK`       | Read-only  | Synchronized from current simulation tick.  |
 
 ## Numeric and Safety Behavior
 
@@ -160,20 +160,20 @@ The simulation performs no dynamic allocation in its per-tick intent/effect path
 
 Diagnostics include a 1-based line and column. Compilation is panic-free and reports multiple independent errors when possible.
 
-| Kind | Trigger | Example message |
-| --- | --- | --- |
-| `UnknownInstruction` | Mnemonic is not one of eight instructions. | `Unknown instruction 'FIREE'. Did you mean 'FIRE'?` |
-| `UnknownLabel` | Branch target was never declared. | `Unknown label 'ATTACK'.` |
-| `DuplicateLabel` | A label is declared more than once. | `Duplicate label 'LOOP'.` |
-| `BadOperandCount` | Instruction has too few or too many operands. | `MOVE takes 1 operand (FWD or BACK), got 0.` |
-| `BadOperandType` | Register, direction, or integer token is invalid. | `Expected integer immediate, got 'FAST'.` |
-| `ImmediateOutOfRange` | Immediate is outside the signed 16-bit range. | `Immediate 40000 outside [-32768, 32767].` |
-| `SetToReadOnly` | `SET` targets a system register. | `Cannot SET system read-only register 'R_HP'.` |
-| `MalformedComparison` | `IF` uses an unknown symbolic operator. | `Unknown comparison operator '~'. Use == != < > <= >=.` |
-| `ProgramTooLong` | More than 256 instructions are emitted. | `Program exceeds maximum of 256 instructions.` |
-| `SourceTooLong` | More than 512 lines reach the compiler. | `Source exceeds maximum of 512 lines.` |
-| `MissingJumpKeyword` | Token five of `IF` is not `JUMP`. | `Expected JUMP keyword, got 'THEN'.` |
-| `AliasRejected` | `EQ/NE/LT/LE/GT/GE` or `GOTO` is used. | `GOTO rejected. Use JUMP.` |
+| Kind                  | Trigger                                           | Example message                                         |
+| --------------------- | ------------------------------------------------- | ------------------------------------------------------- |
+| `UnknownInstruction`  | Mnemonic is not one of eight instructions.        | `Unknown instruction 'FIREE'. Did you mean 'FIRE'?`     |
+| `UnknownLabel`        | Branch target was never declared.                 | `Unknown label 'ATTACK'.`                               |
+| `DuplicateLabel`      | A label is declared more than once.               | `Duplicate label 'LOOP'.`                               |
+| `BadOperandCount`     | Instruction has too few or too many operands.     | `MOVE takes 1 operand (FWD or BACK), got 0.`            |
+| `BadOperandType`      | Register, direction, or integer token is invalid. | `Expected integer immediate, got 'FAST'.`               |
+| `ImmediateOutOfRange` | Immediate is outside the signed 16-bit range.     | `Immediate 40000 outside [-32768, 32767].`              |
+| `SetToReadOnly`       | `SET` targets a system register.                  | `Cannot SET system read-only register 'R_HP'.`          |
+| `MalformedComparison` | `IF` uses an unknown symbolic operator.           | `Unknown comparison operator '~'. Use == != < > <= >=.` |
+| `ProgramTooLong`      | More than 256 instructions are emitted.           | `Program exceeds maximum of 256 instructions.`          |
+| `SourceTooLong`       | More than 512 lines reach the compiler.           | `Source exceeds maximum of 512 lines.`                  |
+| `MissingJumpKeyword`  | Token five of `IF` is not `JUMP`.                 | `Expected JUMP keyword, got 'THEN'.`                    |
+| `AliasRejected`       | `EQ/NE/LT/LE/GT/GE` or `GOTO` is used.            | `GOTO rejected. Use JUMP.`                              |
 
 The suggestion engine computes case-insensitive Levenshtein distance against the eight mnemonics and offers the nearest name when distance is at most 3.
 

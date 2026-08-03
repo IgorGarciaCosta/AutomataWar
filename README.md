@@ -14,8 +14,8 @@ The server accepts at most 1,800 bytes per script, so even the worst valid repla
 
 ## Screenshots
 
-| Programming | Replay and autopsy |
-| --- | --- |
+| Programming                                       | Replay and autopsy                                  |
+| ------------------------------------------------- | --------------------------------------------------- |
 | ![Two-player programming editor](Docs/editor.png) | ![Deterministic replay debugger](Docs/debugger.png) |
 
 ![Main menu with local and LAN modes](Docs/menu.png)
@@ -24,27 +24,27 @@ The server accepts at most 1,800 bytes per script, so even the worst valid repla
 
 Automata Lang compiles source once into fixed-size 8-byte instructions. Programs loop when the program counter reaches the end. Labels are resolved to instruction indices before simulation.
 
-| Instruction | Ticks | Energy | Meaning |
-| --- | ---: | ---: | --- |
-| `MOVE <FWD|BACK>` | 2 | 2 | Move one cell relative to facing; walls, cover, and robots block it. |
-| `TURN <LEFT|RIGHT>` | 1 | 1 | Rotate 90 degrees. |
-| `SCAN` | 1 | 3 | Scan a forward 90-degree cone, range 8, with cover occlusion. |
-| `FIRE` | 4 | 12 | Launch a 20-damage projectile that advances 4 cells per tick. |
-| `SHIELD` | 3 | 15 | Absorb the next hit while remaining busy for the full action. |
-| `SET <Rn> <imm>` | 1 | 0 | Write an integer in `[-32768, 32767]` to `R0..R3`. |
-| `IF <reg> <OP> <imm> JUMP <label>` | 1 | 0 | Branch with `== != < > <= >=`. |
-| `WAIT` | 1 | 0 | Spend one tick without spending energy. |
+| Instruction                        |   Ticks | Energy | Meaning                                                       |
+| ---------------------------------- | ------: | -----: | ------------------------------------------------------------- | -------------------------------------------------------------------- |
+| `MOVE <FWD                         |  BACK>` |      2 | 2                                                             | Move one cell relative to facing; walls, cover, and robots block it. |
+| `TURN <LEFT                        | RIGHT>` |      1 | 1                                                             | Rotate 90 degrees.                                                   |
+| `SCAN`                             |       1 |      3 | Scan a forward 90-degree cone, range 8, with cover occlusion. |
+| `FIRE`                             |       4 |     12 | Launch a 20-damage projectile that advances 4 cells per tick. |
+| `SHIELD`                           |       3 |     15 | Absorb the next hit while remaining busy for the full action. |
+| `SET <Rn> <imm>`                   |       1 |      0 | Write an integer in `[-32768, 32767]` to `R0..R3`.            |
+| `IF <reg> <OP> <imm> JUMP <label>` |       1 |      0 | Branch with `== != < > <= >=`.                                |
+| `WAIT`                             |       1 |      0 | Spend one tick without spending energy.                       |
 
 Registers:
 
-| Register | Access | Meaning |
-| --- | --- | --- |
-| `R0..R3` | Read/write | General-purpose integer registers. |
-| `R_HP` | Read-only | Current hit points. |
-| `R_ENEMY_DIST` | Read-only | Manhattan distance from the last successful scan; `0` means no hit. |
-| `R_ENEMY_DIR` | Read-only | Relative scan direction: `-1` left, `0` ahead, `1` right. |
-| `R_ENERGY` | Read-only | Remaining energy. |
-| `R_TICK` | Read-only | Current simulation tick. |
+| Register       | Access     | Meaning                                                             |
+| -------------- | ---------- | ------------------------------------------------------------------- |
+| `R0..R3`       | Read/write | General-purpose integer registers.                                  |
+| `R_HP`         | Read-only  | Current hit points.                                                 |
+| `R_ENEMY_DIST` | Read-only  | Manhattan distance from the last successful scan; `0` means no hit. |
+| `R_ENEMY_DIR`  | Read-only  | Relative scan direction: `-1` left, `0` ahead, `1` right.           |
+| `R_ENERGY`     | Read-only  | Remaining energy.                                                   |
+| `R_TICK`       | Read-only  | Current simulation tick.                                            |
 
 Example behavior:
 
@@ -76,7 +76,7 @@ flowchart LR
     Intent1 --> Sim[Deterministic simulation]
     Intent2 --> Sim
     Sim --> Replay[State snapshots and event log]
-    Replay --> Presentation[Slate UI, actors, Niagara, audio]
+    Replay --> Presentation[UMG HUD, tank actors, Niagara, audio]
     Presentation -. read only .-> Replay
 ```
 
@@ -84,7 +84,7 @@ The source tree exposes three boundaries:
 
 - `Core/`: engine-independent compiler, VM, simulation, and replay codec.
 - `Game/` and `Net/`: Unreal match state, authoritative submissions, sessions, replication, and desync checks.
-- `UI/` and `Visual/`: Slate editor/debugger, camera, procedural meshes, materials, VFX, and sound.
+- `UI/` and `Visual/`: designer-owned UMG screen composition, native code editor behavior, level-authored tank actors, camera, runtime VFX, and sound.
 
 The VM cannot query the arena or opponent. It emits an intent such as `MoveForward` or `Fire`; the simulation validates that intent against canonical integer state and applies the effect. Local play and online play both call the same authoritative `AAWGameMode::HandleSubmission()` and the same intent -> validation -> effect path.
 
@@ -191,12 +191,15 @@ Blank-page paralysis is handled with three commented examples:
 
 ## Art Pipeline and Credits
 
-Robot chassis, cover variants, projectiles, and the arena are deterministic runtime assemblies of Unreal Engine basic meshes with authored parameterized materials. Player silhouettes differ as well as colors. Materials are generated by `BuildScripts/GenerateAssets.py`; no visual asset influences simulation collision or line of sight.
+The arena foundation, walls, lighting, sky, camera, environment dressing, tanks, and gameplay class selection are editor-owned assets generated reproducibly by `BuildScripts/CreateArenaMap.py`. `WBP_AWHUD` owns the responsive Canvas/UMG hierarchy while native classes supply behavior. The tactical grid, cover state, projectiles, tank transforms, and replay motion remain runtime presentation driven by simulation snapshots.
+
+Two Quaternius CC0 tank meshes provide distinct player silhouettes through level-authored `BP_TankActor` instances, whose native parent is `AAWTankActor`. Simulation and replay use transparent edge-docked HUD overlays so the arena remains visible. Birch trees, rocks, and stumps from Quaternius frame the arena outside the tactical grid. Project-authored materials are generated by `BuildScripts/GenerateAssets.py`; no visual asset influences simulation collision or line of sight.
 
 The project also includes:
 
 - Epic Niagara template derivatives for muzzle, trail, impact, shield, and destruction effects.
 - Kenney CC0 sci-fi and UI sound effects.
+- Quaternius CC0 tanks and low-poly nature models.
 - Roboto Mono and Rajdhani under SIL OFL 1.1.
 
 Every third-party file, source URL, author, license, and acquisition date is listed in [Docs/CREDITS.md](Docs/CREDITS.md).
@@ -209,7 +212,7 @@ Automata War belongs to a lineage that includes **Core War (1984)**, **CRobots**
 
 - Online play is LAN/direct-IP only; NAT traversal and internet identity are intentionally absent.
 - A disconnect is an immediate forfeit; a production service would add authenticated reconnect windows.
-- Robot visuals are procedural rigid assemblies rather than skeletal animation rigs.
+- Tank visuals are imported as rigid static meshes; track and turret animations are intentionally omitted.
 - Replay stepping re-simulates from the start; periodic keyframes would improve very long future rulesets.
 - Windows Development and Editor builds are verified; other target platforms need platform-specific packaging validation.
 - The next gameplay step would be balance telemetry and seeded tournament fixtures, not a larger instruction set.
@@ -221,13 +224,14 @@ Source/AutomataWar/
   Core/       Lang, VM, Sim, Replay
   Game/       GameMode, GameState, controllers, services
   Net/        Desync validation
-  UI/         Slate editor, debugger, menus
-  Visual/     Arena, robots, camera, VFX drivers
+  UI/         UMG HUD behavior, Slate code editor, replay debugger
+  Visual/     Arena renderer, tank actors, camera, VFX drivers
 Content/
-  Art/        Materials and Niagara systems
+  Art/        Imported meshes, generated materials, and Niagara systems
   Audio/      SFX
-  UI/         Fonts
-  Maps/       Arena map
+  Blueprints/ Gameplay and presentation Blueprint defaults
+  UI/         Fonts and native-backed Widget Blueprints
+  Maps/       Editor-authored arena map
 Docs/         Language spec, credits, screenshots
 ```
 

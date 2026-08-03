@@ -1,13 +1,15 @@
 # UI Layer
 
-C++ presentation layer for Automata War. All screens built in Slate/UMG without Blueprints.
+Designer-authored UMG presentation for Automata War with native C++ behavior.
 
 ## Structure
 
 - `AWUITypes.h/cpp` — Log category, color palette, asset soft paths
 - `SAWCodeEditor.h/cpp` — Slate multiline code editor with syntax highlighting, line numbers, diagnostics
 - `SAWSyntaxHighlighter.h/cpp` — Rich-text marshaller for Automata assembly coloring
-- `AWHUDWidget.h/cpp` — Root UMG widget managing all UI screens (menu, editors, replay, reference)
+- `AWCodeEditorWidget.h/cpp` — UMG host for the native Slate code editor
+- `AWHUDWidget.h/cpp` — Runtime actions and data bindings for the root HUD
+- `WBP_AWHUD` — Canvas-based responsive layout, styling, and six-screen hierarchy
 
 ## Screens
 

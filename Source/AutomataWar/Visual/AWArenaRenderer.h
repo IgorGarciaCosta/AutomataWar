@@ -18,12 +18,13 @@ class UProceduralMeshComponent;
 class UStaticMeshComponent;
 class UPointLightComponent;
 class UNiagaraComponent;
+class AAWTankActor;
 
 /**
- * @brief Presentation-only arena actor: grid floor, cover blocks, robot visuals,
- *        projectile bolts, VFX, and audio driven entirely from sim event/snapshot data.
+ * @brief Presentation-only arena actor: grid floor, cover, projectile bolts,
+ *        VFX, and audio driven entirely from sim event/snapshot data.
  */
-UCLASS()
+UCLASS(Blueprintable)
 class AUTOMATAWAR_API AAWArenaRenderer : public AActor
 {
     GENERATED_BODY()
@@ -34,9 +35,6 @@ public:
 
     /** Build initial visual state after the actor enters the world. */
     virtual void BeginPlay() override;
-    /** Interpolate presentation transforms toward the latest immutable snapshot. */
-    virtual void Tick(float DeltaTime) override;
-
     /** Initialize the grid and cover visuals from a sim config. */
     void InitializeArena(const Automata::SimConfig &Config, const TArray<Automata::CellType> &Grid);
 
@@ -55,9 +53,6 @@ protected:
 
     /** Spawn cover block visuals. */
     void SpawnCoverVisuals(int32 Width, int32 Height, const TArray<Automata::CellType> &Grid);
-
-    /** Build robot composite meshes. */
-    void BuildRobotVisuals();
 
     /** Spawn a projectile bolt visual. */
     void SpawnProjectileBolt(int32 OwnerIdx, FVector WorldPos, FVector Direction);
@@ -83,35 +78,21 @@ protected:
     /** Convert direction enum to world rotation. */
     FRotator DirToRotation(Automata::Dir D) const;
 
+    /** Resolve the two level-authored tank actors when references are unset. */
+    void ResolveTankActors();
+
     UPROPERTY(VisibleAnywhere, Category = "Arena")
     TObjectPtr<UProceduralMeshComponent> FloorMesh;
 
-    UPROPERTY(VisibleAnywhere, Category = "Arena")
-    TObjectPtr<USceneComponent> RobotRoot0;
+    /** Tank instances authored directly in the arena level. */
+    UPROPERTY(EditInstanceOnly, BlueprintReadOnly, Category = "Arena|Actors")
+    TObjectPtr<AAWTankActor> PlayerOneTank;
 
-    UPROPERTY(VisibleAnywhere, Category = "Arena")
-    TObjectPtr<USceneComponent> RobotRoot1;
-
-    UPROPERTY(VisibleAnywhere, Category = "Arena")
-    TObjectPtr<UPointLightComponent> PlayerOneAccentLight;
-
-    UPROPERTY(VisibleAnywhere, Category = "Arena")
-    TObjectPtr<UPointLightComponent> PlayerTwoAccentLight;
-
-    /** Dynamic material instances for robots. */
-    UPROPERTY()
-    TObjectPtr<UMaterialInstanceDynamic> RobotMat0;
-    UPROPERTY()
-    TObjectPtr<UMaterialInstanceDynamic> RobotMat1;
+    UPROPERTY(EditInstanceOnly, BlueprintReadOnly, Category = "Arena|Actors")
+    TObjectPtr<AAWTankActor> PlayerTwoTank;
 
     /** Current display snapshot. */
     Automata::TickSnapshot CurrentSnapshot;
-    /** Target positions for interpolation. */
-    FVector TargetPos0;
-    FVector TargetPos1;
-    FRotator TargetRot0;
-    FRotator TargetRot1;
-
     int32 GridWidth = 0;
     int32 GridHeight = 0;
 };

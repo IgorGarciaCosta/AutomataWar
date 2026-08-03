@@ -8,6 +8,6 @@ public class AutomataWarEditorTarget : TargetRules
         Type = TargetType.Editor;
         DefaultBuildSettings = BuildSettingsVersion.V5;
         IncludeOrderVersion = EngineIncludeOrderVersion.Unreal5_5;
-        ExtraModuleNames.Add("AutomataWar");
+        ExtraModuleNames.AddRange(new[] { "AutomataWar", "AutomataWarEditor" });
     }
 }
