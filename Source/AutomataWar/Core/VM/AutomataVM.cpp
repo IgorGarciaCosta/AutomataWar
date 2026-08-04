@@ -55,42 +55,42 @@ namespace Automata
         {
         case Opcode::MOVE:
             intent = {IntentType::Move, static_cast<int16_t>(instr.operandA)}; // 0=FWD, 1=BACK
-            state.busyLeft = TickCost[static_cast<int>(Opcode::MOVE)] - 1;
+            state.busyLeft = InstructionDefs[static_cast<int>(Opcode::MOVE)].tickCost - 1;
             advancePC();
             ++state.instrExecCount;
             break;
 
         case Opcode::TURN:
             intent = {IntentType::Turn, instr.imm16}; // -1=LEFT, 1=RIGHT
-            state.busyLeft = TickCost[static_cast<int>(Opcode::TURN)] - 1;
+            state.busyLeft = InstructionDefs[static_cast<int>(Opcode::TURN)].tickCost - 1;
             advancePC();
             ++state.instrExecCount;
             break;
 
         case Opcode::SCAN:
             intent = {IntentType::Scan, 0};
-            state.busyLeft = TickCost[static_cast<int>(Opcode::SCAN)] - 1;
+            state.busyLeft = InstructionDefs[static_cast<int>(Opcode::SCAN)].tickCost - 1;
             advancePC();
             ++state.instrExecCount;
             break;
 
         case Opcode::FIRE:
             intent = {IntentType::Fire, 0};
-            state.busyLeft = TickCost[static_cast<int>(Opcode::FIRE)] - 1;
+            state.busyLeft = InstructionDefs[static_cast<int>(Opcode::FIRE)].tickCost - 1;
             advancePC();
             ++state.instrExecCount;
             break;
 
         case Opcode::SHIELD:
             intent = {IntentType::Shield, 0};
-            state.busyLeft = TickCost[static_cast<int>(Opcode::SHIELD)] - 1;
+            state.busyLeft = InstructionDefs[static_cast<int>(Opcode::SHIELD)].tickCost - 1;
             advancePC();
             ++state.instrExecCount;
             break;
 
         case Opcode::WAIT:
             intent = {IntentType::Wait, 0};
-            state.busyLeft = TickCost[static_cast<int>(Opcode::WAIT)] - 1;
+            state.busyLeft = InstructionDefs[static_cast<int>(Opcode::WAIT)].tickCost - 1;
             advancePC();
             ++state.instrExecCount;
             break;
@@ -101,7 +101,7 @@ namespace Automata
             if (reg < GPRegisterCount)
                 state.regs[reg] = static_cast<int32_t>(instr.imm16);
             // SET costs 1 tick, emits Wait intent externally.
-            state.busyLeft = TickCost[static_cast<int>(Opcode::SET)] - 1;
+            state.busyLeft = InstructionDefs[static_cast<int>(Opcode::SET)].tickCost - 1;
             advancePC();
             ++state.instrExecCount;
             intent = {IntentType::Wait, 0};
@@ -145,7 +145,7 @@ namespace Automata
             {
                 advancePC();
             }
-            state.busyLeft = TickCost[static_cast<int>(Opcode::IF)] - 1;
+            state.busyLeft = InstructionDefs[static_cast<int>(Opcode::IF)].tickCost - 1;
             ++state.instrExecCount;
             intent = {IntentType::Wait, 0};
             break;

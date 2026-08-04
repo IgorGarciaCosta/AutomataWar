@@ -140,7 +140,7 @@ This log records decisions made where the build brief allowed or required engine
 
 ## 2026-08-02 - Author screens and tanks as editor-owned assets
 
-**Decision:** Store the full HUD hierarchy and styling in the Canvas-based `WBP_AWHUD`, keep only behavior and bindings in `UAWHUDWidget`, and represent each simulated robot with a level-authored `BP_TankActor` derived from `AAWTankActor`. Simulation and replay are transparent edge overlays that preserve a central arena viewport. Arena boundary walls belong to the map rather than `AAWArenaRenderer`.
+**Decision:** Store the full HUD hierarchy and styling in the Canvas-based `WBP_AWHUD`, keep only behavior and bindings in `UAWHUDWidget`, and represent each simulated robot with a level-authored `BP_TankActor` derived from `AAWTankActor`. Context screens are fully opaque; simulation and replay use opaque edge panels around a transparent central arena viewport viewed by an orthographic top-down camera. Arena boundary walls belong to the map rather than `AAWArenaRenderer`.
 
 **Alternatives:** Keep screen composition in `RebuildWidget`; retain both tank meshes as renderer components; continue generating boundary cubes from simulation wall cells.
 

@@ -88,45 +88,6 @@ namespace Automata
          1, 0},
     }};
 
-    // Convenience cost arrays indexed by Opcode value.
-    inline constexpr std::array<int32_t, OpcodeCount> EnergyCost = {
-        /* MOVE */ 2,
-        /* TURN */ 1,
-        /* SCAN */ 3,
-        /* FIRE */ 12,
-        /* SHIELD */ 15,
-        /* SET */ 0,
-        /* IF */ 0,
-        /* WAIT */ 0};
-
-    inline constexpr std::array<int32_t, OpcodeCount> TickCost = {
-        /* MOVE */ 2,
-        /* TURN */ 1,
-        /* SCAN */ 1,
-        /* FIRE */ 4,
-        /* SHIELD */ 3,
-        /* SET */ 1,
-        /* IF */ 1,
-        /* WAIT */ 1};
-
-    // Static assertions: cost arrays must equal the InstructionDefs table.
-    static_assert(EnergyCost[0] == InstructionDefs[0].energyCost);
-    static_assert(EnergyCost[1] == InstructionDefs[1].energyCost);
-    static_assert(EnergyCost[2] == InstructionDefs[2].energyCost);
-    static_assert(EnergyCost[3] == InstructionDefs[3].energyCost);
-    static_assert(EnergyCost[4] == InstructionDefs[4].energyCost);
-    static_assert(EnergyCost[5] == InstructionDefs[5].energyCost);
-    static_assert(EnergyCost[6] == InstructionDefs[6].energyCost);
-    static_assert(EnergyCost[7] == InstructionDefs[7].energyCost);
-    static_assert(TickCost[0] == InstructionDefs[0].tickCost);
-    static_assert(TickCost[1] == InstructionDefs[1].tickCost);
-    static_assert(TickCost[2] == InstructionDefs[2].tickCost);
-    static_assert(TickCost[3] == InstructionDefs[3].tickCost);
-    static_assert(TickCost[4] == InstructionDefs[4].tickCost);
-    static_assert(TickCost[5] == InstructionDefs[5].tickCost);
-    static_assert(TickCost[6] == InstructionDefs[6].tickCost);
-    static_assert(TickCost[7] == InstructionDefs[7].tickCost);
-
     // --- Combat / physics -------------------------------------------------------
 
     /** Cells advanced per simulation tick, making projectiles visible but dangerous. */
@@ -262,10 +223,10 @@ namespace Automata
         mix(ProjectileSpeed);
         mix(ProjectileDamage);
         mix(ScanRange);
-        for (auto c : EnergyCost)
-            mix(c);
-        for (auto c : TickCost)
-            mix(c);
+        for (const InstructionDefinition &Definition : InstructionDefs)
+            mix(Definition.energyCost);
+        for (const InstructionDefinition &Definition : InstructionDefs)
+            mix(Definition.tickCost);
         mix(MaxProgramLength);
         mix(DefaultGridWidth);
         mix(DefaultGridHeight);

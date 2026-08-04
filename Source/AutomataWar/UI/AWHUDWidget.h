@@ -149,6 +149,7 @@ private:
     UFUNCTION()
     void OnReplayScrubChanged(float Value);
     void InitializeReplayFromGameState();
+    bool InitializeReplay(const FString &SourceA, const FString &SourceB, int64 Seed);
     void UpdateReplayUI();
     void UpdateArenaFromReplay();
 

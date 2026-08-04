@@ -259,6 +259,10 @@ void UAWHUDWidget::OnPhaseChanged(EAWMatchPhase NewPhase)
         ShowScreen(EAWScreen::Programming);
         break;
     case EAWMatchPhase::Simulation:
+        if (UTextBlock *SourceP1 = Cast<UTextBlock>(GetWidgetFromName(TEXT("SimulationSourceP1Text"))))
+            SourceP1->SetText(FText::FromString(EditorP1 ? EditorP1->GetSourceText() : FString()));
+        if (UTextBlock *SourceP2 = Cast<UTextBlock>(GetWidgetFromName(TEXT("SimulationSourceP2Text"))))
+            SourceP2->SetText(FText::FromString(EditorP2 ? EditorP2->GetSourceText() : FString()));
         PlayUISound(AWVisualAssets::SFX_MatchStart);
         ShowScreen(EAWScreen::Simulation);
         break;
@@ -490,10 +494,6 @@ void UAWHUDWidget::OnNextRound()
 
 void UAWHUDWidget::InitializeReplayFromGameState()
 {
-    bReplayPlaying = false;
-    ReplayAccumulator = 0.0;
-    ReplaySpeed = 1.f;
-
     UWorld *World = GetWorld();
     if (!World)
         return;
@@ -501,18 +501,22 @@ void UAWHUDWidget::InitializeReplayFromGameState()
     if (!GS)
         return;
 
-    std::string SrcA = TCHAR_TO_UTF8(*GS->RevealedSource0);
-    std::string SrcB = TCHAR_TO_UTF8(*GS->RevealedSource1);
-    uint64_t Seed = static_cast<uint64_t>(GS->SimSeed);
-
-    ReplayController = MakeUnique<Automata::FAWReplayController>();
-    if (!ReplayController->Initialize(SrcA, SrcB, Seed))
+    if (!InitializeReplay(GS->RevealedSource0, GS->RevealedSource1, GS->SimSeed))
     {
         SetStatus(TEXT("Failed to reconstruct simulation for replay."), true);
-        return;
     }
+}
 
-    // Initialize arena renderer
+bool UAWHUDWidget::InitializeReplay(const FString &SourceA, const FString &SourceB, int64 Seed)
+{
+    bReplayPlaying = false;
+    ReplayAccumulator = 0.0;
+    ReplaySpeed = 1.f;
+
+    ReplayController = MakeUnique<Automata::FAWReplayController>();
+    if (!ReplayController->Initialize(TCHAR_TO_UTF8(*SourceA), TCHAR_TO_UTF8(*SourceB), static_cast<uint64_t>(Seed)))
+        return false;
+
     if (AAWArenaRenderer *Renderer = FindOrSpawnRenderer())
     {
         TArray<Automata::CellType> Grid;
@@ -522,33 +526,6 @@ void UAWHUDWidget::InitializeReplayFromGameState()
         Renderer->InitializeArena(ReplayController->GetConfig(), Grid);
     }
 
-    // Display sources with line numbers
-    if (ReplaySourceAText)
-    {
-        FString Src = GS->RevealedSource0;
-        TArray<FString> Lines;
-        Src.ParseIntoArrayLines(Lines);
-        FString Numbered;
-        for (int32 i = 0; i < Lines.Num(); ++i)
-        {
-            Numbered += FString::Printf(TEXT("%3d| %s\n"), i + 1, *Lines[i]);
-        }
-        ReplaySourceAText->SetText(FText::FromString(Numbered));
-    }
-    if (ReplaySourceBText)
-    {
-        FString Src = GS->RevealedSource1;
-        TArray<FString> Lines;
-        Src.ParseIntoArrayLines(Lines);
-        FString Numbered;
-        for (int32 i = 0; i < Lines.Num(); ++i)
-        {
-            Numbered += FString::Printf(TEXT("%3d| %s\n"), i + 1, *Lines[i]);
-        }
-        ReplaySourceBText->SetText(FText::FromString(Numbered));
-    }
-
-    // Display outcome
     if (ReplayOutcomeText)
     {
         const auto &R = ReplayController->GetResult();
@@ -571,6 +548,7 @@ void UAWHUDWidget::InitializeReplayFromGameState()
 
     UpdateReplayUI();
     UpdateArenaFromReplay();
+    return true;
 }
 
 void UAWHUDWidget::UpdateReplayUI()
@@ -782,69 +760,12 @@ void UAWHUDWidget::OnReplayLoad(const FString &Filename)
         return;
     }
 
-    // Initialize replay controller directly from loaded data
-    ReplayController = MakeUnique<Automata::FAWReplayController>();
-    std::string SA = TCHAR_TO_UTF8(*Src0);
-    std::string SB = TCHAR_TO_UTF8(*Src1);
-    if (!ReplayController->Initialize(SA, SB, static_cast<uint64_t>(Seed)))
+    if (!InitializeReplay(Src0, Src1, Seed))
     {
         if (ReplayBrowserStatus)
             ReplayBrowserStatus->SetText(FText::FromString(TEXT("Failed to resimulate replay.")));
         return;
     }
-
-    // Set source display texts
-    if (ReplaySourceAText)
-    {
-        TArray<FString> Lines;
-        Src0.ParseIntoArrayLines(Lines);
-        FString N;
-        for (int32 i = 0; i < Lines.Num(); ++i)
-            N += FString::Printf(TEXT("%3d| %s\n"), i + 1, *Lines[i]);
-        ReplaySourceAText->SetText(FText::FromString(N));
-    }
-    if (ReplaySourceBText)
-    {
-        TArray<FString> Lines;
-        Src1.ParseIntoArrayLines(Lines);
-        FString N;
-        for (int32 i = 0; i < Lines.Num(); ++i)
-            N += FString::Printf(TEXT("%3d| %s\n"), i + 1, *Lines[i]);
-        ReplaySourceBText->SetText(FText::FromString(N));
-    }
-    if (ReplayOutcomeText)
-    {
-        const auto &R = ReplayController->GetResult();
-        FString Outcome;
-        switch (R.outcome)
-        {
-        case Automata::MatchOutcome::Robot0Wins:
-            Outcome = TEXT("P1 WINS");
-            break;
-        case Automata::MatchOutcome::Robot1Wins:
-            Outcome = TEXT("P2 WINS");
-            break;
-        default:
-            Outcome = TEXT("DRAW");
-            break;
-        }
-        Outcome += FString::Printf(TEXT(" | Tick %d | HP: %d/%d"), R.finalTick, R.finalHP[0], R.finalHP[1]);
-        ReplayOutcomeText->SetText(FText::FromString(Outcome));
-    }
-
-    // Init arena
-    if (AAWArenaRenderer *Renderer = FindOrSpawnRenderer())
-    {
-        TArray<Automata::CellType> Grid;
-        for (auto c : ReplayController->GetGrid())
-            Grid.Add(c);
-        Renderer->InitializeArena(ReplayController->GetConfig(), Grid);
-    }
-
-    bReplayPlaying = false;
-    ReplaySpeed = 1.f;
-    UpdateReplayUI();
-    UpdateArenaFromReplay();
     ShowScreen(EAWScreen::ReplayAutopsy);
 }
 

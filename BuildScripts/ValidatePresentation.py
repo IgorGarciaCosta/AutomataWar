@@ -14,7 +14,9 @@ required_widgets = {
     "ReplayOutcomeText", "ReplaySourceAText", "ReplaySourceBText",
     "ReplayRegistersP1", "ReplayRegistersP2", "ReplayEventLog",
     "ReplayScrubSlider", "LanguageReferenceText", "SimulationBanner",
-    "ReplayArenaViewportSpace"
+    "SimulationSourceP1Text", "SimulationSourceP2Text",
+    "SimulationArenaViewport", "ReplayArenaViewport",
+    "ReplayArenaViewportSpace", "ReplayEventsDock"
 }
 
 hud = unreal.load_asset(HUD_PATH)
@@ -44,6 +46,20 @@ hud_background = widgets_by_name["HUDBackground"]
 if hud_background.get_editor_property("brush_color").a > 0.15:
     raise RuntimeError("HUDBackground must remain transparent over the arena")
 
+for name in ["MainMenuScreen", "ProgrammingBackdrop",
+             "ReplayBrowserBackdrop", "LanguageReferenceBackdrop"]:
+    if widgets_by_name[name].get_editor_property("brush_color").a < 0.99:
+        raise RuntimeError(
+            f"{name} must hide the arena with an opaque background")
+
+for name in ["SimulationArenaViewport", "ReplayArenaViewport"]:
+    if widgets_by_name[name].get_editor_property("brush_color").a > 0.01:
+        raise RuntimeError(
+            f"{name} must remain transparent for the arena view")
+
+if widgets_by_name["ReplayEventsDock"].get_editor_property("height_override") != 112.0:
+    raise RuntimeError("ReplayEventsDock must keep a fixed height")
+
 switcher = widgets_by_name["ScreenSwitcher"]
 if switcher.get_num_widgets() != 6:
     raise RuntimeError(
@@ -64,9 +80,8 @@ hud_class = controller_cdo.get_editor_property("HUDWidgetClass")
 if hud_class.get_path_name() != "/Game/UI/WBP_AWHUD.WBP_AWHUD_C":
     raise RuntimeError("BP_AWPlayerController does not instantiate WBP_AWHUD")
 
-level_editor = unreal.get_editor_subsystem(unreal.LevelEditorSubsystem)
 actor_editor = unreal.get_editor_subsystem(unreal.EditorActorSubsystem)
-if not level_editor.load_level(MAP_PATH):
+if not unreal.EditorLoadingAndSavingUtils.load_map(MAP_PATH):
     raise RuntimeError(f"Failed to load {MAP_PATH}")
 
 actors = actor_editor.get_all_level_actors()
@@ -74,8 +89,16 @@ by_label = {actor.get_actor_label(): actor for actor in actors}
 tank_one = by_label.get("Tank_PlayerOne")
 tank_two = by_label.get("Tank_PlayerTwo")
 renderer = by_label.get("BP_AWArenaRenderer")
-if not tank_one or not tank_two or not renderer:
-    raise RuntimeError("Arena is missing renderer or tank actors")
+camera_actor = by_label.get("BP_AWIsometricCamera")
+if not tank_one or not tank_two or not renderer or not camera_actor:
+    raise RuntimeError("Arena is missing renderer, camera, or tank actors")
+
+camera_components = camera_actor.get_components_by_class(
+    unreal.CameraComponent)
+if len(camera_components) != 1:
+    raise RuntimeError("Arena camera must have exactly one CameraComponent")
+if camera_components[0].get_editor_property("projection_mode") != unreal.CameraProjectionMode.ORTHOGRAPHIC:
+    raise RuntimeError("Arena camera must use orthographic projection")
 
 for tank, expected_index in [(tank_one, 0), (tank_two, 1)]:
     if tank.get_class().get_path_name() != TANK_CLASS_PATH:
@@ -105,4 +128,4 @@ if len(wall_labels) < 8:
 
 unreal.log(
     f"AUTOMATA_PRESENTATION_VALIDATION_COMPLETE widgets={len(widgets_by_name)} "
-    f"screens=6 tanks=2 walls={len(wall_labels)}")
+    f"screens=6 cameras=1 tanks=2 walls={len(wall_labels)}")

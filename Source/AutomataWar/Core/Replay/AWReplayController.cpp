@@ -74,12 +74,6 @@ namespace Automata
         return true;
     }
 
-    const TickSnapshot &FAWReplayController::GetSnapshotAt(int32_t Tick) const
-    {
-        int32_t clamped = std::clamp(Tick, 0, GetTotalTicks() - 1);
-        return snapshots_[clamped];
-    }
-
     std::vector<SimEvent> FAWReplayController::GetEventsForTick(int32_t Tick) const
     {
         std::vector<SimEvent> result;

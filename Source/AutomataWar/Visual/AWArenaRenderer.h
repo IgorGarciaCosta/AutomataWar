@@ -15,6 +15,7 @@
 #include "AWArenaRenderer.generated.h"
 
 class UProceduralMeshComponent;
+class UActorComponent;
 class UStaticMeshComponent;
 class UPointLightComponent;
 class UAudioComponent;
@@ -70,6 +71,12 @@ protected:
     /** Trigger destruction VFX at position. */
     void TriggerDestruction(FVector WorldPos);
 
+    /** Spawn a point-light fallback and remove it after its visual lifetime. */
+    void SpawnTransientLight(FVector WorldPos, float Intensity, float Radius, FColor Color, float Lifespan);
+
+    /** Remove a runtime-created component after its visual lifetime. */
+    void ScheduleComponentDestruction(UActorComponent *Component, float Lifespan);
+
     /** Play optional sound at location with soft-path fallback silence. */
     void PlaySFX(const TCHAR *SoftPath, FVector Location);
 
@@ -99,6 +106,4 @@ protected:
     Automata::TickSnapshot CurrentSnapshot;
     TWeakObjectPtr<UAudioComponent> MovementAudio[2];
     bool bHasSnapshot = false;
-    int32 GridWidth = 0;
-    int32 GridHeight = 0;
 };

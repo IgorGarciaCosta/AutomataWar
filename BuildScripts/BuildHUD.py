@@ -6,10 +6,10 @@ CONTROLLER_PATH = "/Game/Blueprints/BP_AWPlayerController"
 CODE_EDITOR_CLASS_PATH = "/Script/AutomataWar.AWCodeEditorWidget"
 
 TRANSPARENT = unreal.LinearColor(0.0, 0.0, 0.0, 0.0)
-BACKGROUND = unreal.LinearColor(0.012, 0.016, 0.022, 0.10)
-PANEL = unreal.LinearColor(0.035, 0.045, 0.058, 0.84)
-PANEL_ALT = unreal.LinearColor(0.055, 0.065, 0.078, 0.90)
-GAMEPLAY_PANEL = unreal.LinearColor(0.025, 0.035, 0.048, 0.72)
+BACKGROUND = unreal.LinearColor(0.012, 0.016, 0.022, 1.0)
+PANEL = unreal.LinearColor(0.035, 0.045, 0.058, 1.0)
+PANEL_ALT = unreal.LinearColor(0.055, 0.065, 0.078, 1.0)
+GAMEPLAY_PANEL = unreal.LinearColor(0.025, 0.035, 0.048, 1.0)
 TEXT = unreal.LinearColor(0.91, 0.93, 0.96, 1.0)
 MUTED = unreal.LinearColor(0.52, 0.58, 0.64, 1.0)
 CYAN = unreal.LinearColor(0.0, 0.78, 0.9, 1.0)
@@ -137,6 +137,18 @@ def panel(name, color=PANEL, padding_value=24.0):
     return outer, body
 
 
+def frame_rail(name, width=0.0, height=0.0):
+    rail_size = make(unreal.SizeBox, name)
+    if width > 0.0:
+        rail_size.set_width_override(width)
+    if height > 0.0:
+        rail_size.set_height_override(height)
+    rail = make(unreal.Border, f"{name}Fill")
+    rail.set_brush_color(PANEL_ALT)
+    rail_size.add_child(rail)
+    return rail_size
+
+
 def screen_header(parent, eyebrow, title, subtitle="", accent=CYAN):
     prefix = title.replace(" ", "")
     add(parent, label(f"{prefix}Eyebrow", eyebrow.upper(), 13,
@@ -153,7 +165,7 @@ bridge.set_root_widget(tree, root)
 
 background = make(unreal.Border, "HUDBackground")
 background.set_brush_color(TRANSPARENT)
-background.set_padding(margin(20, 20, 20, 14))
+background.set_padding(margin())
 canvas_slot = root.add_child(background)
 canvas_slot.set_anchors(unreal.Anchors(
     minimum=unreal.Vector2D(0.0, 0.0), maximum=unreal.Vector2D(1.0, 1.0)))
@@ -184,7 +196,7 @@ add(shell, status_border, padding=margin(0, 10, 0, 0), v=V_BOTTOM)
 
 
 main_screen = make(unreal.Border, "MainMenuScreen")
-main_screen.set_brush_color(unreal.LinearColor(0.0, 0.0, 0.0, 0.0))
+main_screen.set_brush_color(BACKGROUND)
 main_screen.set_padding(margin(76, 58, 76, 58))
 main_layout = make(unreal.HorizontalBox, "MainMenuLayout")
 main_screen.add_child(main_layout)
@@ -250,7 +262,11 @@ add(menu, button("QuitButton", "QUIT", CORAL, "Exit Automata War", True))
 screen_switcher.add_child(main_screen)
 
 
+programming_backdrop = make(unreal.Border, "ProgrammingBackdrop")
+programming_backdrop.set_brush_color(BACKGROUND)
+programming_backdrop.set_padding(margin(28, 24, 28, 24))
 programming_screen = make(unreal.VerticalBox, "ProgrammingScreen")
+programming_backdrop.add_child(programming_screen)
 screen_header(programming_screen, "Match setup", "Programming Bay",
               "TWO COMBATANTS. ONE DETERMINISTIC ARENA.")
 programming_nav = make(unreal.HorizontalBox, "ProgrammingNavigation")
@@ -301,34 +317,93 @@ add(editors_row, build_editor_panel(1, CYAN), fill=True,
     padding=margin(0, 0, 8, 0), weight=1.0)
 add(editors_row, build_editor_panel(2, CORAL), fill=True,
     padding=margin(8, 0, 0, 0), weight=1.0)
-screen_switcher.add_child(programming_screen)
+screen_switcher.add_child(programming_backdrop)
 
 
 simulation_screen = make(unreal.Border, "SimulationScreen")
 simulation_screen.set_brush_color(TRANSPARENT)
+simulation_screen.set_padding(margin(18, 16, 18, 16))
 simulation_layout = make(unreal.VerticalBox, "SimulationLayout")
 simulation_screen.add_child(simulation_layout)
 simulation_banner, simulation_body = panel(
-    "SimulationBanner", GAMEPLAY_PANEL, 14)
-simulation_banner_size = make(unreal.SizeBox, "SimulationBannerSize")
-simulation_banner_size.set_width_override(560.0)
-simulation_banner_size.add_child(simulation_banner)
-add(simulation_body, label("SimulationEyebrow", "MATCH ENGINE", 12,
-                           YELLOW, bold=True, justify=unreal.TextJustify.CENTER),
-    h=H_CENTER, padding=margin(0, 0, 0, 4))
-add(simulation_body, label("SimulationTitle", "SIMULATION RUNNING", 26,
-                           CYAN, bold=True, justify=unreal.TextJustify.CENTER),
-    h=H_CENTER, padding=margin(0, 0, 0, 4))
-add(simulation_body, label("SimulationStatus",
-                           "RESOLVING TIMELINE...", 14,
-                           MUTED, justify=unreal.TextJustify.CENTER), h=H_CENTER)
-add(simulation_layout, simulation_banner_size, h=H_CENTER,
-    padding=margin(0, 16, 0, 0))
-add(simulation_layout, spacer("SimulationArenaSpace", 0, 0), fill=True)
+    "SimulationBanner", GAMEPLAY_PANEL, 12)
+simulation_header = make(unreal.HorizontalBox, "SimulationHeader")
+simulation_titles = make(unreal.VerticalBox, "SimulationTitles")
+add(simulation_titles, label("SimulationEyebrow", "MATCH ENGINE", 12,
+                             YELLOW, bold=True))
+add(simulation_titles, label("SimulationTitle", "TACTICAL EXECUTION", 25,
+                             CYAN, bold=True))
+add(simulation_header, simulation_titles, fill=True, v=V_CENTER)
+add(simulation_header, label("SimulationStatus", "PROGRAMS LOCKED", 14,
+                             GREEN, bold=True), h=H_RIGHT, v=V_CENTER)
+add(simulation_body, simulation_header)
+add(simulation_layout, simulation_banner, padding=margin(0, 0, 0, 12))
+
+
+def build_simulation_source_panel(index, accent):
+    source_panel, source_body = panel(
+        f"SimulationP{index}Panel", GAMEPLAY_PANEL, 12)
+    add(source_body, label(f"SimulationP{index}Title",
+                           f"PLAYER {index} PROGRAM", 16, accent, bold=True),
+        padding=margin(0, 0, 0, 8))
+    source_scroll = make(unreal.ScrollBox, f"SimulationP{index}SourceScroll")
+    source_scroll.set_always_show_scrollbar(True)
+    source_text = label(f"SimulationSourceP{index}Text", "AWAITING PROGRAM",
+                        12, TEXT, mono=True, variable=True)
+    add(source_scroll, source_text, padding=margin(6, 6, 12, 6),
+        h=H_LEFT, v=V_TOP)
+    add(source_body, source_scroll, fill=True, weight=1.0)
+    return source_panel
+
+
+simulation_workspace = make(unreal.HorizontalBox, "SimulationWorkspace")
+simulation_one_size = make(unreal.SizeBox, "SimulationP1Dock")
+simulation_one_size.set_width_override(360.0)
+simulation_one_size.add_child(build_simulation_source_panel(1, CYAN))
+add(simulation_workspace, simulation_one_size, padding=margin(0, 0, 10, 0))
+
+simulation_arena_frame = make(unreal.Border, "SimulationArenaFrame")
+simulation_arena_frame.set_brush_color(TRANSPARENT)
+simulation_frame_layout = make(unreal.VerticalBox, "SimulationFrameLayout")
+simulation_arena_frame.add_child(simulation_frame_layout)
+add(simulation_frame_layout, frame_rail("SimulationFrameTop", height=6.0))
+simulation_frame_center = make(unreal.HorizontalBox, "SimulationFrameCenter")
+add(simulation_frame_center, frame_rail("SimulationFrameLeft", width=6.0))
+simulation_arena_viewport = make(unreal.Border, "SimulationArenaViewport")
+simulation_arena_viewport.set_brush_color(TRANSPARENT)
+simulation_arena_viewport.add_child(
+    spacer("SimulationArenaViewportSpace", 0, 0))
+add(simulation_frame_center, simulation_arena_viewport, fill=True, weight=1.0)
+add(simulation_frame_center, frame_rail("SimulationFrameRight", width=6.0))
+add(simulation_frame_layout, simulation_frame_center, fill=True, weight=1.0)
+add(simulation_frame_layout, frame_rail("SimulationFrameBottom", height=6.0))
+add(simulation_workspace, simulation_arena_frame, fill=True,
+    padding=margin(0, 0, 0, 0), weight=1.0)
+
+simulation_two_size = make(unreal.SizeBox, "SimulationP2Dock")
+simulation_two_size.set_width_override(360.0)
+simulation_two_size.add_child(build_simulation_source_panel(2, CORAL))
+add(simulation_workspace, simulation_two_size, padding=margin(10, 0, 0, 0))
+add(simulation_layout, simulation_workspace, fill=True, weight=1.0,
+    padding=margin(0, 0, 0, 12))
+
+simulation_footer, simulation_footer_body = panel(
+    "SimulationFooter", GAMEPLAY_PANEL, 10)
+simulation_footer_row = make(unreal.HorizontalBox, "SimulationFooterRow")
+add(simulation_footer_row, label("SimulationMode", "DETERMINISTIC TIMELINE",
+                                 13, YELLOW, bold=True), fill=True)
+add(simulation_footer_row, label("SimulationReadout", "RESOLVING MATCH...",
+                                 13, MUTED, bold=True), h=H_RIGHT)
+add(simulation_footer_body, simulation_footer_row)
+add(simulation_layout, simulation_footer)
 screen_switcher.add_child(simulation_screen)
 
 
+replay_backdrop = make(unreal.Border, "ReplayAutopsyBackdrop")
+replay_backdrop.set_brush_color(TRANSPARENT)
+replay_backdrop.set_padding(margin(18, 16, 18, 16))
 replay_screen = make(unreal.VerticalBox, "ReplayAutopsyScreen")
+replay_backdrop.add_child(replay_screen)
 replay_header = make(unreal.HorizontalBox, "ReplayHeader")
 replay_titles = make(unreal.VerticalBox, "ReplayTitles")
 add(replay_titles, label("ReplayEyebrow", "POST-MATCH ANALYSIS", 13,
@@ -406,8 +481,21 @@ source_one_size = make(unreal.SizeBox, "ReplayP1Dock")
 source_one_size.set_width_override(380.0)
 source_one_size.add_child(build_source_panel(1, CYAN))
 add(source_row, source_one_size, padding=margin(0, 0, 10, 0))
-add(source_row, spacer("ReplayArenaViewportSpace", 0, 0), fill=True,
-    weight=1.0)
+replay_arena_frame = make(unreal.Border, "ReplayArenaFrame")
+replay_arena_frame.set_brush_color(TRANSPARENT)
+replay_frame_layout = make(unreal.VerticalBox, "ReplayFrameLayout")
+replay_arena_frame.add_child(replay_frame_layout)
+add(replay_frame_layout, frame_rail("ReplayFrameTop", height=6.0))
+replay_frame_center = make(unreal.HorizontalBox, "ReplayFrameCenter")
+add(replay_frame_center, frame_rail("ReplayFrameLeft", width=6.0))
+replay_arena_viewport = make(unreal.Border, "ReplayArenaViewport")
+replay_arena_viewport.set_brush_color(TRANSPARENT)
+replay_arena_viewport.add_child(spacer("ReplayArenaViewportSpace", 0, 0))
+add(replay_frame_center, replay_arena_viewport, fill=True, weight=1.0)
+add(replay_frame_center, frame_rail("ReplayFrameRight", width=6.0))
+add(replay_frame_layout, replay_frame_center, fill=True, weight=1.0)
+add(replay_frame_layout, frame_rail("ReplayFrameBottom", height=6.0))
+add(source_row, replay_arena_frame, fill=True, weight=1.0)
 source_two_size = make(unreal.SizeBox, "ReplayP2Dock")
 source_two_size.set_width_override(380.0)
 source_two_size.add_child(build_source_panel(2, CORAL))
@@ -431,11 +519,18 @@ event_text = label("ReplayEventLog", "NO EVENTS", 12, MUTED,
                    mono=True, variable=True)
 add(event_scroll, event_text, padding=margin(4, 4, 4, 4), h=H_LEFT, v=V_TOP)
 add(event_body, event_scroll, fill=True, weight=1.0)
-add(replay_screen, event_panel)
-screen_switcher.add_child(replay_screen)
+event_panel_size = make(unreal.SizeBox, "ReplayEventsDock")
+event_panel_size.set_height_override(112.0)
+event_panel_size.add_child(event_panel)
+add(replay_screen, event_panel_size)
+screen_switcher.add_child(replay_backdrop)
 
 
+browser_backdrop = make(unreal.Border, "ReplayBrowserBackdrop")
+browser_backdrop.set_brush_color(BACKGROUND)
+browser_backdrop.set_padding(margin(32, 28, 32, 28))
 browser_screen = make(unreal.VerticalBox, "ReplayBrowserScreen")
+browser_backdrop.add_child(browser_screen)
 screen_header(browser_screen, "Archive", "Replay Browser",
               "DETERMINISTIC MATCH RECORDS.")
 browser_panel, browser_body = panel("ReplayBrowserPanel", PANEL, 24)
@@ -478,10 +573,14 @@ add(browser_body, import_row, padding=margin(0, 0, 0, 18))
 add(browser_body, label("ReplayBrowserStatus", "ARCHIVE READY", 14,
                         MUTED, bold=True, variable=True))
 add(browser_screen, browser_panel, fill=True, weight=1.0)
-screen_switcher.add_child(browser_screen)
+screen_switcher.add_child(browser_backdrop)
 
 
+language_backdrop = make(unreal.Border, "LanguageReferenceBackdrop")
+language_backdrop.set_brush_color(BACKGROUND)
+language_backdrop.set_padding(margin(32, 28, 32, 28))
 language_screen = make(unreal.VerticalBox, "LanguageReferenceScreen")
+language_backdrop.add_child(language_screen)
 language_toolbar = make(unreal.HorizontalBox, "LanguageToolbar")
 language_titles = make(unreal.VerticalBox, "LanguageTitles")
 add(language_titles, label("LanguageEyebrow", "PROGRAMMING MANUAL", 13,
@@ -501,7 +600,7 @@ add(language_scroll, reference_text, padding=margin(6, 6, 24, 6),
     h=H_FILL, v=V_TOP)
 add(language_body, language_scroll, fill=True, weight=1.0)
 add(language_screen, language_panel, fill=True, weight=1.0)
-screen_switcher.add_child(language_screen)
+screen_switcher.add_child(language_backdrop)
 
 screen_switcher.set_active_widget_index(0)
 blueprint.modify()

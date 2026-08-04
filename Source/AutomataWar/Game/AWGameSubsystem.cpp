@@ -12,11 +12,6 @@
 #include "Engine/World.h"
 #include "Engine/GameInstance.h"
 
-void UAWGameSubsystem::Initialize(FSubsystemCollectionBase &Collection)
-{
-    Super::Initialize(Collection);
-}
-
 void UAWGameSubsystem::Deinitialize()
 {
     CleanupSessionDelegates();

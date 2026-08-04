@@ -393,7 +393,7 @@ namespace Automata
                     const int32_t opcodeIndex = static_cast<int32_t>(program.code[instructionIndex].opcode);
                     if (opcodeIndex >= 0 && opcodeIndex < OpcodeCount)
                     {
-                        pendingCost = EnergyCost[opcodeIndex];
+                        pendingCost = InstructionDefs[opcodeIndex].energyCost;
                         if (pendingCost > r.energy)
                         {
                             r.energy = 0;

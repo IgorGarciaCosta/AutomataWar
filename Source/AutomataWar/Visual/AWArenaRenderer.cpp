@@ -43,10 +43,8 @@ void AAWArenaRenderer::BeginPlay()
 
 void AAWArenaRenderer::InitializeArena(const Automata::SimConfig &Config, const TArray<Automata::CellType> &Grid)
 {
-    GridWidth = Config.gridWidth;
-    GridHeight = Config.gridHeight;
-    BuildFloorGrid(GridWidth, GridHeight);
-    SpawnCoverVisuals(GridWidth, GridHeight, Grid);
+    BuildFloorGrid(Config.gridWidth, Config.gridHeight);
+    SpawnCoverVisuals(Config.gridWidth, Config.gridHeight, Grid);
 }
 
 void AAWArenaRenderer::SetSnapshot(const Automata::TickSnapshot &Snapshot)
@@ -196,10 +194,17 @@ void AAWArenaRenderer::SpawnCoverVisuals(int32 Width, int32 Height, const TArray
     UMaterialInterface *CoverMaterial = LoadObject<UMaterialInterface>(nullptr, AWVisualAssets::M_Cover);
     if (!CubeMesh)
         return;
-    auto TintCover = [CoverMaterial](UStaticMeshComponent *Component, const FLinearColor &Color)
+    auto CreateCover = [this, CoverMaterial](UStaticMesh *Mesh, FVector Location, FVector Scale, const FLinearColor &Color)
     {
+        UStaticMeshComponent *Component = NewObject<UStaticMeshComponent>(this);
+        Component->SetupAttachment(GetRootComponent());
+        Component->SetStaticMesh(Mesh);
+        Component->SetWorldLocation(Location);
+        Component->SetWorldScale3D(Scale);
+        Component->SetCollisionEnabled(ECollisionEnabled::NoCollision);
         if (CoverMaterial)
             Component->SetMaterial(0, CoverMaterial);
+        Component->RegisterComponent();
         if (UMaterialInstanceDynamic *Material = Component->CreateDynamicMaterialInstance(0))
             Material->SetVectorParameterValue(TEXT("BaseColor"), Color);
     };
@@ -239,48 +244,18 @@ void AAWArenaRenderer::SpawnCoverVisuals(int32 Width, int32 Height, const TArray
                 {
                 case 0:
                 {
-                    UStaticMesh *Mesh = CylinderMesh ? CylinderMesh : CubeMesh;
-                    UStaticMeshComponent *Block = NewObject<UStaticMeshComponent>(this);
-                    Block->SetupAttachment(GetRootComponent());
-                    Block->SetStaticMesh(Mesh);
-                    Block->SetWorldLocation(Pos + FVector(0, 0, 45));
-                    Block->SetWorldScale3D(FVector(0.35f, 0.35f, 0.9f));
-                    Block->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-                    Block->RegisterComponent();
-                    TintCover(Block, CoverColor);
+                    CreateCover(CylinderMesh ? CylinderMesh : CubeMesh, Pos + FVector(0, 0, 45), FVector(0.35f, 0.35f, 0.9f), CoverColor);
                     break;
                 }
                 case 1:
                 {
-                    UStaticMeshComponent *A = NewObject<UStaticMeshComponent>(this);
-                    A->SetupAttachment(GetRootComponent());
-                    A->SetStaticMesh(CubeMesh);
-                    A->SetWorldLocation(Pos + FVector(-15, 0, 30));
-                    A->SetWorldScale3D(FVector(0.4f, 0.9f, 0.6f));
-                    A->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-                    A->RegisterComponent();
-                    TintCover(A, CoverColor);
-
-                    UStaticMeshComponent *B = NewObject<UStaticMeshComponent>(this);
-                    B->SetupAttachment(GetRootComponent());
-                    B->SetStaticMesh(CubeMesh);
-                    B->SetWorldLocation(Pos + FVector(20, -20, 20));
-                    B->SetWorldScale3D(FVector(0.35f, 0.35f, 0.4f));
-                    B->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-                    B->RegisterComponent();
-                    TintCover(B, CoverColor * 0.8f);
+                    CreateCover(CubeMesh, Pos + FVector(-15, 0, 30), FVector(0.4f, 0.9f, 0.6f), CoverColor);
+                    CreateCover(CubeMesh, Pos + FVector(20, -20, 20), FVector(0.35f, 0.35f, 0.4f), CoverColor * 0.8f);
                     break;
                 }
                 default:
                 {
-                    UStaticMeshComponent *Block = NewObject<UStaticMeshComponent>(this);
-                    Block->SetupAttachment(GetRootComponent());
-                    Block->SetStaticMesh(CubeMesh);
-                    Block->SetWorldLocation(Pos + FVector(0, 0, 22));
-                    Block->SetWorldScale3D(FVector(0.85f, 0.85f, 0.4f));
-                    Block->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-                    Block->RegisterComponent();
-                    TintCover(Block, CoverColor);
+                    CreateCover(CubeMesh, Pos + FVector(0, 0, 22), FVector(0.85f, 0.85f, 0.4f), CoverColor);
                     break;
                 }
                 }
@@ -324,12 +299,7 @@ void AAWArenaRenderer::SpawnProjectileBolt(int32 OwnerIdx, FVector WorldPos, FVe
     Light->SetLightColor((OwnerIdx == 0) ? FColor::Cyan : FColor(255, 90, 80));
     Light->RegisterComponent();
 
-    // Destroy after lifespan
-    FTimerHandle Handle;
-    TWeakObjectPtr<UStaticMeshComponent> WeakBolt = Bolt;
-    GetWorld()->GetTimerManager().SetTimer(Handle, [WeakBolt]()
-                                           {
-		if (WeakBolt.IsValid()) WeakBolt->DestroyComponent(); }, AWVisualConfig::ProjectileBoltLifespan, false);
+    ScheduleComponentDestruction(Bolt, AWVisualConfig::ProjectileBoltLifespan);
 }
 
 void AAWArenaRenderer::TriggerMuzzleFlash(int32 RobotIdx)
@@ -348,18 +318,7 @@ void AAWArenaRenderer::TriggerMuzzleFlash(int32 RobotIdx)
     }
     else
     {
-        UPointLightComponent *Flash = NewObject<UPointLightComponent>(this);
-        Flash->SetupAttachment(GetRootComponent());
-        Flash->SetWorldLocation(Tank->GetMuzzleTransform().GetLocation());
-        Flash->SetIntensity(4000.f);
-        Flash->SetAttenuationRadius(200.f);
-        Flash->SetLightColor(FColor::Yellow);
-        Flash->RegisterComponent();
-
-        FTimerHandle H;
-        TWeakObjectPtr<UPointLightComponent> Weak = Flash;
-        GetWorld()->GetTimerManager().SetTimer(H, [Weak]()
-                                               { if (Weak.IsValid()) Weak->DestroyComponent(); }, AWVisualConfig::TransientVFXLifespan, false);
+        SpawnTransientLight(Tank->GetMuzzleTransform().GetLocation(), 4000.f, 200.f, FColor::Yellow, AWVisualConfig::TransientVFXLifespan);
     }
 }
 
@@ -372,18 +331,7 @@ void AAWArenaRenderer::TriggerImpact(FVector WorldPos)
     }
     else
     {
-        UPointLightComponent *Flash = NewObject<UPointLightComponent>(this);
-        Flash->SetupAttachment(GetRootComponent());
-        Flash->SetWorldLocation(WorldPos);
-        Flash->SetIntensity(5000.f);
-        Flash->SetAttenuationRadius(150.f);
-        Flash->SetLightColor(FColor::Orange);
-        Flash->RegisterComponent();
-
-        FTimerHandle H;
-        TWeakObjectPtr<UPointLightComponent> Weak = Flash;
-        GetWorld()->GetTimerManager().SetTimer(H, [Weak]()
-                                               { if (Weak.IsValid()) Weak->DestroyComponent(); }, AWVisualConfig::TransientVFXLifespan, false);
+        SpawnTransientLight(WorldPos, 5000.f, 150.f, FColor::Orange, AWVisualConfig::TransientVFXLifespan);
     }
 }
 
@@ -424,10 +372,7 @@ void AAWArenaRenderer::TriggerShieldBubble(int32 RobotIdx)
                 Mat->SetScalarParameterValue(TEXT("Opacity"), 0.3f);
             }
 
-            FTimerHandle H;
-            TWeakObjectPtr<UStaticMeshComponent> Weak = Shield;
-            GetWorld()->GetTimerManager().SetTimer(H, [Weak]()
-                                                   { if (Weak.IsValid()) Weak->DestroyComponent(); }, AWVisualConfig::ShieldBubbleLifespan, false);
+            ScheduleComponentDestruction(Shield, AWVisualConfig::ShieldBubbleLifespan);
         }
     }
 }
@@ -441,19 +386,28 @@ void AAWArenaRenderer::TriggerDestruction(FVector WorldPos)
     }
     else
     {
-        UPointLightComponent *Flash = NewObject<UPointLightComponent>(this);
-        Flash->SetupAttachment(GetRootComponent());
-        Flash->SetWorldLocation(WorldPos);
-        Flash->SetIntensity(15000.f);
-        Flash->SetAttenuationRadius(400.f);
-        Flash->SetLightColor(FColor::Red);
-        Flash->RegisterComponent();
-
-        FTimerHandle H;
-        TWeakObjectPtr<UPointLightComponent> Weak = Flash;
-        GetWorld()->GetTimerManager().SetTimer(H, [Weak]()
-                                               { if (Weak.IsValid()) Weak->DestroyComponent(); }, AWVisualConfig::TransientVFXLifespan * 2.f, false);
+        SpawnTransientLight(WorldPos, 15000.f, 400.f, FColor::Red, AWVisualConfig::TransientVFXLifespan * 2.f);
     }
+}
+
+void AAWArenaRenderer::SpawnTransientLight(FVector WorldPos, float Intensity, float Radius, FColor Color, float Lifespan)
+{
+    UPointLightComponent *Light = NewObject<UPointLightComponent>(this);
+    Light->SetupAttachment(GetRootComponent());
+    Light->SetWorldLocation(WorldPos);
+    Light->SetIntensity(Intensity);
+    Light->SetAttenuationRadius(Radius);
+    Light->SetLightColor(Color);
+    Light->RegisterComponent();
+    ScheduleComponentDestruction(Light, Lifespan);
+}
+
+void AAWArenaRenderer::ScheduleComponentDestruction(UActorComponent *Component, float Lifespan)
+{
+    FTimerHandle Handle;
+    TWeakObjectPtr<UActorComponent> WeakComponent = Component;
+    GetWorld()->GetTimerManager().SetTimer(Handle, [WeakComponent]()
+                                           { if (WeakComponent.IsValid()) WeakComponent->DestroyComponent(); }, Lifespan, false);
 }
 
 void AAWArenaRenderer::PlaySFX(const TCHAR *SoftPath, FVector Location)

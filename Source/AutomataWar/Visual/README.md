@@ -7,7 +7,7 @@ C++ presentation-only visuals for Automata War. Reads simulation snapshots; neve
 - `AWVisualTypes.h/cpp` — Log category, asset soft paths, visual config constants
 - `AWArenaRenderer.h/cpp` — Floor grid, dynamic cover, projectile/VFX/audio coordination
 - `AWTankActor.h/cpp` — Level-authored tank mesh, accent light, and snapshot interpolation
-- `AWIsometricCamera.h/cpp` — Fixed isometric camera framing the arena
+- `AWIsometricCamera.h/cpp` — Fixed orthographic top-down camera framing the arena inside the HUD viewport
 - `AWSpectatorPawn.h/cpp` — Minimal pawn (no movement, no collision)
 
 ## Design

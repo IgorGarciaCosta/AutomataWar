@@ -8,7 +8,6 @@
 #include <cctype>
 #include <charconv>
 #include <sstream>
-#include <unordered_map>
 
 namespace Automata
 {
@@ -47,10 +46,11 @@ namespace Automata
 
         int32_t ParseRegister(const std::string &tok)
         {
-            static const std::unordered_map<std::string, int32_t> regMap = {
-                {"R0", 0}, {"R1", 1}, {"R2", 2}, {"R3", 3}, {"R_HP", 4}, {"R_ENEMY_DIST", 5}, {"R_ENEMY_DIR", 6}, {"R_ENERGY", 7}, {"R_TICK", 8}};
-            auto it = regMap.find(ToUpper(tok));
-            return it != regMap.end() ? it->second : -1;
+            const std::string UpperToken = ToUpper(tok);
+            for (int32_t Index = 0; Index < TotalRegisterCount; ++Index)
+                if (UpperToken == RegisterDefs[Index].name)
+                    return Index;
+            return -1;
         }
 
         // Only accept symbolic operators, reject aliases EQ/NE/LT/GT/LE/GE and GOTO.
@@ -220,9 +220,6 @@ namespace Automata
         };
         std::vector<LabelRef> labelRefs;
 
-        static const std::array<std::string, OpcodeCount> Mnemonics = {
-            "MOVE", "TURN", "SCAN", "FIRE", "SHIELD", "SET", "IF", "WAIT"};
-
         for (auto &raw : rawLines)
         {
             const auto &tokens = raw.tokens;
@@ -231,7 +228,7 @@ namespace Automata
 
             int32_t opcodeIdx = -1;
             for (int32_t i = 0; i < OpcodeCount; ++i)
-                if (Mnemonics[i] == mnem)
+                if (mnem == InstructionDefs[i].mnemonic)
                 {
                     opcodeIdx = i;
                     break;
@@ -241,13 +238,13 @@ namespace Automata
             {
                 std::string suggestion;
                 int32_t bestDist = 999;
-                for (auto &m : Mnemonics)
+                for (const InstructionDefinition &Definition : InstructionDefs)
                 {
-                    int32_t d = Levenshtein(mnem, m);
+                    int32_t d = Levenshtein(mnem, Definition.mnemonic);
                     if (d < bestDist)
                     {
                         bestDist = d;
-                        suggestion = m;
+                        suggestion = Definition.mnemonic;
                     }
                 }
                 std::string sugText = (bestDist <= 3) ? suggestion : "";

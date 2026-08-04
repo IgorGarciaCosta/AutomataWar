@@ -16,20 +16,17 @@ AAWIsometricCamera::AAWIsometricCamera()
 
     Camera = CreateDefaultSubobject<UCameraComponent>(TEXT("Camera"));
     Camera->SetupAttachment(Root);
-    Camera->SetProjectionMode(ECameraProjectionMode::Perspective);
-    Camera->SetFieldOfView(45.f);
+    Camera->SetProjectionMode(ECameraProjectionMode::Orthographic);
 }
 
 void AAWIsometricCamera::FrameArena(int32 GridWidth, int32 GridHeight, float CellSize)
 {
-    float ArenaW = GridWidth * CellSize;
-    float ArenaH = GridHeight * CellSize;
-    FVector Center(ArenaW * 0.5f, ArenaH * 0.5f, 0.f);
+    const float ArenaWidth = GridWidth * CellSize;
+    const float ArenaHeight = GridHeight * CellSize;
+    const FVector Center(ArenaWidth * 0.5f, ArenaHeight * 0.5f, 0.f);
+    const float ArenaSpan = FMath::Max(ArenaWidth, ArenaHeight);
 
-    // Isometric: 45-deg yaw, ~35-deg pitch from above
-    float Distance = FMath::Max(ArenaW, ArenaH) * 1.45f;
-    FVector Offset(-Distance * 0.7f, -Distance * 0.7f, Distance * 0.8f);
-
-    SetActorLocation(Center + Offset);
-    SetActorRotation((Center - GetActorLocation()).Rotation());
+    Camera->SetOrthoWidth(ArenaSpan * 3.45f);
+    SetActorLocation(Center + FVector(0.f, 0.f, ArenaSpan));
+    SetActorRotation(FRotator(-90.f, 0.f, 0.f));
 }

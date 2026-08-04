@@ -2,9 +2,9 @@
 
 /**
  * @file AWIsometricCamera.h
- * @brief Fixed isometric camera actor framing the entire arena.
+ * @brief Fixed top-down camera actor framing the arena inside the HUD viewport.
  *
- * Positioned to view the full 16x16 grid from a 45-degree isometric angle.
+ * Uses orthographic projection so the tactical grid has no perspective distortion.
  * No player control; purely presentation. Set as view target at match start.
  */
 
@@ -15,7 +15,7 @@
 class UCameraComponent;
 
 /**
- * @brief Isometric camera providing a top-down-angled view of the arena.
+ * @brief Orthographic camera providing a direct top-down view of the arena.
  */
 UCLASS(Blueprintable)
 class AUTOMATAWAR_API AAWIsometricCamera : public AActor
@@ -23,7 +23,7 @@ class AUTOMATAWAR_API AAWIsometricCamera : public AActor
     GENERATED_BODY()
 
 public:
-    /** Create the fixed-perspective camera component. */
+    /** Create the fixed orthographic camera component. */
     AAWIsometricCamera();
 
     /** Get the camera component. */

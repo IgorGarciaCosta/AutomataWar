@@ -49,9 +49,6 @@ namespace Automata
         /** Get snapshot at current tick. */
         const TickSnapshot &GetCurrentSnapshot() const { return snapshots_[currentTick_]; }
 
-        /** Get snapshot at arbitrary tick (clamped). */
-        const TickSnapshot &GetSnapshotAt(int32_t Tick) const;
-
         /** Get all events for a specific tick. */
         std::vector<SimEvent> GetEventsForTick(int32_t Tick) const;
 
@@ -70,12 +67,6 @@ namespace Automata
         const Program &GetProgramA() const { return programA_; }
         /** Get compiled program B. */
         const Program &GetProgramB() const { return programB_; }
-
-        /** Get all snapshots. */
-        const std::vector<TickSnapshot> &GetSnapshots() const { return snapshots_; }
-
-        /** Get all events. */
-        const std::vector<SimEvent> &GetAllEvents() const { return events_; }
 
         /** Get the grid used for this match. */
         const std::vector<CellType> &GetGrid() const { return grid_; }

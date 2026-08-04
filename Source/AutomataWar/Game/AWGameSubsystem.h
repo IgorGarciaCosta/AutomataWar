@@ -28,8 +28,6 @@ class AUTOMATAWAR_API UAWGameSubsystem : public UGameInstanceSubsystem
     GENERATED_BODY()
 
 public:
-    /** Initialize the process-lifetime API subsystem. */
-    virtual void Initialize(FSubsystemCollectionBase &Collection) override;
     /** Remove online delegates and release subsystem-owned session state. */
     virtual void Deinitialize() override;
 

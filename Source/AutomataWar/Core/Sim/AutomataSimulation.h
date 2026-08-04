@@ -150,10 +150,6 @@ namespace Automata
         uint64_t GetFinalHash() const { return finalHash_; }
         /** @return Row-major canonical grid generated for the most recent match. */
         const std::vector<CellType> &GetGrid() const { return grid_; }
-        /** @return Width of the most recently generated grid. */
-        int32_t GetGridWidth() const { return gridWidth_; }
-        /** @return Height of the most recently generated grid. */
-        int32_t GetGridHeight() const { return gridHeight_; }
 
     private:
         /** Explicit deterministic xorshift64 generator; zero is normalized by setup. */

@@ -15,7 +15,9 @@ Designer-authored UMG presentation for Automata War with native C++ behavior.
 
 1. **Main Menu** — Local Match, Host LAN, Find LAN, Join IP, Replay Browser, Language Reference, Quit
 2. **Programming** — Split editors for P1/P2, example loaders, submit/lock, training bot
-3. **Simulation** — Wait indicator
-4. **Replay Autopsy** — Playback controls (pause/play/step/scrub/speeds), next round
+3. **Simulation** — Framed arena viewport with locked source panels and match status
+4. **Replay Autopsy** — Framed arena viewport, source/register panels, playback controls, event log, next round
 5. **Replay Browser** — Lists Saved/Replays, load/watch, base64 export/import
 6. **Language Reference** — Auto-generated from Core definitions (8 instructions, 9 registers)
+
+Main Menu, Programming, Replay Browser, and Language Reference use opaque full-screen backdrops. Simulation and Replay Autopsy expose the arena only through their central framed viewport.
