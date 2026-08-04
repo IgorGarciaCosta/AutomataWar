@@ -43,13 +43,13 @@ public:
     int32 GetRobotIndex() const { return RobotIndex; }
 
 protected:
-    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Tank")
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tank")
     TObjectPtr<USceneComponent> SceneRoot;
 
-    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Tank")
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tank")
     TObjectPtr<UStaticMeshComponent> TankMesh;
 
-    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Tank")
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tank")
     TObjectPtr<UPointLightComponent> AccentLight;
 
     /** Simulation slot represented by this level instance. */
@@ -65,7 +65,7 @@ protected:
     FTransform MeshTransform = FTransform::Identity;
 
     /** Player color applied to the mesh and accent light. */
-    UPROPERTY(EditInstanceOnly, BlueprintReadOnly, Category = "Tank")
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tank")
     FLinearColor PlayerColor = FLinearColor(0.f, 0.8f, 1.f);
 
 private:

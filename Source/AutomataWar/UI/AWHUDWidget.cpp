@@ -208,7 +208,7 @@ void UAWHUDWidget::NativeTick(const FGeometry &MyGeometry, float InDeltaTime)
     if (bReplayPlaying && CurrentScreen == EAWScreen::ReplayAutopsy && ReplayController.IsValid() && ReplayController->IsValid())
     {
         ReplayAccumulator += InDeltaTime * ReplaySpeed;
-        const double TickInterval = 1.0 / 30.0;
+        const double TickInterval = 1.0 / 10.0;
         while (ReplayAccumulator >= TickInterval)
         {
             ReplayAccumulator -= TickInterval;

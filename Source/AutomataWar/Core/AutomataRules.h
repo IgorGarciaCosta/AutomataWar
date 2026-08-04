@@ -28,7 +28,7 @@ namespace Automata
     /** Starting energy; long enough for tactics while still rewarding WAIT. */
     inline constexpr int32_t MaxEnergy = 500;
     /** Hard match cap preventing behavior loops from running indefinitely. */
-    inline constexpr int32_t TickCap = 1800;
+    inline constexpr int32_t TickCap = 900;
 
     // --- Opcode identifiers (4 bits) --------------------------------------------
 
