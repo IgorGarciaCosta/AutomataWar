@@ -17,6 +17,7 @@
 class UProceduralMeshComponent;
 class UStaticMeshComponent;
 class UPointLightComponent;
+class UAudioComponent;
 class UNiagaraComponent;
 class AAWTankActor;
 
@@ -72,6 +73,9 @@ protected:
     /** Play optional sound at location with soft-path fallback silence. */
     void PlaySFX(const TCHAR *SoftPath, FVector Location);
 
+    void StartMovementSound(int32 RobotIdx);
+    void StopMovementSound(int32 RobotIdx);
+
     /** Convert grid coords to world position. */
     FVector GridToWorld(int32 X, int32 Y) const;
 
@@ -93,6 +97,8 @@ protected:
 
     /** Current display snapshot. */
     Automata::TickSnapshot CurrentSnapshot;
+    TWeakObjectPtr<UAudioComponent> MovementAudio[2];
+    bool bHasSnapshot = false;
     int32 GridWidth = 0;
     int32 GridHeight = 0;
 };
