@@ -12,6 +12,8 @@
 class UMaterialInstanceDynamic;
 class UPointLightComponent;
 class USceneComponent;
+class USkeletalMesh;
+class USkeletalMeshComponent;
 class UStaticMesh;
 class UStaticMeshComponent;
 
@@ -42,12 +44,20 @@ public:
     /** Return the simulation robot slot represented by this actor. */
     int32 GetRobotIndex() const { return RobotIndex; }
 
+    /** Return the component and socket used as the visual firing origin. */
+    USceneComponent *GetMuzzleComponent() const;
+    FName GetMuzzleSocketName() const;
+    FTransform GetMuzzleTransform() const;
+
 protected:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tank")
     TObjectPtr<USceneComponent> SceneRoot;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tank")
     TObjectPtr<UStaticMeshComponent> TankMesh;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tank")
+    TObjectPtr<USkeletalMeshComponent> CannonMesh;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tank")
     TObjectPtr<UPointLightComponent> AccentLight;
@@ -60,9 +70,15 @@ protected:
     UPROPERTY(EditInstanceOnly, BlueprintReadOnly, Category = "Tank")
     TObjectPtr<UStaticMesh> TankAsset;
 
+    UPROPERTY(EditInstanceOnly, BlueprintReadOnly, Category = "Tank")
+    TObjectPtr<USkeletalMesh> CannonAsset;
+
     /** Imported-mesh alignment relative to the actor origin. */
     UPROPERTY(EditInstanceOnly, BlueprintReadOnly, Category = "Tank")
     FTransform MeshTransform = FTransform::Identity;
+
+    UPROPERTY(EditInstanceOnly, BlueprintReadOnly, Category = "Tank")
+    FTransform CannonTransform = FTransform::Identity;
 
     /** Player color applied to the mesh and accent light. */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tank")

@@ -86,6 +86,12 @@ for tank, expected_index in [(tank_one, 0), (tank_two, 1)]:
             f"{tank.get_actor_label()} has the wrong RobotIndex")
     if not tank.get_editor_property("TankAsset"):
         raise RuntimeError(f"{tank.get_actor_label()} has no mesh")
+    cannon = tank.get_editor_property("CannonAsset")
+    if not cannon:
+        raise RuntimeError(f"{tank.get_actor_label()} has no cannon mesh")
+    if not cannon.find_socket("Muzzle"):
+        raise RuntimeError(
+            f"{tank.get_actor_label()} cannon has no Muzzle socket")
 
 if renderer.get_editor_property("PlayerOneTank") != tank_one:
     raise RuntimeError("Renderer PlayerOneTank reference is invalid")

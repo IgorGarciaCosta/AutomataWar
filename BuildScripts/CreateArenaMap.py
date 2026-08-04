@@ -245,7 +245,13 @@ def build_level(blueprints):
     tank_one.set_editor_property(
         "TankAsset", require_asset("/Game/Art/Meshes/SM_Tank_PlayerOne"))
     tank_one.set_editor_property(
+        "CannonAsset", require_asset("/Game/Art/Meshes/SkeletalMeshes/SM_CannonOne"))
+    tank_one.set_editor_property(
         "MeshTransform",
+        unreal.Transform(location=[6.75, 0.4, -50.0],
+                         scale=[0.055, 0.055, 0.055]))
+    tank_one.set_editor_property(
+        "CannonTransform",
         unreal.Transform(location=[6.75, 0.4, -50.0],
                          scale=[0.055, 0.055, 0.055]))
     tank_one.set_editor_property(
@@ -257,7 +263,13 @@ def build_level(blueprints):
     tank_two.set_editor_property(
         "TankAsset", require_asset("/Game/Art/Meshes/SM_Tank_PlayerTwo"))
     tank_two.set_editor_property(
+        "CannonAsset", require_asset("/Game/Art/Meshes/SkeletalMeshes/SM_CannonTwo"))
+    tank_two.set_editor_property(
         "MeshTransform",
+        unreal.Transform(location=[8.1, 0.4, -50.0],
+                         scale=[0.055, 0.055, 0.055]))
+    tank_two.set_editor_property(
+        "CannonTransform",
         unreal.Transform(location=[8.1, 0.4, -50.0],
                          scale=[0.055, 0.055, 0.055]))
     tank_two.set_editor_property(

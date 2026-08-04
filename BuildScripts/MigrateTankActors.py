@@ -43,7 +43,7 @@ if not renderer:
     raise RuntimeError("BP_AWArenaRenderer is not present in the arena map")
 
 
-def spawn_tank(label, robot_index, mesh_path, location, yaw,
+def spawn_tank(label, robot_index, mesh_path, cannon_path, location, yaw,
                mesh_location, color):
     tank = actor_editor.spawn_actor_from_class(
         tank_class, unreal.Vector(*location), unreal.Rotator(0.0, yaw, 0.0))
@@ -52,19 +52,23 @@ def spawn_tank(label, robot_index, mesh_path, location, yaw,
     tank.set_actor_label(label)
     tank.set_editor_property("RobotIndex", robot_index)
     tank.set_editor_property("TankAsset", unreal.load_asset(mesh_path))
+    tank.set_editor_property("CannonAsset", unreal.load_asset(cannon_path))
     tank.set_editor_property(
         "MeshTransform",
+        unreal.Transform(location=mesh_location, scale=[0.055, 0.055, 0.055]))
+    tank.set_editor_property(
+        "CannonTransform",
         unreal.Transform(location=mesh_location, scale=[0.055, 0.055, 0.055]))
     tank.set_editor_property("PlayerColor", unreal.LinearColor(*color))
     return tank
 
 
 tank_one = spawn_tank(
-    "Tank_PlayerOne", 0, "/Game/Art/Meshes/SM_Tank_PlayerOne",
+    "Tank_PlayerOne", 0, "/Game/Art/Meshes/SM_Tank_PlayerOne", "/Game/Art/Meshes/SkeletalMeshes/SM_CannonOne",
     (150.0, 150.0, 50.0), 90.0, [6.75, 0.4, -50.0],
     [0.0, 0.78, 0.9, 1.0])
 tank_two = spawn_tank(
-    "Tank_PlayerTwo", 1, "/Game/Art/Meshes/SM_Tank_PlayerTwo",
+    "Tank_PlayerTwo", 1, "/Game/Art/Meshes/SM_Tank_PlayerTwo", "/Game/Art/Meshes/SkeletalMeshes/SM_CannonTwo",
     (1450.0, 1450.0, 50.0), -90.0, [8.1, 0.4, -50.0],
     [0.96, 0.27, 0.22, 1.0])
 

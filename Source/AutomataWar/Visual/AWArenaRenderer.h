@@ -57,8 +57,8 @@ protected:
     /** Spawn a projectile bolt visual. */
     void SpawnProjectileBolt(int32 OwnerIdx, FVector WorldPos, FVector Direction);
 
-    /** Trigger muzzle flash VFX at position. */
-    void TriggerMuzzleFlash(FVector WorldPos);
+    /** Trigger muzzle flash VFX on a tank's cannon socket. */
+    void TriggerMuzzleFlash(int32 RobotIdx);
 
     /** Trigger impact VFX at position. */
     void TriggerImpact(FVector WorldPos);

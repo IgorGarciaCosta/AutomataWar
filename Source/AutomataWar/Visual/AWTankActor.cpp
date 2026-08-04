@@ -7,7 +7,9 @@
 #include "AWVisualTypes.h"
 #include "Components/PointLightComponent.h"
 #include "Components/SceneComponent.h"
+#include "Components/SkeletalMeshComponent.h"
 #include "Components/StaticMeshComponent.h"
+#include "Engine/SkeletalMesh.h"
 #include "Engine/StaticMesh.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Materials/MaterialInterface.h"
@@ -24,6 +26,10 @@ AAWTankActor::AAWTankActor()
     TankMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("TankMesh"));
     TankMesh->SetupAttachment(SceneRoot);
     TankMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+
+    CannonMesh = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("CannonMesh"));
+    CannonMesh->SetupAttachment(SceneRoot);
+    CannonMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 
     AccentLight = CreateDefaultSubobject<UPointLightComponent>(TEXT("AccentLight"));
     AccentLight->SetupAttachment(SceneRoot);
@@ -52,10 +58,11 @@ void AAWTankActor::BeginPlay()
         DynamicMaterial = UMaterialInstanceDynamic::Create(RobotMaterial, this);
         DynamicMaterial->SetVectorParameterValue(TEXT("BaseColor"), PlayerColor);
         DynamicMaterial->SetVectorParameterValue(TEXT("EmissiveColor"), PlayerColor * 2.f);
-        const int32 MaterialSlots = FMath::Max(TankMesh->GetNumMaterials(), 1);
-        for (int32 Slot = 0; Slot < MaterialSlots; ++Slot)
+        for (UMeshComponent *Mesh : {static_cast<UMeshComponent *>(TankMesh), static_cast<UMeshComponent *>(CannonMesh)})
         {
-            TankMesh->SetMaterial(Slot, DynamicMaterial);
+            const int32 MaterialSlots = FMath::Max(Mesh->GetNumMaterials(), 1);
+            for (int32 Slot = 0; Slot < MaterialSlots; ++Slot)
+                Mesh->SetMaterial(Slot, DynamicMaterial);
         }
     }
 }
@@ -92,9 +99,29 @@ void AAWTankActor::ResetVisual()
     bHasTarget = false;
 }
 
+USceneComponent *AAWTankActor::GetMuzzleComponent() const
+{
+    return CannonMesh;
+}
+
+FName AAWTankActor::GetMuzzleSocketName() const
+{
+    static const FName MuzzleSocket(TEXT("Muzzle"));
+    return MuzzleSocket;
+}
+
+FTransform AAWTankActor::GetMuzzleTransform() const
+{
+    return CannonMesh && CannonMesh->DoesSocketExist(GetMuzzleSocketName())
+               ? CannonMesh->GetSocketTransform(GetMuzzleSocketName())
+               : CannonMesh->GetComponentTransform();
+}
+
 void AAWTankActor::ApplyVisualConfiguration()
 {
     TankMesh->SetStaticMesh(TankAsset);
     TankMesh->SetRelativeTransform(MeshTransform);
+    CannonMesh->SetSkeletalMesh(CannonAsset);
+    CannonMesh->SetRelativeTransform(CannonTransform);
     AccentLight->SetLightColor(PlayerColor);
 }

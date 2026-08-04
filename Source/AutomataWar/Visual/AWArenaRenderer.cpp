@@ -71,9 +71,17 @@ void AAWArenaRenderer::ProcessEvents(const TArray<Automata::SimEvent> &Events, i
         switch (Evt.type)
         {
         case Automata::EventType::Fire:
-            TriggerMuzzleFlash(Pos);
-            SpawnProjectileBolt(Evt.robot, Pos, DirToRotation(CurrentSnapshot.robots[Evt.robot].facing).Vector());
-            PlaySFX(AWVisualAssets::SFX_Fire, Pos);
+        {
+            ResolveTankActors();
+            AAWTankActor *Tank = Evt.robot == 0 ? PlayerOneTank.Get() : PlayerTwoTank.Get();
+            const FTransform MuzzleTransform = Tank ? Tank->GetMuzzleTransform() : FTransform(DirToRotation(Robot.facing), Pos + FVector(0, 0, AWVisualConfig::ProjectileZ));
+            TriggerMuzzleFlash(Evt.robot);
+            SpawnProjectileBolt(Evt.robot, MuzzleTransform.GetLocation(), DirToRotation(Robot.facing).Vector());
+            PlaySFX(AWVisualAssets::SFX_Fire, MuzzleTransform.GetLocation());
+            break;
+        }
+        case Automata::EventType::ProjectileBlocked:
+            TriggerImpact(GridToWorld(Evt.paramA, Evt.paramB));
             break;
         case Automata::EventType::Hit:
             TriggerImpact(Pos);
@@ -276,7 +284,7 @@ void AAWArenaRenderer::SpawnProjectileBolt(int32 OwnerIdx, FVector WorldPos, FVe
     UStaticMeshComponent *Bolt = NewObject<UStaticMeshComponent>(this);
     Bolt->SetupAttachment(GetRootComponent());
     Bolt->SetStaticMesh(CubeMesh);
-    Bolt->SetWorldLocation(WorldPos + FVector(0, 0, AWVisualConfig::ProjectileZ));
+    Bolt->SetWorldLocation(WorldPos);
     Bolt->SetWorldScale3D(FVector(0.3f, 0.08f, 0.08f));
     Bolt->SetWorldRotation(Direction.Rotation());
     Bolt->SetCollisionEnabled(ECollisionEnabled::NoCollision);
@@ -308,19 +316,26 @@ void AAWArenaRenderer::SpawnProjectileBolt(int32 OwnerIdx, FVector WorldPos, FVe
 		if (WeakBolt.IsValid()) WeakBolt->DestroyComponent(); }, AWVisualConfig::ProjectileBoltLifespan, false);
 }
 
-void AAWArenaRenderer::TriggerMuzzleFlash(FVector WorldPos)
+void AAWArenaRenderer::TriggerMuzzleFlash(int32 RobotIdx)
 {
+    ResolveTankActors();
+    AAWTankActor *Tank = RobotIdx == 0 ? PlayerOneTank.Get() : PlayerTwoTank.Get();
+    if (!Tank)
+        return;
+
     UNiagaraSystem *NS = LoadObject<UNiagaraSystem>(nullptr, AWVisualAssets::NS_MuzzleFlash);
     if (NS)
     {
-        UNiagaraFunctionLibrary::SpawnSystemAtLocation(GetWorld(), NS, WorldPos);
+        UNiagaraFunctionLibrary::SpawnSystemAttached(NS, Tank->GetMuzzleComponent(), Tank->GetMuzzleSocketName(),
+                                                     FVector::ZeroVector, FRotator::ZeroRotator,
+                                                     EAttachLocation::SnapToTarget, true);
     }
     else
     {
         UPointLightComponent *Flash = NewObject<UPointLightComponent>(this);
         Flash->SetupAttachment(GetRootComponent());
-        Flash->SetWorldLocation(WorldPos + FVector(0, 0, 50));
-        Flash->SetIntensity(8000.f);
+        Flash->SetWorldLocation(Tank->GetMuzzleTransform().GetLocation());
+        Flash->SetIntensity(4000.f);
         Flash->SetAttenuationRadius(200.f);
         Flash->SetLightColor(FColor::Yellow);
         Flash->RegisterComponent();

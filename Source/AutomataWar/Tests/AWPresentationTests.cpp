@@ -21,6 +21,7 @@
 #include "AutomataWar/UI/SAWCodeEditor.h"
 #include "AutomataWar/Visual/AWVisualTypes.h"
 #include "Engine/EngineTypes.h"
+#include "Engine/SkeletalMesh.h"
 #include "Materials/MaterialInterface.h"
 #include "NiagaraSystem.h"
 #include "Sound/SoundBase.h"
@@ -306,6 +307,22 @@ bool FAssetIntegrity::RunTest(const FString &Parameters)
     CheckSound(AWUIAssets::SFX_UIError);
     TestTrue(TEXT("Roboto Mono font exists"), IFileManager::Get().FileExists(*(FPaths::ProjectContentDir() / AWUIAssets::MonoFontFile)));
     TestTrue(TEXT("Rajdhani font exists"), IFileManager::Get().FileExists(*(FPaths::ProjectContentDir() / AWUIAssets::DisplayFontFile)));
+    return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCannonMuzzleSockets, "AutomataWar.Visual.Assets.CannonsHaveMuzzleSockets",
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FCannonMuzzleSockets::RunTest(const FString &Parameters)
+{
+    for (const TCHAR *Path : {TEXT("/Game/Art/Meshes/SkeletalMeshes/SM_CannonOne.SM_CannonOne"),
+                              TEXT("/Game/Art/Meshes/SkeletalMeshes/SM_CannonTwo.SM_CannonTwo")})
+    {
+        USkeletalMesh *Cannon = LoadObject<USkeletalMesh>(nullptr, Path);
+        TestNotNull(Path, Cannon);
+        if (Cannon)
+            TestNotNull(FString::Printf(TEXT("%s Muzzle socket"), Path), Cannon->FindSocket(TEXT("Muzzle")));
+    }
     return true;
 }
 
