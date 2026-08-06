@@ -625,6 +625,59 @@ bool FSimProjectileSpeed::RunTest(const FString &Parameters)
     return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FSimObstacleHealth, "AutomataWar.Core.Sim.ProjectilesDestroyCover",
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FSimObstacleHealth::RunTest(const FString &Parameters)
+{
+    using namespace Automata;
+    const auto shooter = Compile("FIRE\n");
+    const auto idle = Compile("WAIT\n");
+    TestTrue(TEXT("Programs compile"), shooter.Ok() && idle.Ok());
+
+    bool foundCoveredLane = false;
+    for (uint64_t seed = 1; seed <= 1000 && !foundCoveredLane; ++seed)
+    {
+        SimConfig config;
+        config.gridWidth = 3;
+        config.gridHeight = 8;
+        config.seed = seed;
+
+        Simulation sim;
+        sim.RunMatch(shooter.program, idle.program, config);
+        const auto &grid = sim.GetGrid();
+        int32_t coverY = -1;
+        for (int32_t y = 1; y < config.gridHeight - 1; ++y)
+            if (grid[static_cast<size_t>(y * config.gridWidth + 1)] == CellType::Cover)
+            {
+                coverY = y;
+                break;
+            }
+        if (coverY < 0)
+            continue;
+
+        foundCoveredLane = true;
+        int32_t coverHits = 0;
+        bool targetHit = false;
+        for (const SimEvent &event : sim.GetEvents())
+        {
+            if (event.type == EventType::ProjectileBlocked && event.paramA == 1 && event.paramB == coverY)
+                ++coverHits;
+            if (event.robot == 1 && event.type == EventType::Hit)
+                targetHit = true;
+        }
+
+        const auto &finalSnapshot = sim.GetSnapshots().back();
+        const size_t coverIndex = static_cast<size_t>(coverY * config.gridWidth + 1);
+        TestEqual(TEXT("Cover absorbs exactly its health in hits"), coverHits, ObstacleMaxHealth / ProjectileDamage);
+        TestEqual(TEXT("Destroyed cover has zero health"), finalSnapshot.obstacleHealth[coverIndex], 0);
+        TestTrue(TEXT("Projectiles pass after cover is destroyed"), targetHit);
+    }
+
+    TestTrue(TEXT("Found deterministic covered projectile lane"), foundCoveredLane);
+    return true;
+}
+
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FSimRelativeScanDirection, "AutomataWar.Core.Sim.ScanDirectionIsRelative",
                                  EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 

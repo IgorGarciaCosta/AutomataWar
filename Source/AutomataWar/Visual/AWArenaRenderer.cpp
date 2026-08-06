@@ -6,6 +6,7 @@
 #include "AWArenaRenderer.h"
 #include "AWTankActor.h"
 #include "AWVisualTypes.h"
+#include "TableObstable.h"
 #include "AutomataWar/UI/AWUITypes.h"
 #include "ProceduralMeshComponent.h"
 #include "Components/AudioComponent.h"
@@ -62,6 +63,10 @@ void AAWArenaRenderer::SetSnapshot(const Automata::TickSnapshot &Snapshot)
 
     CurrentSnapshot = Snapshot;
     bHasSnapshot = true;
+    for (const TPair<int32, TObjectPtr<ATableObstable>> &Entry : Obstacles)
+        if (Entry.Value && Entry.Key >= 0 && static_cast<size_t>(Entry.Key) < Snapshot.obstacleHealth.size())
+            Entry.Value->SetHealth(Snapshot.obstacleHealth[static_cast<size_t>(Entry.Key)]);
+
     ResolveTankActors();
     if (PlayerOneTank)
         PlayerOneTank->SetTargetTransform(GridToWorld(Snapshot.robots[0].x, Snapshot.robots[0].y), DirToRotation(Snapshot.robots[0].facing));
@@ -132,6 +137,9 @@ void AAWArenaRenderer::ResetVisuals()
         PlayerOneTank->ResetVisual();
     if (PlayerTwoTank)
         PlayerTwoTank->ResetVisual();
+    for (const TPair<int32, TObjectPtr<ATableObstable>> &Entry : Obstacles)
+        if (Entry.Value)
+            Entry.Value->ResetHealth();
 }
 
 void AAWArenaRenderer::BuildFloorGrid(int32 Width, int32 Height)
@@ -189,26 +197,18 @@ void AAWArenaRenderer::BuildFloorGrid(int32 Width, int32 Height)
 
 void AAWArenaRenderer::SpawnCoverVisuals(int32 Width, int32 Height, const TArray<Automata::CellType> &Grid)
 {
+    for (const TPair<int32, TObjectPtr<ATableObstable>> &Entry : Obstacles)
+        if (Entry.Value)
+            Entry.Value->Destroy();
+    Obstacles.Reset();
+
+    // Cube is the fallback shape; cylinder is used for variant 0 when available.
     UStaticMesh *CubeMesh = LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Cube.Cube"));
     UStaticMesh *CylinderMesh = LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Cylinder.Cylinder"));
-    UMaterialInterface *CoverMaterial = LoadObject<UMaterialInterface>(nullptr, AWVisualAssets::M_Cover);
     if (!CubeMesh)
         return;
-    auto CreateCover = [this, CoverMaterial](UStaticMesh *Mesh, FVector Location, FVector Scale, const FLinearColor &Color)
-    {
-        UStaticMeshComponent *Component = NewObject<UStaticMeshComponent>(this);
-        Component->SetupAttachment(GetRootComponent());
-        Component->SetStaticMesh(Mesh);
-        Component->SetWorldLocation(Location);
-        Component->SetWorldScale3D(Scale);
-        Component->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-        if (CoverMaterial)
-            Component->SetMaterial(0, CoverMaterial);
-        Component->RegisterComponent();
-        if (UMaterialInstanceDynamic *Material = Component->CreateDynamicMaterialInstance(0))
-            Material->SetVectorParameterValue(TEXT("BaseColor"), Color);
-    };
 
+    // CoverIdx drives deterministic color and shape variation.
     int32 CoverIdx = 0;
     for (int32 Y = 0; Y < Height; ++Y)
     {
@@ -221,7 +221,9 @@ void AAWArenaRenderer::SpawnCoverVisuals(int32 Width, int32 Height, const TArray
             if (Grid[CellIdx] == Automata::CellType::Cover)
             {
                 FVector Pos = GridToWorld(X, Y);
+                Pos.Z = AWVisualConfig::FloorZ;
 
+                // Cycle through four tones so adjacent obstacles remain distinct.
                 FLinearColor CoverColor;
                 switch (CoverIdx % 4)
                 {
@@ -239,25 +241,33 @@ void AAWArenaRenderer::SpawnCoverVisuals(int32 Width, int32 Height, const TArray
                     break;
                 }
 
+                UStaticMesh *Mesh = CubeMesh;
+                FVector Scale;
                 int32 Variant = CoverIdx % 3;
                 switch (Variant)
                 {
                 case 0:
-                {
-                    CreateCover(CylinderMesh ? CylinderMesh : CubeMesh, Pos + FVector(0, 0, 45), FVector(0.35f, 0.35f, 0.9f), CoverColor);
+                    Mesh = CylinderMesh ? CylinderMesh : CubeMesh;
+                    Pos.Z += 45.f;
+                    Scale = FVector(0.35f, 0.35f, 0.9f);
                     break;
-                }
                 case 1:
-                {
-                    CreateCover(CubeMesh, Pos + FVector(-15, 0, 30), FVector(0.4f, 0.9f, 0.6f), CoverColor);
-                    CreateCover(CubeMesh, Pos + FVector(20, -20, 20), FVector(0.35f, 0.35f, 0.4f), CoverColor * 0.8f);
+                    Pos.Z += 30.f;
+                    Scale = FVector(0.4f, 0.9f, 0.6f);
                     break;
-                }
                 default:
-                {
-                    CreateCover(CubeMesh, Pos + FVector(0, 0, 22), FVector(0.85f, 0.85f, 0.4f), CoverColor);
+                    Pos.Z += 20.f;
+                    Scale = FVector(0.85f, 0.85f, 0.4f);
                     break;
                 }
+
+                FActorSpawnParameters SpawnParameters;
+                SpawnParameters.Owner = this;
+                SpawnParameters.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+                if (ATableObstable *Obstacle = GetWorld()->SpawnActor<ATableObstable>(ATableObstable::StaticClass(), Pos, FRotator::ZeroRotator, SpawnParameters))
+                {
+                    Obstacle->InitializeObstacle(CellIdx, Mesh, Scale, CoverColor);
+                    Obstacles.Add(CellIdx, Obstacle);
                 }
 
                 ++CoverIdx;

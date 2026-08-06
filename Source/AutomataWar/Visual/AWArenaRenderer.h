@@ -21,6 +21,7 @@ class UPointLightComponent;
 class UAudioComponent;
 class UNiagaraComponent;
 class AAWTankActor;
+class ATableObstable;
 
 /**
  * @brief Presentation-only arena actor: grid floor, cover, projectile bolts,
@@ -104,6 +105,10 @@ protected:
 
     /** Current display snapshot. */
     Automata::TickSnapshot CurrentSnapshot;
+
+    UPROPERTY(Transient)
+    TMap<int32, TObjectPtr<ATableObstable>> Obstacles;
+
     TWeakObjectPtr<UAudioComponent> MovementAudio[2];
     bool bHasSnapshot = false;
 };

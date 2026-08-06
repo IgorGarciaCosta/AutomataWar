@@ -10,7 +10,6 @@
 #include "AWTankActor.generated.h"
 
 class UMaterialInstanceDynamic;
-class UPointLightComponent;
 class USceneComponent;
 class USkeletalMesh;
 class USkeletalMeshComponent;
@@ -59,9 +58,6 @@ protected:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tank")
     TObjectPtr<USkeletalMeshComponent> CannonMesh;
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tank")
-    TObjectPtr<UPointLightComponent> AccentLight;
-
     /** Simulation slot represented by this level instance. */
     UPROPERTY(EditInstanceOnly, BlueprintReadOnly, Category = "Tank", meta = (ClampMin = "0", ClampMax = "1"))
     int32 RobotIndex = 0;
@@ -80,7 +76,7 @@ protected:
     UPROPERTY(EditInstanceOnly, BlueprintReadOnly, Category = "Tank")
     FTransform CannonTransform = FTransform::Identity;
 
-    /** Player color applied to the mesh and accent light. */
+    /** Player color applied to the mesh. */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tank")
     FLinearColor PlayerColor = FLinearColor(0.f, 0.8f, 1.f);
 

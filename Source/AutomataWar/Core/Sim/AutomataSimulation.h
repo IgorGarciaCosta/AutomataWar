@@ -94,6 +94,7 @@ namespace Automata
     {
         int32_t tick = 0;
         std::array<RobotState, 2> robots;
+        std::vector<int32_t> obstacleHealth;
         uint64_t stateHash = 0;
     };
 
@@ -148,8 +149,8 @@ namespace Automata
         const std::vector<TickSnapshot> &GetSnapshots() const { return snapshots_; }
         /** @return Canonical final-state hash from the most recent match. */
         uint64_t GetFinalHash() const { return finalHash_; }
-        /** @return Row-major canonical grid generated for the most recent match. */
-        const std::vector<CellType> &GetGrid() const { return grid_; }
+        /** @return Row-major initial grid generated for the most recent match. */
+        const std::vector<CellType> &GetGrid() const { return initialGrid_; }
 
     private:
         /** Explicit deterministic xorshift64 generator; zero is normalized by setup. */
@@ -178,6 +179,8 @@ namespace Automata
         int32_t gridWidth_ = 0;
         int32_t gridHeight_ = 0;
         std::vector<CellType> grid_;
+        std::vector<CellType> initialGrid_;
+        std::vector<int32_t> obstacleHealth_;
         std::array<RobotState, 2> robots_;
         std::array<std::array<Projectile, MaxProjectiles>, 2> projectiles_ = {};
         std::vector<SimEvent> events_;

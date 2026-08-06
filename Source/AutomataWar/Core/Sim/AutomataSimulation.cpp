@@ -39,6 +39,12 @@ namespace Automata
             grid_[static_cast<size_t>(y * w)] = CellType::Wall;
             grid_[static_cast<size_t>(y * w + (w - 1))] = CellType::Wall;
         }
+
+        initialGrid_ = grid_;
+        obstacleHealth_.assign(grid_.size(), 0);
+        for (size_t cellIndex = 0; cellIndex < grid_.size(); ++cellIndex)
+            if (grid_[cellIndex] == CellType::Cover)
+                obstacleHealth_[cellIndex] = ObstacleMaxHealth;
     }
 
     void Simulation::SpawnRobots(int32_t w, int32_t h)
@@ -113,8 +119,11 @@ namespace Automata
         };
         mix(gridWidth_);
         mix(gridHeight_);
-        for (CellType cell : grid_)
-            mix(static_cast<int64_t>(cell));
+        for (size_t cellIndex = 0; cellIndex < grid_.size(); ++cellIndex)
+        {
+            mix(static_cast<int64_t>(grid_[cellIndex]));
+            mix(obstacleHealth_[cellIndex]);
+        }
         for (int32_t i = 0; i < 2; ++i)
         {
             mix(robots_[i].x);
@@ -316,10 +325,20 @@ namespace Automata
                         p.active = false;
                         break;
                     }
-                    CellType cell = grid_[static_cast<size_t>(p.y * gridWidth_ + p.x)];
-                    if (cell == CellType::Wall || cell == CellType::Cover)
+                    const size_t cellIndex = static_cast<size_t>(p.y * gridWidth_ + p.x);
+                    CellType cell = grid_[cellIndex];
+                    if (cell == CellType::Wall)
                     {
                         events_.push_back({tick, owner, EventType::ProjectileBlocked, p.x, p.y});
+                        p.active = false;
+                        break;
+                    }
+                    if (cell == CellType::Cover)
+                    {
+                        obstacleHealth_[cellIndex] = std::max(0, obstacleHealth_[cellIndex] - ProjectileDamage);
+                        events_.push_back({tick, owner, EventType::ProjectileBlocked, p.x, p.y});
+                        if (obstacleHealth_[cellIndex] == 0)
+                            grid_[cellIndex] = CellType::Empty;
                         p.active = false;
                         break;
                     }
@@ -428,6 +447,7 @@ namespace Automata
             TickSnapshot snap;
             snap.tick = tick;
             snap.robots = robots_;
+            snap.obstacleHealth = obstacleHealth_;
             snap.stateHash = ComputeHash();
             snapshots_.push_back(snap);
 

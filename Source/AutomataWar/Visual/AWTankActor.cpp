@@ -5,7 +5,6 @@
 
 #include "AWTankActor.h"
 #include "AWVisualTypes.h"
-#include "Components/PointLightComponent.h"
 #include "Components/SceneComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Components/StaticMeshComponent.h"
@@ -30,12 +29,6 @@ AAWTankActor::AAWTankActor()
     CannonMesh = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("CannonMesh"));
     CannonMesh->SetupAttachment(SceneRoot);
     CannonMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-
-    AccentLight = CreateDefaultSubobject<UPointLightComponent>(TEXT("AccentLight"));
-    AccentLight->SetupAttachment(SceneRoot);
-    AccentLight->SetRelativeLocation(FVector(0.f, 0.f, 140.f));
-    AccentLight->SetIntensity(1800.f);
-    AccentLight->SetAttenuationRadius(500.f);
 }
 
 void AAWTankActor::OnConstruction(const FTransform &Transform)
@@ -123,5 +116,4 @@ void AAWTankActor::ApplyVisualConfiguration()
     TankMesh->SetRelativeTransform(MeshTransform);
     CannonMesh->SetSkeletalMesh(CannonAsset);
     CannonMesh->SetRelativeTransform(CannonTransform);
-    AccentLight->SetLightColor(PlayerColor);
 }

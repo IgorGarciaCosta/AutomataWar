@@ -1,0 +1,60 @@
+#pragma once
+
+#include "CoreMinimal.h"
+#include "GameFramework/Actor.h"
+#include "TableObstable.generated.h"
+
+class UMaterialInstanceDynamic;
+class USceneComponent;
+class UStaticMesh;
+class UStaticMeshComponent;
+class UWidgetComponent;
+
+/** Runtime presentation actor for one destructible cover cell. */
+UCLASS(Blueprintable)
+class AUTOMATAWAR_API ATableObstable : public AActor
+{
+    GENERATED_BODY()
+
+public:
+    ATableObstable();
+
+    /** Configure the mesh and grid identity selected by the arena renderer. */
+    void InitializeObstacle(int32 InCellIndex, UStaticMesh *InMesh, const FVector &InScale, const FLinearColor &InColor);
+
+    /** Mirror canonical obstacle health from the current replay snapshot. */
+    void SetHealth(int32 NewHealth);
+
+    /** Restore the initial visible state. */
+    void ResetHealth();
+
+    int32 GetCellIndex() const { return CellIndex; }
+    int32 GetHealth() const { return CurrentHealth; }
+    int32 GetMaxHealth() const { return MaxHealth; }
+
+protected:
+    virtual void BeginPlay() override;
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Obstacle")
+    TObjectPtr<USceneComponent> SceneRoot;
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Obstacle")
+    TObjectPtr<UStaticMeshComponent> ObstacleMesh;
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Obstacle")
+    TObjectPtr<UWidgetComponent> HealthWidget;
+
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Obstacle", meta = (ClampMin = "1"))
+    int32 MaxHealth;
+
+private:
+    void RefreshHealthWidget();
+    void Explode();
+
+    UPROPERTY(Transient)
+    TObjectPtr<UMaterialInstanceDynamic> DynamicMaterial;
+
+    int32 CellIndex = INDEX_NONE;
+    int32 CurrentHealth = 0;
+    bool bDestroyed = false;
+};

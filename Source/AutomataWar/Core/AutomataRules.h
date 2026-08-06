@@ -94,6 +94,8 @@ namespace Automata
     inline constexpr int32_t ProjectileSpeed = 4;
     /** Damage per hit; exactly one fifth of starting HP. */
     inline constexpr int32_t ProjectileDamage = 20;
+    /** Starting health for destructible cover; three projectile hits destroy it. */
+    inline constexpr int32_t ObstacleMaxHealth = 60;
     /** Maximum scan distance, covering half the default arena. */
     inline constexpr int32_t ScanRange = 8;
 
