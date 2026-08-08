@@ -8,8 +8,10 @@ Designer-authored UMG presentation for Automata War with native C++ behavior.
 - `SAWCodeEditor.h/cpp` — Slate multiline code editor with syntax highlighting, line numbers, diagnostics
 - `SAWSyntaxHighlighter.h/cpp` — Rich-text marshaller for Automata assembly coloring
 - `AWCodeEditorWidget.h/cpp` — UMG host for the native Slate code editor
-- `AWHUDWidget.h/cpp` — Runtime actions and data bindings for the root HUD
-- `WBP_AWHUD` — Canvas-based responsive layout, styling, and six-screen hierarchy
+- `AWScreenWidget.h/cpp` — Typed screen contracts, control bindings, and semantic UI events
+- `AWHUDWidget.h/cpp` — Root coordinator for navigation, game state, and screen data
+- `WBP_AWHUD` — Responsive shell, status bar, and six-screen switcher
+- `Content/UI/Screens` — One independently editable Widget Blueprint per screen
 
 ## Screens
 

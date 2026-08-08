@@ -12,13 +12,16 @@
 #include "AWHUDWidget.generated.h"
 
 class UAWGameSubsystem;
-class UAWCodeEditorWidget;
 class AAWArenaRenderer;
-class UComboBoxString;
-class UEditableTextBox;
-class USlider;
+class UAWLanguageReferenceScreen;
+class UAWMainMenuScreen;
+class UAWProgrammingScreen;
+class UAWReplayAutopsyScreen;
+class UAWReplayBrowserScreen;
+class UAWSimulationScreen;
 class UTextBlock;
 class UWidgetSwitcher;
+enum class EAWUIAction : uint8;
 
 /** Six stable screen indices owned by the HUD Widget Blueprint switcher. */
 UENUM(BlueprintType)
@@ -68,6 +71,8 @@ protected:
     EAWScreen InitialScreen = EAWScreen::MainMenu;
 
 private:
+    void OnScreenAction(EAWUIAction Action);
+
     UFUNCTION()
     void OnPhaseChanged(EAWMatchPhase NewPhase);
 
@@ -146,7 +151,6 @@ private:
     void OnReplaySpeedDouble();
     UFUNCTION()
     void OnReplaySpeedQuadruple();
-    UFUNCTION()
     void OnReplayScrubChanged(float Value);
     void InitializeReplayFromGameState();
     bool InitializeReplay(const FString &SourceA, const FString &SourceB, int64 Seed);
@@ -183,64 +187,27 @@ private:
     TObjectPtr<UTextBlock> StatusText;
 
     UPROPERTY(meta = (BindWidget))
-    TObjectPtr<UAWCodeEditorWidget> EditorP1;
+    TObjectPtr<UAWMainMenuScreen> MainMenuScreenWidget;
 
     UPROPERTY(meta = (BindWidget))
-    TObjectPtr<UAWCodeEditorWidget> EditorP2;
+    TObjectPtr<UAWProgrammingScreen> ProgrammingScreenWidget;
 
     UPROPERTY(meta = (BindWidget))
-    TObjectPtr<UEditableTextBox> JoinIPField;
+    TObjectPtr<UAWSimulationScreen> SimulationScreenWidget;
 
     UPROPERTY(meta = (BindWidget))
-    TObjectPtr<UComboBoxString> SessionComboBox;
+    TObjectPtr<UAWReplayAutopsyScreen> ReplayAutopsyScreenWidget;
 
     UPROPERTY(meta = (BindWidget))
-    TObjectPtr<UComboBoxString> ReplayComboBox;
+    TObjectPtr<UAWReplayBrowserScreen> ReplayBrowserScreenWidget;
 
     UPROPERTY(meta = (BindWidget))
-    TObjectPtr<UEditableTextBox> ImportField;
-
-    UPROPERTY(meta = (BindWidget))
-    TObjectPtr<UEditableTextBox> ExportField;
-
-    UPROPERTY(meta = (BindWidget))
-    TObjectPtr<UTextBlock> ReplayBrowserStatus;
-
-    UPROPERTY(meta = (BindWidget))
-    TObjectPtr<UTextBlock> ReplayTickText;
-
-    UPROPERTY(meta = (BindWidget))
-    TObjectPtr<UTextBlock> ReplaySpeedText;
-
-    UPROPERTY(meta = (BindWidget))
-    TObjectPtr<UTextBlock> ReplayOutcomeText;
-
-    UPROPERTY(meta = (BindWidget))
-    TObjectPtr<UTextBlock> ReplaySourceAText;
-
-    UPROPERTY(meta = (BindWidget))
-    TObjectPtr<UTextBlock> ReplaySourceBText;
-
-    UPROPERTY(meta = (BindWidget))
-    TObjectPtr<UTextBlock> ReplayRegistersP1;
-
-    UPROPERTY(meta = (BindWidget))
-    TObjectPtr<UTextBlock> ReplayRegistersP2;
-
-    UPROPERTY(meta = (BindWidget))
-    TObjectPtr<UTextBlock> ReplayEventLog;
-
-    UPROPERTY(meta = (BindWidget))
-    TObjectPtr<USlider> ReplayScrubSlider;
-
-    UPROPERTY(meta = (BindWidget))
-    TObjectPtr<UTextBlock> LanguageReferenceText;
+    TObjectPtr<UAWLanguageReferenceScreen> LanguageReferenceScreenWidget;
 
     EAWScreen CurrentScreen = EAWScreen::MainMenu;
     TArray<FString> ReplayFilenames;
     TUniquePtr<Automata::FAWReplayController> ReplayController;
     float ReplaySpeed = 1.f;
     bool bReplayPlaying = false;
-    bool bUpdatingReplaySlider = false;
     double ReplayAccumulator = 0.0;
 };

@@ -7,16 +7,41 @@ MAP_PATH = "/Game/Maps/L_AutomataArena"
 TANK_BLUEPRINT_PATH = "/Game/Blueprints/BP_TankActor"
 TANK_CLASS_PATH = "/Game/Blueprints/BP_TankActor.BP_TankActor_C"
 
-required_widgets = {
-    "ScreenSwitcher", "StatusText", "EditorP1", "EditorP2", "JoinIPField",
-    "SessionComboBox", "ReplayComboBox", "ImportField", "ExportField",
-    "ReplayBrowserStatus", "ReplayTickText", "ReplaySpeedText",
-    "ReplayOutcomeText", "ReplaySourceAText", "ReplaySourceBText",
-    "ReplayRegistersP1", "ReplayRegistersP2", "ReplayEventLog",
-    "ReplayScrubSlider", "LanguageReferenceText", "SimulationBanner",
-    "SimulationSourceP1Text", "SimulationSourceP2Text",
-    "SimulationArenaViewport", "ReplayArenaViewport",
-    "ReplayArenaViewportSpace", "ReplayEventsDock"
+SCREEN_ASSETS = [
+    ("MainMenuScreenWidget", "/Game/UI/Screens/WBP_AWMainMenuScreen", {
+        "MainMenuScreen", "JoinIPField", "SessionComboBox",
+        "LocalMatchButton", "HostLanButton", "FindLanButton",
+        "JoinSessionButton", "JoinIpButton", "ReplayBrowserButton",
+        "LanguageReferenceButton", "QuitButton"}),
+    ("ProgrammingScreenWidget", "/Game/UI/Screens/WBP_AWProgrammingScreen", {
+        "ProgrammingBackdrop", "EditorP1", "EditorP2", "ProgrammingBackButton",
+        "SubmitP1Button", "SubmitP2Button", "AggressorP1Button",
+        "AggressorP2Button", "CamperP1Button", "CamperP2Button",
+        "KiterP1Button", "KiterP2Button", "TrainingP1Button", "TrainingP2Button"}),
+    ("SimulationScreenWidget", "/Game/UI/Screens/WBP_AWSimulationScreen", {
+        "SimulationScreen", "SimulationBanner", "SimulationSourceP1Text",
+        "SimulationSourceP2Text", "SimulationArenaViewport"}),
+    ("ReplayAutopsyScreenWidget", "/Game/UI/Screens/WBP_AWReplayAutopsyScreen", {
+        "ReplayAutopsyBackdrop", "ReplayTickText", "ReplaySpeedText",
+        "ReplayOutcomeText", "ReplaySourceAText", "ReplaySourceBText",
+        "ReplayRegistersP1", "ReplayRegistersP2", "ReplayEventLog",
+        "ReplayScrubSlider", "ReplayArenaViewport", "ReplayArenaViewportSpace",
+        "ReplayEventsDock", "ReplayStartButton", "ReplayBackButton",
+        "ReplayPauseButton", "ReplayPlayButton", "ReplayStepButton",
+        "ReplayStepP1Button", "ReplayStepP2Button", "ReplayQuarterButton",
+        "ReplayNormalButton", "ReplayDoubleButton", "ReplayQuadButton",
+        "ReplayBackToMenuButton", "NextRoundButton"}),
+    ("ReplayBrowserScreenWidget", "/Game/UI/Screens/WBP_AWReplayBrowserScreen", {
+        "ReplayBrowserBackdrop", "ReplayComboBox", "ImportField", "ExportField",
+        "ReplayBrowserStatus", "ReplayBrowserBackButton", "ReplayRefreshButton",
+        "ReplaySaveButton", "ReplayLoadButton", "ReplayExportButton",
+        "ReplayImportButton"}),
+    ("LanguageReferenceScreenWidget", "/Game/UI/Screens/WBP_AWLanguageReferenceScreen", {
+        "LanguageReferenceBackdrop", "LanguageReferenceText", "LanguageBackButton"}),
+]
+HUD_WIDGETS = {
+    "HUDCanvas", "HUDBackground", "ScreenSwitcher", "StatusText",
+    *(entry[0] for entry in SCREEN_ASSETS)
 }
 
 hud = unreal.load_asset(HUD_PATH)
@@ -36,34 +61,60 @@ def collect_widgets(widget, widgets):
             collect_widgets(child, widgets)
 
 
-widgets_by_name = {}
-collect_widgets(root, widgets_by_name)
-missing = sorted(required_widgets - set(widgets_by_name))
+hud_widgets = {}
+collect_widgets(root, hud_widgets)
+missing = sorted(HUD_WIDGETS - set(hud_widgets))
 if missing:
     raise RuntimeError(f"Missing required HUD widgets: {missing}")
 
-hud_background = widgets_by_name["HUDBackground"]
+hud_background = hud_widgets["HUDBackground"]
 if hud_background.get_editor_property("brush_color").a > 0.15:
     raise RuntimeError("HUDBackground must remain transparent over the arena")
 
+switcher = hud_widgets["ScreenSwitcher"]
+if switcher.get_num_widgets() != 6:
+    raise RuntimeError(
+        f"ScreenSwitcher has {switcher.get_num_widgets()} screens instead of 6")
+
+screen_widgets = {}
+for index, (widget_name, asset_path, required_widgets) in enumerate(SCREEN_ASSETS):
+    screen = unreal.load_asset(asset_path)
+    if not screen:
+        raise RuntimeError(f"Missing modular screen asset: {asset_path}")
+    unreal.BlueprintEditorLibrary.compile_blueprint(screen)
+
+    child = switcher.get_child_at(index)
+    expected_class = f"{asset_path}.{asset_path.rsplit('/', 1)[1]}_C"
+    if child.get_name() != widget_name or child.get_class().get_path_name() != expected_class:
+        raise RuntimeError(
+            f"Screen {index} must be {widget_name} ({expected_class})")
+
+    screen_tree = unreal.AWWidgetBlueprintLibrary.get_widget_tree(screen)
+    screen_root = unreal.AWWidgetBlueprintLibrary.get_root_widget(screen_tree)
+    widgets = {}
+    collect_widgets(screen_root, widgets)
+    missing = sorted(required_widgets - set(widgets))
+    if missing:
+        raise RuntimeError(f"{asset_path} is missing widgets: {missing}")
+    screen_widgets.update(widgets)
+
+internal_widgets = set(screen_widgets) - HUD_WIDGETS
+if internal_widgets & set(hud_widgets):
+    raise RuntimeError("WBP_AWHUD still owns internal screen controls")
+
 for name in ["MainMenuScreen", "ProgrammingBackdrop",
              "ReplayBrowserBackdrop", "LanguageReferenceBackdrop"]:
-    if widgets_by_name[name].get_editor_property("brush_color").a < 0.99:
+    if screen_widgets[name].get_editor_property("brush_color").a < 0.99:
         raise RuntimeError(
             f"{name} must hide the arena with an opaque background")
 
 for name in ["SimulationArenaViewport", "ReplayArenaViewport"]:
-    if widgets_by_name[name].get_editor_property("brush_color").a > 0.01:
+    if screen_widgets[name].get_editor_property("brush_color").a > 0.01:
         raise RuntimeError(
             f"{name} must remain transparent for the arena view")
 
-if widgets_by_name["ReplayEventsDock"].get_editor_property("height_override") != 112.0:
+if screen_widgets["ReplayEventsDock"].get_editor_property("height_override") != 112.0:
     raise RuntimeError("ReplayEventsDock must keep a fixed height")
-
-switcher = widgets_by_name["ScreenSwitcher"]
-if switcher.get_num_widgets() != 6:
-    raise RuntimeError(
-        f"ScreenSwitcher has {switcher.get_num_widgets()} screens instead of 6")
 
 unreal.BlueprintEditorLibrary.compile_blueprint(hud)
 
@@ -127,5 +178,5 @@ if len(wall_labels) < 8:
     raise RuntimeError("Expected level-authored arena walls are missing")
 
 unreal.log(
-    f"AUTOMATA_PRESENTATION_VALIDATION_COMPLETE widgets={len(widgets_by_name)} "
+    f"AUTOMATA_PRESENTATION_VALIDATION_COMPLETE widgets={len(hud_widgets) + len(screen_widgets)} "
     f"screens=6 cameras=1 tanks=2 walls={len(wall_labels)}")

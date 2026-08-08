@@ -1,5 +1,5 @@
 #include "AWHUDWidget.h"
-#include "AWCodeEditorWidget.h"
+#include "AWScreenWidget.h"
 #include "AWUITypes.h"
 #include "AutomataWar/Game/AWGameSubsystem.h"
 #include "AutomataWar/Game/AWGameState.h"
@@ -13,10 +13,6 @@
 #include "AutomataWar/Core/Replay/AutomataReplay.h"
 #include "AutomataWar/Visual/AWArenaRenderer.h"
 #include "AutomataWar/Visual/AWVisualTypes.h"
-#include "Components/Button.h"
-#include "Components/ComboBoxString.h"
-#include "Components/EditableTextBox.h"
-#include "Components/Slider.h"
 #include "Components/TextBlock.h"
 #include "Components/WidgetSwitcher.h"
 #include "Kismet/GameplayStatics.h"
@@ -90,61 +86,21 @@ void UAWHUDWidget::NativeConstruct()
 {
     Super::NativeConstruct();
 
-#define BIND_BUTTON(Name, Handler)                                        \
-    if (UButton *Button = Cast<UButton>(GetWidgetFromName(TEXT(Name))))   \
-    {                                                                     \
-        Button->OnClicked.AddUniqueDynamic(this, &UAWHUDWidget::Handler); \
+    UAWScreenWidget *Screens[] = {
+        MainMenuScreenWidget, ProgrammingScreenWidget, ReplayAutopsyScreenWidget,
+        ReplayBrowserScreenWidget, LanguageReferenceScreenWidget};
+    for (UAWScreenWidget *Screen : Screens)
+    {
+        if (Screen)
+            Screen->OnAction.AddUObject(this, &UAWHUDWidget::OnScreenAction);
     }
+    if (ReplayAutopsyScreenWidget)
+        ReplayAutopsyScreenWidget->OnScrubbed.AddUObject(this, &UAWHUDWidget::OnReplayScrubChanged);
 
-    BIND_BUTTON("LocalMatchButton", OnLocalMatch);
-    BIND_BUTTON("HostLanButton", OnHostLAN);
-    BIND_BUTTON("FindLanButton", OnFindLAN);
-    BIND_BUTTON("JoinSessionButton", OnJoinSelectedSession);
-    BIND_BUTTON("JoinIpButton", OnJoinIP);
-    BIND_BUTTON("ReplayBrowserButton", OnReplayBrowserNav);
-    BIND_BUTTON("LanguageReferenceButton", OnLanguageRef);
-    BIND_BUTTON("QuitButton", OnQuit);
-    BIND_BUTTON("SubmitP1Button", OnSubmitP1);
-    BIND_BUTTON("SubmitP2Button", OnSubmitP2);
-    BIND_BUTTON("AggressorP1Button", OnAggressorP1);
-    BIND_BUTTON("AggressorP2Button", OnAggressorP2);
-    BIND_BUTTON("CamperP1Button", OnCamperP1);
-    BIND_BUTTON("CamperP2Button", OnCamperP2);
-    BIND_BUTTON("KiterP1Button", OnKiterP1);
-    BIND_BUTTON("KiterP2Button", OnKiterP2);
-    BIND_BUTTON("TrainingP1Button", OnTrainingP1);
-    BIND_BUTTON("TrainingP2Button", OnTrainingP2);
-    BIND_BUTTON("ProgrammingBackButton", OnBackToMainMenu);
-    BIND_BUTTON("ReplayStartButton", OnReplayScrubStart);
-    BIND_BUTTON("ReplayBackButton", OnReplayStepBack);
-    BIND_BUTTON("ReplayPauseButton", OnReplayPause);
-    BIND_BUTTON("ReplayPlayButton", OnReplayPlay);
-    BIND_BUTTON("ReplayStepButton", OnReplayStepTick);
-    BIND_BUTTON("ReplayStepP1Button", OnReplayStepP1);
-    BIND_BUTTON("ReplayStepP2Button", OnReplayStepP2);
-    BIND_BUTTON("ReplayQuarterButton", OnReplaySpeedQuarter);
-    BIND_BUTTON("ReplayNormalButton", OnReplaySpeedNormal);
-    BIND_BUTTON("ReplayDoubleButton", OnReplaySpeedDouble);
-    BIND_BUTTON("ReplayQuadButton", OnReplaySpeedQuadruple);
-    BIND_BUTTON("NextRoundButton", OnNextRound);
-    BIND_BUTTON("ReplayBackToMenuButton", OnBackToMainMenu);
-    BIND_BUTTON("ReplayBrowserBackButton", OnBackToMainMenu);
-    BIND_BUTTON("ReplayRefreshButton", OnReplayRefresh);
-    BIND_BUTTON("ReplaySaveButton", OnReplaySave);
-    BIND_BUTTON("ReplayLoadButton", OnReplayLoadSelected);
-    BIND_BUTTON("ReplayExportButton", OnReplayExportSelected);
-    BIND_BUTTON("ReplayImportButton", OnReplayImport);
-    BIND_BUTTON("LanguageBackButton", OnBackToMainMenu);
-
-#undef BIND_BUTTON
-
-    if (ReplayScrubSlider)
-        ReplayScrubSlider->OnValueChanged.AddUniqueDynamic(this, &UAWHUDWidget::OnReplayScrubChanged);
-
-    if (EditorP1 && EditorP1->GetSourceText().IsEmpty())
-        EditorP1->SetSourceText(FAWExampleScripts::DefaultBot());
-    if (EditorP2 && EditorP2->GetSourceText().IsEmpty())
-        EditorP2->SetSourceText(FAWExampleScripts::DefaultBot());
+    if (ProgrammingScreenWidget && ProgrammingScreenWidget->GetSource(0).IsEmpty())
+        ProgrammingScreenWidget->SetSource(0, FAWExampleScripts::DefaultBot());
+    if (ProgrammingScreenWidget && ProgrammingScreenWidget->GetSource(1).IsEmpty())
+        ProgrammingScreenWidget->SetSource(1, FAWExampleScripts::DefaultBot());
     PopulateLanguageReference();
 
     if (UWorld *World = GetWorld())
@@ -185,6 +141,17 @@ void UAWHUDWidget::NativeConstruct()
 
 void UAWHUDWidget::NativeDestruct()
 {
+    UAWScreenWidget *Screens[] = {
+        MainMenuScreenWidget, ProgrammingScreenWidget, ReplayAutopsyScreenWidget,
+        ReplayBrowserScreenWidget, LanguageReferenceScreenWidget};
+    for (UAWScreenWidget *Screen : Screens)
+    {
+        if (Screen)
+            Screen->OnAction.RemoveAll(this);
+    }
+    if (ReplayAutopsyScreenWidget)
+        ReplayAutopsyScreenWidget->OnScrubbed.RemoveAll(this);
+
     if (UWorld *World = GetWorld())
     {
         if (AAWGameState *GS = World->GetGameState<AAWGameState>())
@@ -251,6 +218,121 @@ void UAWHUDWidget::ShowScreen(EAWScreen Screen)
     }
 }
 
+void UAWHUDWidget::OnScreenAction(EAWUIAction Action)
+{
+    switch (Action)
+    {
+    case EAWUIAction::LocalMatch:
+        OnLocalMatch();
+        break;
+    case EAWUIAction::HostLAN:
+        OnHostLAN();
+        break;
+    case EAWUIAction::FindLAN:
+        OnFindLAN();
+        break;
+    case EAWUIAction::JoinSession:
+        OnJoinSelectedSession();
+        break;
+    case EAWUIAction::JoinIP:
+        OnJoinIP();
+        break;
+    case EAWUIAction::OpenReplayBrowser:
+        OnReplayBrowserNav();
+        break;
+    case EAWUIAction::OpenLanguageReference:
+        OnLanguageRef();
+        break;
+    case EAWUIAction::Quit:
+        OnQuit();
+        break;
+    case EAWUIAction::BackToMainMenu:
+        OnBackToMainMenu();
+        break;
+    case EAWUIAction::SubmitP1:
+        OnSubmitP1();
+        break;
+    case EAWUIAction::SubmitP2:
+        OnSubmitP2();
+        break;
+    case EAWUIAction::AggressorP1:
+        OnAggressorP1();
+        break;
+    case EAWUIAction::AggressorP2:
+        OnAggressorP2();
+        break;
+    case EAWUIAction::CamperP1:
+        OnCamperP1();
+        break;
+    case EAWUIAction::CamperP2:
+        OnCamperP2();
+        break;
+    case EAWUIAction::KiterP1:
+        OnKiterP1();
+        break;
+    case EAWUIAction::KiterP2:
+        OnKiterP2();
+        break;
+    case EAWUIAction::TrainingP1:
+        OnTrainingP1();
+        break;
+    case EAWUIAction::TrainingP2:
+        OnTrainingP2();
+        break;
+    case EAWUIAction::ReplayStart:
+        OnReplayScrubStart();
+        break;
+    case EAWUIAction::ReplayBack:
+        OnReplayStepBack();
+        break;
+    case EAWUIAction::ReplayPause:
+        OnReplayPause();
+        break;
+    case EAWUIAction::ReplayPlay:
+        OnReplayPlay();
+        break;
+    case EAWUIAction::ReplayStep:
+        OnReplayStepTick();
+        break;
+    case EAWUIAction::ReplayStepP1:
+        OnReplayStepP1();
+        break;
+    case EAWUIAction::ReplayStepP2:
+        OnReplayStepP2();
+        break;
+    case EAWUIAction::ReplaySpeedQuarter:
+        OnReplaySpeedQuarter();
+        break;
+    case EAWUIAction::ReplaySpeedNormal:
+        OnReplaySpeedNormal();
+        break;
+    case EAWUIAction::ReplaySpeedDouble:
+        OnReplaySpeedDouble();
+        break;
+    case EAWUIAction::ReplaySpeedQuadruple:
+        OnReplaySpeedQuadruple();
+        break;
+    case EAWUIAction::NextRound:
+        OnNextRound();
+        break;
+    case EAWUIAction::ReplayRefresh:
+        OnReplayRefresh();
+        break;
+    case EAWUIAction::ReplaySave:
+        OnReplaySave();
+        break;
+    case EAWUIAction::ReplayLoad:
+        OnReplayLoadSelected();
+        break;
+    case EAWUIAction::ReplayExport:
+        OnReplayExportSelected();
+        break;
+    case EAWUIAction::ReplayImport:
+        OnReplayImport();
+        break;
+    }
+}
+
 void UAWHUDWidget::OnPhaseChanged(EAWMatchPhase NewPhase)
 {
     switch (NewPhase)
@@ -259,10 +341,8 @@ void UAWHUDWidget::OnPhaseChanged(EAWMatchPhase NewPhase)
         ShowScreen(EAWScreen::Programming);
         break;
     case EAWMatchPhase::Simulation:
-        if (UTextBlock *SourceP1 = Cast<UTextBlock>(GetWidgetFromName(TEXT("SimulationSourceP1Text"))))
-            SourceP1->SetText(FText::FromString(EditorP1 ? EditorP1->GetSourceText() : FString()));
-        if (UTextBlock *SourceP2 = Cast<UTextBlock>(GetWidgetFromName(TEXT("SimulationSourceP2Text"))))
-            SourceP2->SetText(FText::FromString(EditorP2 ? EditorP2->GetSourceText() : FString()));
+        if (SimulationScreenWidget && ProgrammingScreenWidget)
+            SimulationScreenWidget->SetSources(ProgrammingScreenWidget->GetSource(0), ProgrammingScreenWidget->GetSource(1));
         PlayUISound(AWVisualAssets::SFX_MatchStart);
         ShowScreen(EAWScreen::Simulation);
         break;
@@ -341,7 +421,10 @@ void UAWHUDWidget::OnFindLAN()
 
 void UAWHUDWidget::RefreshSessionList()
 {
-    SessionComboBox->ClearOptions();
+    if (!MainMenuScreenWidget)
+        return;
+
+    MainMenuScreenWidget->ResetSessions();
     UAWGameSubsystem *Sub = GetSubsystem();
     if (!Sub)
         return;
@@ -351,17 +434,17 @@ void UAWHUDWidget::RefreshSessionList()
     {
         const FString Label = FString::Printf(TEXT("%s | %s | %d/%d | %d ms"), *Session.SessionName,
                                               *Session.HostName, Session.CurrentPlayers, Session.MaxPlayers, Session.PingMs);
-        SessionComboBox->AddOption(Label);
+        MainMenuScreenWidget->AddSession(Label);
     }
     if (Sessions.IsEmpty())
         SetStatus(TEXT("No LAN sessions found."), true);
     else
-        SessionComboBox->SetSelectedIndex(0);
+        MainMenuScreenWidget->SelectFirstSession();
 }
 
 void UAWHUDWidget::OnJoinSelectedSession()
 {
-    const int32 SessionIndex = SessionComboBox->GetSelectedIndex();
+    const int32 SessionIndex = MainMenuScreenWidget ? MainMenuScreenWidget->GetSelectedSessionIndex() : INDEX_NONE;
     if (SessionIndex == INDEX_NONE)
     {
         SetStatus(TEXT("Select a LAN session first."), true);
@@ -378,7 +461,7 @@ void UAWHUDWidget::OnJoinSelectedSession()
 
 void UAWHUDWidget::OnJoinIP()
 {
-    FString IP = JoinIPField->GetText().ToString().TrimStartAndEnd();
+    const FString IP = MainMenuScreenWidget ? MainMenuScreenWidget->GetJoinIPAddress() : FString();
     if (IP.IsEmpty())
     {
         SetStatus(TEXT("Enter an IP address."), true);
@@ -417,11 +500,7 @@ void UAWHUDWidget::OnSubmitSlot(int32 SlotIndex)
 {
     if (UAWGameSubsystem *Sub = GetSubsystem())
     {
-        FString Source;
-        if (SlotIndex == 0 && EditorP1)
-            Source = EditorP1->GetSourceText();
-        else if (SlotIndex == 1 && EditorP2)
-            Source = EditorP2->GetSourceText();
+        const FString Source = ProgrammingScreenWidget ? ProgrammingScreenWidget->GetSource(SlotIndex) : FString();
 
         FAWValidationResult Result = Sub->SubmitLocalScript(SlotIndex, Source);
         if (!Result.bSuccess)
@@ -447,21 +526,15 @@ void UAWHUDWidget::OnLoadExample(int32 SlotIndex, const FString &ScriptName)
     else
         Source = FAWExampleScripts::DefaultBot();
 
-    if (SlotIndex == 0 && EditorP1)
-        EditorP1->SetSourceText(Source);
-    else if (SlotIndex == 1 && EditorP2)
-        EditorP2->SetSourceText(Source);
+    if (ProgrammingScreenWidget)
+        ProgrammingScreenWidget->SetSource(SlotIndex, Source);
 }
 
 void UAWHUDWidget::OnTrainingBot(int32 SlotIndex)
 {
     if (UAWGameSubsystem *Sub = GetSubsystem())
     {
-        FString Source;
-        if (SlotIndex == 0 && EditorP1)
-            Source = EditorP1->GetSourceText();
-        else if (SlotIndex == 1 && EditorP2)
-            Source = EditorP2->GetSourceText();
+        const FString Source = ProgrammingScreenWidget ? ProgrammingScreenWidget->GetSource(SlotIndex) : FString();
 
         int32 Wins, Losses, Draws;
         Sub->RunTraining(Source, 10, Wins, Losses, Draws);
@@ -526,7 +599,7 @@ bool UAWHUDWidget::InitializeReplay(const FString &SourceA, const FString &Sourc
         Renderer->InitializeArena(ReplayController->GetConfig(), Grid);
     }
 
-    if (ReplayOutcomeText)
+    if (ReplayAutopsyScreenWidget)
     {
         const auto &R = ReplayController->GetResult();
         FString Outcome;
@@ -543,7 +616,7 @@ bool UAWHUDWidget::InitializeReplay(const FString &SourceA, const FString &Sourc
             break;
         }
         Outcome += FString::Printf(TEXT(" | Tick %d | HP: %d/%d"), R.finalTick, R.finalHP[0], R.finalHP[1]);
-        ReplayOutcomeText->SetText(FText::FromString(Outcome));
+        ReplayAutopsyScreenWidget->SetOutcome(Outcome);
     }
 
     UpdateReplayUI();
@@ -559,20 +632,9 @@ void UAWHUDWidget::UpdateReplayUI()
     int32 Tick = ReplayController->GetCurrentTick();
     int32 Total = ReplayController->GetTotalTicks();
 
-    if (ReplayTickText)
-    {
-        ReplayTickText->SetText(FText::FromString(FString::Printf(TEXT("Tick: %d/%d"), Tick, Total - 1)));
-    }
-    if (ReplaySpeedText)
-    {
-        ReplaySpeedText->SetText(FText::FromString(FString::Printf(TEXT("Speed: %.2fx"), ReplaySpeed)));
-    }
-    if (ReplayScrubSlider && Total > 1)
-    {
-        bUpdatingReplaySlider = true;
-        ReplayScrubSlider->SetValue(static_cast<float>(Tick) / static_cast<float>(Total - 1));
-        bUpdatingReplaySlider = false;
-    }
+    if (ReplayAutopsyScreenWidget)
+        ReplayAutopsyScreenWidget->SetTimeline(Tick, Total, ReplaySpeed,
+                                               Total > 1 ? static_cast<float>(Tick) / static_cast<float>(Total - 1) : 0.f);
 
     const auto &Snap = ReplayController->GetCurrentSnapshot();
     auto FormatRegs = [&](int32 Idx) -> FString
@@ -585,25 +647,24 @@ void UAWHUDWidget::UpdateReplayUI()
                                R.vm.regs[static_cast<int32>(Automata::Reg::R_ENEMY_DIR)], R.vm.regs[static_cast<int32>(Automata::Reg::R_ENERGY)],
                                R.vm.regs[static_cast<int32>(Automata::Reg::R_TICK)]);
     };
-    if (ReplayRegistersP1)
-        ReplayRegistersP1->SetText(FText::FromString(FormatRegs(0)));
-    if (ReplayRegistersP2)
-        ReplayRegistersP2->SetText(FText::FromString(FormatRegs(1)));
-
-    if (ReplaySourceAText)
-        ReplaySourceAText->SetText(FText::FromString(FormatReplaySource(ReplayController->GetSourceA(), ReplayController->GetProgramA(), Snap.robots[0].vm.currentInstruction)));
-    if (ReplaySourceBText)
-        ReplaySourceBText->SetText(FText::FromString(FormatReplaySource(ReplayController->GetSourceB(), ReplayController->GetProgramB(), Snap.robots[1].vm.currentInstruction)));
-
-    if (ReplayEventLog)
+    if (ReplayAutopsyScreenWidget)
     {
+        ReplayAutopsyScreenWidget->SetCombatantData(
+            0,
+            FormatReplaySource(ReplayController->GetSourceA(), ReplayController->GetProgramA(), Snap.robots[0].vm.currentInstruction),
+            FormatRegs(0));
+        ReplayAutopsyScreenWidget->SetCombatantData(
+            1,
+            FormatReplaySource(ReplayController->GetSourceB(), ReplayController->GetProgramB(), Snap.robots[1].vm.currentInstruction),
+            FormatRegs(1));
+
         auto Events = ReplayController->GetEventsInRange(FMath::Max(0, Tick - 8), Tick);
         FString Log;
         for (const auto &E : Events)
         {
             Log += FString::Printf(TEXT("[T%d P%d] %s (%d,%d)\n"), E.tick, E.robot + 1, EventName(E.type), E.paramA, E.paramB);
         }
-        ReplayEventLog->SetText(FText::FromString(Log));
+        ReplayAutopsyScreenWidget->SetEventLog(Log);
     }
 }
 
@@ -685,10 +746,8 @@ void UAWHUDWidget::OnReplayStepInstruction(int32 RobotIndex)
 void UAWHUDWidget::OnReplaySetSpeed(float Speed)
 {
     ReplaySpeed = Speed;
-    if (ReplaySpeedText)
-    {
-        ReplaySpeedText->SetText(FText::FromString(FString::Printf(TEXT("Speed: %.2fx"), Speed)));
-    }
+    if (ReplayAutopsyScreenWidget)
+        ReplayAutopsyScreenWidget->SetSpeed(Speed);
 }
 
 void UAWHUDWidget::OnReplayScrub(int32 Tick)
@@ -711,7 +770,7 @@ void UAWHUDWidget::OnReplaySpeedQuadruple() { OnReplaySetSpeed(4.f); }
 
 void UAWHUDWidget::OnReplayScrubChanged(float Value)
 {
-    if (bUpdatingReplaySlider || !ReplayController.IsValid() || !ReplayController->IsValid())
+    if (!ReplayController.IsValid() || !ReplayController->IsValid())
         return;
 
     const int32 Tick = FMath::RoundToInt32(Value * (ReplayController->GetTotalTicks() - 1));
@@ -724,7 +783,10 @@ void UAWHUDWidget::OnReplayScrubChanged(float Value)
 
 void UAWHUDWidget::RefreshReplayList()
 {
-    ReplayComboBox->ClearOptions();
+    if (!ReplayBrowserScreenWidget)
+        return;
+
+    ReplayBrowserScreenWidget->ResetReplays();
     ReplayFilenames.Reset();
 
     UAWGameSubsystem *Sub = GetSubsystem();
@@ -735,14 +797,14 @@ void UAWHUDWidget::RefreshReplayList()
     for (const FAWReplayInfo &Info : Replays)
     {
         FString Label = FString::Printf(TEXT("%s (%d bytes)"), *Info.Filename, Info.FileSizeBytes);
-        ReplayComboBox->AddOption(Label);
+        ReplayBrowserScreenWidget->AddReplay(Label);
         ReplayFilenames.Add(Info.Filename);
     }
 
     if (Replays.IsEmpty())
-        ReplayBrowserStatus->SetText(FText::FromString(TEXT("No replays found in Saved/Replays/")));
+        ReplayBrowserScreenWidget->SetStatus(TEXT("No replays found in Saved/Replays/"));
     else
-        ReplayComboBox->SetSelectedIndex(0);
+        ReplayBrowserScreenWidget->SelectFirstReplay();
 }
 
 void UAWHUDWidget::OnReplayLoad(const FString &Filename)
@@ -755,15 +817,15 @@ void UAWHUDWidget::OnReplayLoad(const FString &Filename)
     int64 Seed;
     if (!Sub->LoadReplay(Filename, Src0, Src1, Seed, Error))
     {
-        if (ReplayBrowserStatus)
-            ReplayBrowserStatus->SetText(FText::FromString(Error));
+        if (ReplayBrowserScreenWidget)
+            ReplayBrowserScreenWidget->SetStatus(Error);
         return;
     }
 
     if (!InitializeReplay(Src0, Src1, Seed))
     {
-        if (ReplayBrowserStatus)
-            ReplayBrowserStatus->SetText(FText::FromString(TEXT("Failed to resimulate replay.")));
+        if (ReplayBrowserScreenWidget)
+            ReplayBrowserScreenWidget->SetStatus(TEXT("Failed to resimulate replay."));
         return;
     }
     ShowScreen(EAWScreen::ReplayAutopsy);
@@ -778,14 +840,14 @@ void UAWHUDWidget::OnReplaySave()
     FString Filename = FString::Printf(TEXT("replay_%s"), *FDateTime::Now().ToString(TEXT("%Y%m%d_%H%M%S")));
     if (Sub->SaveReplay(Filename))
     {
-        if (ReplayBrowserStatus)
-            ReplayBrowserStatus->SetText(FText::FromString(FString::Printf(TEXT("Saved: %s"), *Filename)));
+        if (ReplayBrowserScreenWidget)
+            ReplayBrowserScreenWidget->SetStatus(FString::Printf(TEXT("Saved: %s"), *Filename));
         RefreshReplayList();
     }
     else
     {
-        if (ReplayBrowserStatus)
-            ReplayBrowserStatus->SetText(FText::FromString(TEXT("Save failed (not in ReplayAutopsy phase?).")));
+        if (ReplayBrowserScreenWidget)
+            ReplayBrowserScreenWidget->SetStatus(TEXT("Save failed (not in ReplayAutopsy phase?)."));
     }
 }
 
@@ -798,25 +860,26 @@ void UAWHUDWidget::OnReplayExport(const FString &Filename)
     FString Base64;
     if (Sub->ExportReplayBase64(Filename, Base64))
     {
-        if (ExportField)
-            ExportField->SetText(FText::FromString(Base64));
-        if (ReplayBrowserStatus)
-            ReplayBrowserStatus->SetText(FText::FromString(TEXT("Exported to field above.")));
+        if (ReplayBrowserScreenWidget)
+        {
+            ReplayBrowserScreenWidget->SetExportData(Base64);
+            ReplayBrowserScreenWidget->SetStatus(TEXT("Exported to field above."));
+        }
     }
     else
     {
-        if (ReplayBrowserStatus)
-            ReplayBrowserStatus->SetText(FText::FromString(TEXT("Export failed.")));
+        if (ReplayBrowserScreenWidget)
+            ReplayBrowserScreenWidget->SetStatus(TEXT("Export failed."));
     }
 }
 
 void UAWHUDWidget::OnReplayImport()
 {
-    FString Base64 = ImportField->GetText().ToString().TrimStartAndEnd();
+    const FString Base64 = ReplayBrowserScreenWidget ? ReplayBrowserScreenWidget->GetImportData() : FString();
     if (Base64.IsEmpty())
     {
-        if (ReplayBrowserStatus)
-            ReplayBrowserStatus->SetText(FText::FromString(TEXT("Paste base64 data first.")));
+        if (ReplayBrowserScreenWidget)
+            ReplayBrowserScreenWidget->SetStatus(TEXT("Paste base64 data first."));
         return;
     }
 
@@ -828,23 +891,24 @@ void UAWHUDWidget::OnReplayImport()
     FString Error;
     if (Sub->ImportReplayBase64(Base64, Filename, Error))
     {
-        if (ReplayBrowserStatus)
-            ReplayBrowserStatus->SetText(FText::FromString(FString::Printf(TEXT("Imported: %s"), *Filename)));
+        if (ReplayBrowserScreenWidget)
+            ReplayBrowserScreenWidget->SetStatus(FString::Printf(TEXT("Imported: %s"), *Filename));
         RefreshReplayList();
     }
     else
     {
-        if (ReplayBrowserStatus)
-            ReplayBrowserStatus->SetText(FText::FromString(Error));
+        if (ReplayBrowserScreenWidget)
+            ReplayBrowserScreenWidget->SetStatus(Error);
     }
 }
 
 void UAWHUDWidget::OnReplayLoadSelected()
 {
-    const int32 ReplayIndex = ReplayComboBox->GetSelectedIndex();
+    const int32 ReplayIndex = ReplayBrowserScreenWidget ? ReplayBrowserScreenWidget->GetSelectedReplayIndex() : INDEX_NONE;
     if (!ReplayFilenames.IsValidIndex(ReplayIndex))
     {
-        ReplayBrowserStatus->SetText(FText::FromString(TEXT("Select a replay first.")));
+        if (ReplayBrowserScreenWidget)
+            ReplayBrowserScreenWidget->SetStatus(TEXT("Select a replay first."));
         return;
     }
     OnReplayLoad(ReplayFilenames[ReplayIndex]);
@@ -852,10 +916,11 @@ void UAWHUDWidget::OnReplayLoadSelected()
 
 void UAWHUDWidget::OnReplayExportSelected()
 {
-    const int32 ReplayIndex = ReplayComboBox->GetSelectedIndex();
+    const int32 ReplayIndex = ReplayBrowserScreenWidget ? ReplayBrowserScreenWidget->GetSelectedReplayIndex() : INDEX_NONE;
     if (!ReplayFilenames.IsValidIndex(ReplayIndex))
     {
-        ReplayBrowserStatus->SetText(FText::FromString(TEXT("Select a replay first.")));
+        if (ReplayBrowserScreenWidget)
+            ReplayBrowserScreenWidget->SetStatus(TEXT("Select a replay first."));
         return;
     }
     OnReplayExport(ReplayFilenames[ReplayIndex]);
@@ -865,7 +930,7 @@ void UAWHUDWidget::OnReplayRefresh() { RefreshReplayList(); }
 
 void UAWHUDWidget::PopulateLanguageReference()
 {
-    if (!LanguageReferenceText)
+    if (!LanguageReferenceScreenWidget)
         return;
 
     FString Reference = FString::Printf(TEXT("INSTRUCTIONS (%d)\n\n"), Automata::OpcodeCount);
@@ -882,5 +947,5 @@ void UAWHUDWidget::PopulateLanguageReference()
         Reference += FString::Printf(TEXT("%-14s  %s%s\n"), UTF8_TO_TCHAR(Definition.name),
                                      UTF8_TO_TCHAR(Definition.description), Definition.readOnly ? TEXT("  [READ ONLY]") : TEXT(""));
     }
-    LanguageReferenceText->SetText(FText::FromString(Reference));
+    LanguageReferenceScreenWidget->SetReference(Reference);
 }

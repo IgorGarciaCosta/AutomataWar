@@ -80,6 +80,12 @@ The following assets are authored reproducibly by `BuildScripts/GenerateAssets.p
 - `Content/Blueprints/BP_AWArenaRenderer.uasset`
 - `Content/UI/WBP_AWHUD.uasset`
 - `Content/UI/WBP_AWCodeEditor.uasset`
+- `Content/UI/Screens/WBP_AWMainMenuScreen.uasset`
+- `Content/UI/Screens/WBP_AWProgrammingScreen.uasset`
+- `Content/UI/Screens/WBP_AWSimulationScreen.uasset`
+- `Content/UI/Screens/WBP_AWReplayAutopsyScreen.uasset`
+- `Content/UI/Screens/WBP_AWReplayBrowserScreen.uasset`
+- `Content/UI/Screens/WBP_AWLanguageReferenceScreen.uasset`
 - `Content/Maps/L_AutomataArena.umap`
 
 The imported tanks and all level dressing are presentation-only. Their transforms, materials, collision settings, and visual variants never feed back into the deterministic simulation.

@@ -146,6 +146,14 @@ This log records decisions made where the build brief allowed or required engine
 
 **Rationale:** Designers can edit and preview the menus directly, each tank has an explicit Unreal lifecycle and map identity, and the renderer has a smaller presentation-only responsibility without duplicating walls already present in the level.
 
+## 2026-08-07 - Split the HUD into modular screen Widget Blueprints
+
+**Decision:** Keep `WBP_AWHUD` as the navigation and status shell, but move each switcher child into its own Widget Blueprint under `Content/UI/Screens`. Native screen classes own their control bindings and emit semantic actions; `UAWHUDWidget` coordinates navigation and game data without reaching into child widget trees.
+
+**Alternatives:** Keep the full six-screen tree in one Widget Blueprint; wrap each screen without moving bindings; move all orchestration into Blueprint graphs.
+
+**Rationale:** Each screen can be edited, compiled, and extended independently. Typed screen APIs preserve native behavior while removing the root HUD's dependency on internal control names.
+
 ## 2026-08-02 - Keep local mode in the existing world
 
 **Decision:** Reset the active standalone `AAWGameMode` instead of reopening the arena with `?listen`.

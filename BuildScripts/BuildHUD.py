@@ -2,8 +2,17 @@ import unreal
 
 
 HUD_PATH = "/Game/UI/WBP_AWHUD"
+SCREEN_DIR = "/Game/UI/Screens"
 CONTROLLER_PATH = "/Game/Blueprints/BP_AWPlayerController"
 CODE_EDITOR_CLASS_PATH = "/Script/AutomataWar.AWCodeEditorWidget"
+SCREEN_BLUEPRINTS = {
+    "MainMenu": ("WBP_AWMainMenuScreen", "/Script/AutomataWar.AWMainMenuScreen"),
+    "Programming": ("WBP_AWProgrammingScreen", "/Script/AutomataWar.AWProgrammingScreen"),
+    "Simulation": ("WBP_AWSimulationScreen", "/Script/AutomataWar.AWSimulationScreen"),
+    "ReplayAutopsy": ("WBP_AWReplayAutopsyScreen", "/Script/AutomataWar.AWReplayAutopsyScreen"),
+    "ReplayBrowser": ("WBP_AWReplayBrowserScreen", "/Script/AutomataWar.AWReplayBrowserScreen"),
+    "LanguageReference": ("WBP_AWLanguageReferenceScreen", "/Script/AutomataWar.AWLanguageReferenceScreen"),
+}
 
 TRANSPARENT = unreal.LinearColor(0.0, 0.0, 0.0, 0.0)
 BACKGROUND = unreal.LinearColor(0.012, 0.016, 0.022, 1.0)
@@ -27,12 +36,14 @@ V_TOP = unreal.VerticalAlignment.V_ALIGN_TOP
 V_CENTER = unreal.VerticalAlignment.V_ALIGN_CENTER
 V_BOTTOM = unreal.VerticalAlignment.V_ALIGN_BOTTOM
 
-blueprint = unreal.load_asset(HUD_PATH)
-if not blueprint:
+bridge = unreal.AWWidgetBlueprintLibrary
+asset_tools = unreal.AssetToolsHelpers.get_asset_tools()
+hud_blueprint = unreal.load_asset(HUD_PATH)
+if not hud_blueprint:
     raise RuntimeError(f"Missing Widget Blueprint: {HUD_PATH}")
 
-tree = unreal.AWWidgetBlueprintLibrary.get_widget_tree(blueprint)
-if not tree:
+hud_tree = bridge.get_widget_tree(hud_blueprint)
+if not hud_tree:
     raise RuntimeError("WBP_AWHUD has no WidgetTree")
 
 code_editor_class = unreal.load_class(None, CODE_EDITOR_CLASS_PATH)
@@ -40,8 +51,27 @@ if not code_editor_class:
     raise RuntimeError(
         f"Missing native widget class: {CODE_EDITOR_CLASS_PATH}")
 
-bridge = unreal.AWWidgetBlueprintLibrary
-bridge.clear_widget_tree(tree)
+screen_blueprints = {}
+for screen_key, (asset_name, native_class_path) in SCREEN_BLUEPRINTS.items():
+    asset_path = f"{SCREEN_DIR}/{asset_name}"
+    screen_blueprint = unreal.load_asset(asset_path)
+    if not screen_blueprint:
+        native_class = unreal.load_class(None, native_class_path)
+        if not native_class:
+            raise RuntimeError(
+                f"Missing native screen class: {native_class_path}")
+        factory = unreal.WidgetBlueprintFactory()
+        factory.set_editor_property("parent_class", native_class)
+        screen_blueprint = asset_tools.create_asset(
+            asset_name, SCREEN_DIR, None, factory)
+    if not screen_blueprint:
+        raise RuntimeError(
+            f"Failed to create screen Widget Blueprint: {asset_path}")
+    screen_blueprints[screen_key] = screen_blueprint
+
+blueprint = hud_blueprint
+tree = hud_tree
+bridge.clear_widget_tree(hud_tree)
 
 
 def make(widget_class, name, variable=False):
@@ -51,6 +81,30 @@ def make(widget_class, name, variable=False):
     if variable:
         bridge.set_widget_is_variable(widget, True)
     return widget
+
+
+def begin_screen(screen_key):
+    global blueprint, tree
+    blueprint = screen_blueprints[screen_key]
+    tree = bridge.get_widget_tree(blueprint)
+    if not tree:
+        raise RuntimeError(f"{blueprint.get_name()} has no WidgetTree")
+    bridge.clear_widget_tree(tree)
+
+
+def attach_screen(screen_key, widget_name):
+    global blueprint, tree
+    screen_blueprint = screen_blueprints[screen_key]
+    screen_blueprint.modify()
+    unreal.BlueprintEditorLibrary.compile_blueprint(screen_blueprint)
+    unreal.EditorAssetLibrary.save_loaded_asset(
+        screen_blueprint, only_if_is_dirty=False)
+
+    blueprint = hud_blueprint
+    tree = hud_tree
+    screen_widget = make(
+        screen_blueprint.generated_class(), widget_name, True)
+    screen_switcher.add_child(screen_widget)
 
 
 def margin(left=0.0, top=0.0, right=0.0, bottom=0.0):
@@ -195,7 +249,9 @@ status_border.add_child(status_text)
 add(shell, status_border, padding=margin(0, 10, 0, 0), v=V_BOTTOM)
 
 
+begin_screen("MainMenu")
 main_screen = make(unreal.Border, "MainMenuScreen")
+bridge.set_root_widget(tree, main_screen)
 main_screen.set_brush_color(BACKGROUND)
 main_screen.set_padding(margin(76, 58, 76, 58))
 main_layout = make(unreal.HorizontalBox, "MainMenuLayout")
@@ -259,10 +315,12 @@ add(utility_row, button("LanguageReferenceButton", "LANGUAGE", PANEL_ALT,
     fill=True, padding=margin(5, 0, 0, 0))
 add(menu, utility_row, padding=margin(0, 0, 0, 10))
 add(menu, button("QuitButton", "QUIT", CORAL, "Exit Automata War", True))
-screen_switcher.add_child(main_screen)
+attach_screen("MainMenu", "MainMenuScreenWidget")
 
 
+begin_screen("Programming")
 programming_backdrop = make(unreal.Border, "ProgrammingBackdrop")
+bridge.set_root_widget(tree, programming_backdrop)
 programming_backdrop.set_brush_color(BACKGROUND)
 programming_backdrop.set_padding(margin(28, 24, 28, 24))
 programming_screen = make(unreal.VerticalBox, "ProgrammingScreen")
@@ -317,10 +375,12 @@ add(editors_row, build_editor_panel(1, CYAN), fill=True,
     padding=margin(0, 0, 8, 0), weight=1.0)
 add(editors_row, build_editor_panel(2, CORAL), fill=True,
     padding=margin(8, 0, 0, 0), weight=1.0)
-screen_switcher.add_child(programming_backdrop)
+attach_screen("Programming", "ProgrammingScreenWidget")
 
 
+begin_screen("Simulation")
 simulation_screen = make(unreal.Border, "SimulationScreen")
+bridge.set_root_widget(tree, simulation_screen)
 simulation_screen.set_brush_color(TRANSPARENT)
 simulation_screen.set_padding(margin(18, 16, 18, 16))
 simulation_layout = make(unreal.VerticalBox, "SimulationLayout")
@@ -396,10 +456,12 @@ add(simulation_footer_row, label("SimulationReadout", "RESOLVING MATCH...",
                                  13, MUTED, bold=True), h=H_RIGHT)
 add(simulation_footer_body, simulation_footer_row)
 add(simulation_layout, simulation_footer)
-screen_switcher.add_child(simulation_screen)
+attach_screen("Simulation", "SimulationScreenWidget")
 
 
+begin_screen("ReplayAutopsy")
 replay_backdrop = make(unreal.Border, "ReplayAutopsyBackdrop")
+bridge.set_root_widget(tree, replay_backdrop)
 replay_backdrop.set_brush_color(TRANSPARENT)
 replay_backdrop.set_padding(margin(18, 16, 18, 16))
 replay_screen = make(unreal.VerticalBox, "ReplayAutopsyScreen")
@@ -523,10 +585,12 @@ event_panel_size = make(unreal.SizeBox, "ReplayEventsDock")
 event_panel_size.set_height_override(112.0)
 event_panel_size.add_child(event_panel)
 add(replay_screen, event_panel_size)
-screen_switcher.add_child(replay_backdrop)
+attach_screen("ReplayAutopsy", "ReplayAutopsyScreenWidget")
 
 
+begin_screen("ReplayBrowser")
 browser_backdrop = make(unreal.Border, "ReplayBrowserBackdrop")
+bridge.set_root_widget(tree, browser_backdrop)
 browser_backdrop.set_brush_color(BACKGROUND)
 browser_backdrop.set_padding(margin(32, 28, 32, 28))
 browser_screen = make(unreal.VerticalBox, "ReplayBrowserScreen")
@@ -573,10 +637,12 @@ add(browser_body, import_row, padding=margin(0, 0, 0, 18))
 add(browser_body, label("ReplayBrowserStatus", "ARCHIVE READY", 14,
                         MUTED, bold=True, variable=True))
 add(browser_screen, browser_panel, fill=True, weight=1.0)
-screen_switcher.add_child(browser_backdrop)
+attach_screen("ReplayBrowser", "ReplayBrowserScreenWidget")
 
 
+begin_screen("LanguageReference")
 language_backdrop = make(unreal.Border, "LanguageReferenceBackdrop")
+bridge.set_root_widget(tree, language_backdrop)
 language_backdrop.set_brush_color(BACKGROUND)
 language_backdrop.set_padding(margin(32, 28, 32, 28))
 language_screen = make(unreal.VerticalBox, "LanguageReferenceScreen")
@@ -600,18 +666,19 @@ add(language_scroll, reference_text, padding=margin(6, 6, 24, 6),
     h=H_FILL, v=V_TOP)
 add(language_body, language_scroll, fill=True, weight=1.0)
 add(language_screen, language_panel, fill=True, weight=1.0)
-screen_switcher.add_child(language_backdrop)
+attach_screen("LanguageReference", "LanguageReferenceScreenWidget")
 
 screen_switcher.set_active_widget_index(0)
-blueprint.modify()
-unreal.BlueprintEditorLibrary.compile_blueprint(blueprint)
-unreal.EditorAssetLibrary.save_loaded_asset(blueprint, only_if_is_dirty=False)
+hud_blueprint.modify()
+unreal.BlueprintEditorLibrary.compile_blueprint(hud_blueprint)
+unreal.EditorAssetLibrary.save_loaded_asset(
+    hud_blueprint, only_if_is_dirty=False)
 
 controller = unreal.load_asset(CONTROLLER_PATH)
 if not controller:
     raise RuntimeError(f"Missing controller Blueprint: {CONTROLLER_PATH}")
 controller_cdo = unreal.get_default_object(controller.generated_class())
 controller_cdo.set_editor_property(
-    "HUDWidgetClass", blueprint.generated_class())
+    "HUDWidgetClass", hud_blueprint.generated_class())
 unreal.EditorAssetLibrary.save_loaded_asset(controller, only_if_is_dirty=False)
 unreal.log("AUTOMATA_HUD_COMPLETE")
