@@ -5,9 +5,11 @@
 #include "TableObstable.generated.h"
 
 class UMaterialInstanceDynamic;
+class UMaterialInterface;
+class UNiagaraSystem;
 class USceneComponent;
-class UStaticMesh;
 class UStaticMeshComponent;
+class UTableObstableHealthWidget;
 class UWidgetComponent;
 
 /** Runtime presentation actor for one destructible cover cell. */
@@ -19,8 +21,10 @@ class AUTOMATAWAR_API ATableObstable : public AActor
 public:
     ATableObstable();
 
-    /** Configure the mesh and grid identity selected by the arena renderer. */
-    void InitializeObstacle(int32 InCellIndex, UStaticMesh *InMesh, const FVector &InScale, const FLinearColor &InColor);
+    virtual void OnConstruction(const FTransform &Transform) override;
+
+    /** Configure the grid identity and deterministic color selected by the arena renderer. */
+    void InitializeObstacle(int32 InCellIndex, const FLinearColor &InColor);
 
     /** Mirror canonical obstacle health from the current replay snapshot. */
     void SetHealth(int32 NewHealth);
@@ -43,6 +47,16 @@ protected:
 
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Obstacle")
     TObjectPtr<UWidgetComponent> HealthWidget;
+
+    /** Widget Blueprint rendered by HealthWidget. */
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Obstacle|UI")
+    TSubclassOf<UTableObstableHealthWidget> HealthWidgetClass;
+
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Obstacle|Visual")
+    TObjectPtr<UMaterialInterface> ObstacleMaterial;
+
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Obstacle|Visual")
+    TObjectPtr<UNiagaraSystem> ExplosionEffect;
 
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Obstacle", meta = (ClampMin = "1"))
     int32 MaxHealth;

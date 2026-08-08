@@ -34,6 +34,8 @@ AAWArenaRenderer::AAWArenaRenderer()
     FloorMesh->SetupAttachment(Root);
     FloorMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
     FloorMesh->bUseComplexAsSimpleCollision = false;
+
+    ObstacleClass = ATableObstable::StaticClass();
 }
 
 void AAWArenaRenderer::BeginPlay()
@@ -202,10 +204,7 @@ void AAWArenaRenderer::SpawnCoverVisuals(int32 Width, int32 Height, const TArray
             Entry.Value->Destroy();
     Obstacles.Reset();
 
-    // Cube is the fallback shape; cylinder is used for variant 0 when available.
-    UStaticMesh *CubeMesh = LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Cube.Cube"));
-    UStaticMesh *CylinderMesh = LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Cylinder.Cylinder"));
-    if (!CubeMesh)
+    if (!ObstacleClass)
         return;
 
     // CoverIdx drives deterministic color and shape variation.
@@ -241,32 +240,12 @@ void AAWArenaRenderer::SpawnCoverVisuals(int32 Width, int32 Height, const TArray
                     break;
                 }
 
-                UStaticMesh *Mesh = CubeMesh;
-                FVector Scale;
-                int32 Variant = CoverIdx % 3;
-                switch (Variant)
-                {
-                case 0:
-                    Mesh = CylinderMesh ? CylinderMesh : CubeMesh;
-                    Pos.Z += 45.f;
-                    Scale = FVector(0.35f, 0.35f, 0.9f);
-                    break;
-                case 1:
-                    Pos.Z += 30.f;
-                    Scale = FVector(0.4f, 0.9f, 0.6f);
-                    break;
-                default:
-                    Pos.Z += 20.f;
-                    Scale = FVector(0.85f, 0.85f, 0.4f);
-                    break;
-                }
-
                 FActorSpawnParameters SpawnParameters;
                 SpawnParameters.Owner = this;
                 SpawnParameters.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
-                if (ATableObstable *Obstacle = GetWorld()->SpawnActor<ATableObstable>(ATableObstable::StaticClass(), Pos, FRotator::ZeroRotator, SpawnParameters))
+                if (ATableObstable *Obstacle = GetWorld()->SpawnActor<ATableObstable>(ObstacleClass, Pos, FRotator::ZeroRotator, SpawnParameters))
                 {
-                    Obstacle->InitializeObstacle(CellIdx, Mesh, Scale, CoverColor);
+                    Obstacle->InitializeObstacle(CellIdx, CoverColor);
                     Obstacles.Add(CellIdx, Obstacle);
                 }
 

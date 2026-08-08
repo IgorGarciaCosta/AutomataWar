@@ -6,8 +6,8 @@
 
 class UProgressBar;
 
-/** Minimal runtime widget used by a TableObstable to display health. */
-UCLASS()
+/** Native data bridge for the Blueprint-authored obstacle health widget. */
+UCLASS(Abstract, Blueprintable)
 class AUTOMATAWAR_API UTableObstableHealthWidget : public UUserWidget
 {
     GENERATED_BODY()
@@ -17,11 +17,6 @@ public:
     void SetHealthPercent(float InPercent);
 
 protected:
-    virtual void NativeOnInitialized() override;
-
-private:
-    UPROPERTY(Transient)
+    UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
     TObjectPtr<UProgressBar> HealthBar;
-
-    float HealthPercent = 1.f;
 };

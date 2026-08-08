@@ -139,7 +139,24 @@ def set_optional(target, property_name, value):
         unreal.log_warning(f"Skipped optional {property_name}: {error}")
 
 
-def build_level(blueprints):
+# ═══════════════════════════════════════════════════════════════════════════════
+# Level construction — each helper owns one visual/logical concern.
+# ═══════════════════════════════════════════════════════════════════════════════
+
+
+def _load_materials():
+    """Load the shared material palette used across floor and dressing."""
+    return {
+        "ground": require_asset("/Game/Art/Materials/M_Ground"),
+        "foliage": require_asset("/Game/Art/Materials/M_Foliage"),
+        "wood": require_asset("/Game/Art/Materials/M_Wood"),
+        "stone": require_asset("/Game/Art/Materials/M_Stone"),
+        "industrial": require_asset("/Game/Art/Materials/M_Industrial"),
+    }
+
+
+def _create_or_load_level():
+    """Open the arena map if it exists, otherwise create it fresh and wipe all actors."""
     if unreal.EditorAssetLibrary.does_asset_exist(MAP_PATH):
         level_editor.load_level(MAP_PATH)
     elif not level_editor.new_level(MAP_PATH):
@@ -148,16 +165,12 @@ def build_level(blueprints):
     for actor in actor_editor.get_all_level_actors():
         actor_editor.destroy_actor(actor)
 
-    materials = {
-        "ground": require_asset("/Game/Art/Materials/M_Ground"),
-        "foliage": require_asset("/Game/Art/Materials/M_Foliage"),
-        "wood": require_asset("/Game/Art/Materials/M_Wood"),
-        "stone": require_asset("/Game/Art/Materials/M_Stone"),
-        "industrial": require_asset("/Game/Art/Materials/M_Industrial"),
-    }
-    cube = "/Engine/BasicShapes/Cube"
-    cylinder = "/Engine/BasicShapes/Cylinder"
 
+def _build_floor_geometry(materials):
+    """Spawn the arena ground plane, 16x16 grid lines, and perimeter rails."""
+    cube = "/Engine/BasicShapes/Cube"
+
+    # Base ground slab and raised foundation matching the 16-cell play area.
     static_mesh_actor(
         "Arena_Ground", cube, (800, 800, -75), (32, 32, 1),
         {"*": materials["stone"]})
@@ -165,6 +178,7 @@ def build_level(blueprints):
         "Arena_Foundation", cube, (800, 800, -12.5), (18, 18, 0.25),
         {"*": materials["ground"]})
 
+    # Thin cubes forming the 17 vertical and 17 horizontal grid lines.
     for index in range(17):
         coordinate = index * 100
         static_mesh_actor(
@@ -174,6 +188,7 @@ def build_level(blueprints):
             f"GridLine_Y_{index:02}", cube, (800, coordinate, 0.2),
             (16, 0.015, 0.004), {"*": materials["industrial"]})
 
+    # Border rails enclosing the play area on all four sides.
     rails = [
         ("Arena_Rail_South", (800, -75, 35), (18, 0.25, 0.7)),
         ("Arena_Rail_North", (800, 1675, 35), (18, 0.25, 0.7)),
@@ -184,6 +199,13 @@ def build_level(blueprints):
         static_mesh_actor(
             label, cube, location, scale, {"*": materials["industrial"]})
 
+
+def _build_environment_dressing(materials):
+    """Place decorative geometry outside the play area: walls, barrels, trees, rocks."""
+    cube = "/Engine/BasicShapes/Cube"
+    cylinder = "/Engine/BasicShapes/Cylinder"
+
+    # Service walls give depth to the scene perimeter.
     walls = [
         ("ServiceWall_West_A", (-360, 600, 50), (0.35, 3.2, 1.5), 8),
         ("ServiceWall_West_B", (-280, 1060, 35), (1.8, 0.3, 1.2), -12),
@@ -195,6 +217,7 @@ def build_level(blueprints):
             label, cube, location, scale, {"*": materials["stone"]},
             (0, yaw, 0))
 
+    # Industrial barrels clustered in two groups for visual interest.
     barrels = [
         (-230, 270, 10), (-175, 305, 10), (-245, 335, 10),
         (1870, 520, 10), (1925, 550, 10), (1900, 610, 10),
@@ -204,6 +227,7 @@ def build_level(blueprints):
             f"IndustrialBarrel_{index:02}", cylinder, location,
             (0.34, 0.34, 0.7), {"*": materials["industrial"]})
 
+    # Trees scattered around the arena boundary.
     tree_materials = {
         "White": materials["wood"], "Black": materials["wood"],
         "Green": materials["foliage"], "DarkGreen": materials["foliage"],
@@ -218,6 +242,7 @@ def build_level(blueprints):
             f"BirchTree_{index:02}", "/Game/Art/Meshes/SM_BirchTree",
             location, (uniform_scale,) * 3, tree_materials, (0, yaw, 0))
 
+    # Stumps and rocks for variety.
     stump_materials = {
         "Wood": materials["wood"], "LightWood": materials["wood"],
         "Green": materials["foliage"],
@@ -236,9 +261,14 @@ def build_level(blueprints):
             (scale, scale, scale * 0.8), {"*": materials["stone"]},
             (0, index * 37, 0))
 
+
+def _spawn_gameplay_actors(blueprints):
+    """Spawn the arena renderer, two tank actors, isometric camera, and player start."""
     renderer = spawn(generated_class(blueprints["renderer"]),
                      "BP_AWArenaRenderer", (0, 0, 0))
     tank_class = generated_class(blueprints["tank"])
+
+    # Tank P1 — cyan accent, bottom-left spawn matching sim (1,1).
     tank_one = spawn(tank_class, "Tank_PlayerOne", (150, 150, 50),
                      (0, 90, 0))
     tank_one.set_editor_property("RobotIndex", 0)
@@ -257,6 +287,7 @@ def build_level(blueprints):
     tank_one.set_editor_property(
         "PlayerColor", unreal.LinearColor(0.0, 0.78, 0.9, 1.0))
 
+    # Tank P2 — coral accent, top-right spawn matching sim (w-2, h-2).
     tank_two = spawn(tank_class, "Tank_PlayerTwo", (1450, 1450, 50),
                      (0, -90, 0))
     tank_two.set_editor_property("RobotIndex", 1)
@@ -275,13 +306,20 @@ def build_level(blueprints):
     tank_two.set_editor_property(
         "PlayerColor", unreal.LinearColor(0.96, 0.27, 0.22, 1.0))
 
+    # Wire tank references into the renderer for snapshot-driven animation.
     renderer.set_editor_property("PlayerOneTank", tank_one)
     renderer.set_editor_property("PlayerTwoTank", tank_two)
+
+    # Camera positioned for the standard isometric 45-degree view.
     spawn(
         generated_class(blueprints["camera"]), "BP_AWIsometricCamera",
         (-824, -824, 1856), (-38.94, 45, 0))
     spawn(unreal.PlayerStart, "PlayerStart", (800, 800, 100))
 
+
+def _setup_lighting():
+    """Create the sun, sky light, atmosphere, and sky sphere for the arena."""
+    # Warm directional sun as the primary light source.
     sun = spawn(
         unreal.DirectionalLight, "Sun", (800, 800, 1200), (-48, -35, 0))
     sun_component = sun.get_editor_property("directional_light_component")
@@ -291,12 +329,14 @@ def build_level(blueprints):
         unreal.LinearColor(1.0, 0.88, 0.7, 1.0), True)
     set_optional(sun_component, "atmosphere_sun_light", True)
 
+    # Ambient sky light with real-time capture for accurate bounce.
     skylight = spawn(unreal.SkyLight, "SkyLight", (800, 800, 800))
     skylight_component = skylight.get_editor_property("light_component")
     skylight_component.set_mobility(unreal.ComponentMobility.MOVABLE)
     skylight_component.set_intensity(1.25)
     set_optional(skylight_component, "real_time_capture", True)
 
+    # Atmosphere and sky sphere for the backdrop.
     spawn(unreal.SkyAtmosphere, "SkyAtmosphere", (0, 0, 0))
     sky_class = unreal.load_class(
         None, "/Engine/EngineSky/BP_Sky_Sphere.BP_Sky_Sphere_C")
@@ -307,12 +347,17 @@ def build_level(blueprints):
             "SkySphere", "/Engine/EngineSky/SM_SkySphere", (800, 800, 0),
             (400, 400, 400), {})
 
+
+def _setup_atmosphere_and_post_process(blueprints):
+    """Configure fog, post-processing, world game mode, and save the level."""
+    # Volumetric height fog for depth cues.
     fog = spawn(unreal.ExponentialHeightFog, "HeightFog", (800, 800, -25))
     fog_component = fog.get_editor_property("component")
     set_optional(fog_component, "fog_density", 0.008)
     set_optional(fog_component, "fog_height_falloff", 0.22)
     set_optional(fog_component, "enable_volumetric_fog", True)
 
+    # Unbound post-process volume: subtle bloom + vignette, neutral exposure.
     post_process = spawn(unreal.PostProcessVolume,
                          "PostProcess", (800, 800, 0))
     post_process.set_editor_property("unbound", True)
@@ -325,6 +370,7 @@ def build_level(blueprints):
     set_optional(settings, "vignette_intensity", 0.18)
     post_process.set_editor_property("settings", settings)
 
+    # Assign the arena game mode as the level default.
     editor_world = unreal.get_editor_subsystem(
         unreal.UnrealEditorSubsystem).get_editor_world()
     if not editor_world:
@@ -334,6 +380,17 @@ def build_level(blueprints):
 
     if not level_editor.save_current_level():
         raise RuntimeError(f"Failed to save {MAP_PATH}")
+
+
+def build_level(blueprints):
+    """Orchestrate full arena level construction from an empty map."""
+    _create_or_load_level()
+    materials = _load_materials()
+    _build_floor_geometry(materials)
+    _build_environment_dressing(materials)
+    _spawn_gameplay_actors(blueprints)
+    _setup_lighting()
+    _setup_atmosphere_and_post_process(blueprints)
 
 
 blueprints = configure_blueprints()

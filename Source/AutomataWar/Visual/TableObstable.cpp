@@ -6,6 +6,7 @@
 #include "Components/SceneComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Components/WidgetComponent.h"
+#include "Engine/StaticMesh.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Materials/MaterialInterface.h"
 #include "NiagaraFunctionLibrary.h"
@@ -23,31 +24,41 @@ ATableObstable::ATableObstable()
     ObstacleMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("ObstacleMesh"));
     ObstacleMesh->SetupAttachment(SceneRoot);
     ObstacleMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+    ObstacleMesh->SetRelativeLocation(FVector(0.f, 0.f, 20.f));
+    ObstacleMesh->SetRelativeScale3D(FVector(0.85f, 0.85f, 0.4f));
+    ObstacleMesh->SetStaticMesh(LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Cube.Cube")));
 
     HealthWidget = CreateDefaultSubobject<UWidgetComponent>(TEXT("HealthWidget"));
     HealthWidget->SetupAttachment(SceneRoot);
     HealthWidget->SetRelativeLocation(FVector(0.f, 0.f, 70.f));
     HealthWidget->SetWidgetSpace(EWidgetSpace::Screen);
     HealthWidget->SetDrawSize(FVector2D(90.f, 10.f));
-    HealthWidget->SetWidgetClass(UTableObstableHealthWidget::StaticClass());
     HealthWidget->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+
+    ObstacleMaterial = LoadObject<UMaterialInterface>(nullptr, AWVisualAssets::M_Cover);
+    ExplosionEffect = LoadObject<UNiagaraSystem>(nullptr, AWVisualAssets::NS_Destruction);
+}
+
+void ATableObstable::OnConstruction(const FTransform &Transform)
+{
+    Super::OnConstruction(Transform);
+    HealthWidget->SetWidgetClass(HealthWidgetClass);
 }
 
 void ATableObstable::BeginPlay()
 {
     Super::BeginPlay();
+    HealthWidget->SetWidgetClass(HealthWidgetClass);
     RefreshHealthWidget();
 }
 
-void ATableObstable::InitializeObstacle(int32 InCellIndex, UStaticMesh *InMesh, const FVector &InScale, const FLinearColor &InColor)
+void ATableObstable::InitializeObstacle(int32 InCellIndex, const FLinearColor &InColor)
 {
     CellIndex = InCellIndex;
-    ObstacleMesh->SetStaticMesh(InMesh);
-    ObstacleMesh->SetRelativeScale3D(InScale);
 
-    if (UMaterialInterface *CoverMaterial = LoadObject<UMaterialInterface>(nullptr, AWVisualAssets::M_Cover))
+    if (ObstacleMaterial)
     {
-        ObstacleMesh->SetMaterial(0, CoverMaterial);
+        ObstacleMesh->SetMaterial(0, ObstacleMaterial);
         DynamicMaterial = ObstacleMesh->CreateDynamicMaterialInstance(0);
         if (DynamicMaterial)
             DynamicMaterial->SetVectorParameterValue(TEXT("BaseColor"), InColor);
@@ -93,8 +104,8 @@ void ATableObstable::RefreshHealthWidget()
 void ATableObstable::Explode()
 {
     bDestroyed = true;
-    if (UNiagaraSystem *Explosion = LoadObject<UNiagaraSystem>(nullptr, AWVisualAssets::NS_Destruction))
-        UNiagaraFunctionLibrary::SpawnSystemAtLocation(GetWorld(), Explosion, GetActorLocation());
+    if (ExplosionEffect)
+        UNiagaraFunctionLibrary::SpawnSystemAtLocation(GetWorld(), ExplosionEffect, GetActorLocation());
 
     ObstacleMesh->SetVisibility(false);
     HealthWidget->SetVisibility(false);

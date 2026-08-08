@@ -103,6 +103,10 @@ protected:
     UPROPERTY(EditInstanceOnly, BlueprintReadOnly, Category = "Arena|Actors")
     TObjectPtr<AAWTankActor> PlayerTwoTank;
 
+    /** Blueprint class used for runtime obstacle actors. */
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Arena|Actors")
+    TSubclassOf<ATableObstable> ObstacleClass;
+
     /** Current display snapshot. */
     Automata::TickSnapshot CurrentSnapshot;
 
