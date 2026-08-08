@@ -82,6 +82,7 @@ The following assets are authored reproducibly by `BuildScripts/GenerateAssets.p
 - `Content/UI/WBP_AWCodeEditor.uasset`
 - `Content/UI/Screens/WBP_AWMainMenuScreen.uasset`
 - `Content/UI/Screens/WBP_AWProgrammingScreen.uasset`
+- `Content/UI/Screens/WBP_AWSimulationDock.uasset`
 - `Content/UI/Screens/WBP_AWSimulationScreen.uasset`
 - `Content/UI/Screens/WBP_AWReplayAutopsyScreen.uasset`
 - `Content/UI/Screens/WBP_AWReplayBrowserScreen.uasset`

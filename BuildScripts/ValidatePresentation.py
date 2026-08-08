@@ -6,6 +6,8 @@ CONTROLLER_PATH = "/Game/Blueprints/BP_AWPlayerController"
 MAP_PATH = "/Game/Maps/L_AutomataArena"
 TANK_BLUEPRINT_PATH = "/Game/Blueprints/BP_TankActor"
 TANK_CLASS_PATH = "/Game/Blueprints/BP_TankActor.BP_TankActor_C"
+SIMULATION_DOCK_PATH = "/Game/UI/Screens/WBP_AWSimulationDock"
+SIMULATION_DOCK_CLASS_PATH = "/Game/UI/Screens/WBP_AWSimulationDock.WBP_AWSimulationDock_C"
 
 SCREEN_ASSETS = [
     ("MainMenuScreenWidget", "/Game/UI/Screens/WBP_AWMainMenuScreen", {
@@ -19,8 +21,8 @@ SCREEN_ASSETS = [
         "AggressorP2Button", "CamperP1Button", "CamperP2Button",
         "KiterP1Button", "KiterP2Button", "TrainingP1Button", "TrainingP2Button"}),
     ("SimulationScreenWidget", "/Game/UI/Screens/WBP_AWSimulationScreen", {
-        "SimulationScreen", "SimulationBanner", "SimulationSourceP1Text",
-        "SimulationSourceP2Text", "SimulationArenaViewport"}),
+        "SimulationScreen", "SimulationBanner", "SimulationP1DockWidget",
+        "SimulationP2DockWidget", "SimulationArenaViewport"}),
     ("ReplayAutopsyScreenWidget", "/Game/UI/Screens/WBP_AWReplayAutopsyScreen", {
         "ReplayAutopsyBackdrop", "ReplayTickText", "ReplaySpeedText",
         "ReplayOutcomeText", "ReplaySourceAText", "ReplaySourceBText",
@@ -76,6 +78,24 @@ if switcher.get_num_widgets() != 6:
     raise RuntimeError(
         f"ScreenSwitcher has {switcher.get_num_widgets()} screens instead of 6")
 
+simulation_dock = unreal.load_asset(SIMULATION_DOCK_PATH)
+if not simulation_dock:
+    raise RuntimeError(
+        f"Missing reusable simulation dock: {SIMULATION_DOCK_PATH}")
+unreal.BlueprintEditorLibrary.compile_blueprint(simulation_dock)
+simulation_dock_tree = unreal.AWWidgetBlueprintLibrary.get_widget_tree(
+    simulation_dock)
+simulation_dock_root = unreal.AWWidgetBlueprintLibrary.get_root_widget(
+    simulation_dock_tree)
+simulation_dock_widgets = {}
+collect_widgets(simulation_dock_root, simulation_dock_widgets)
+required_dock_widgets = {
+    "SimulationDock", "SimulationDockTitle", "SimulationSourceScroll",
+    "SimulationSourceHorizontalScroll", "SimulationDockSourceText"}
+missing = sorted(required_dock_widgets - set(simulation_dock_widgets))
+if missing:
+    raise RuntimeError(f"{SIMULATION_DOCK_PATH} is missing widgets: {missing}")
+
 screen_widgets = {}
 for index, (widget_name, asset_path, required_widgets) in enumerate(SCREEN_ASSETS):
     screen = unreal.load_asset(asset_path)
@@ -97,6 +117,18 @@ for index, (widget_name, asset_path, required_widgets) in enumerate(SCREEN_ASSET
     if missing:
         raise RuntimeError(f"{asset_path} is missing widgets: {missing}")
     screen_widgets.update(widgets)
+
+for name in ["SimulationP1DockWidget", "SimulationP2DockWidget"]:
+    if screen_widgets[name].get_class().get_path_name() != SIMULATION_DOCK_CLASS_PATH:
+        raise RuntimeError(f"{name} must use the reusable simulation dock WBP")
+
+vertical_scroll = simulation_dock_widgets["SimulationSourceScroll"]
+horizontal_scroll = simulation_dock_widgets["SimulationSourceHorizontalScroll"]
+if vertical_scroll.get_editor_property("orientation") != unreal.Orientation.ORIENT_VERTICAL:
+    raise RuntimeError("Simulation source must retain vertical scrolling")
+if horizontal_scroll.get_editor_property("orientation") != unreal.Orientation.ORIENT_HORIZONTAL:
+    raise RuntimeError("Simulation source must support horizontal scrolling")
+screen_widgets.update(simulation_dock_widgets)
 
 internal_widgets = set(screen_widgets) - HUD_WIDGETS
 if internal_widgets & set(hud_widgets):

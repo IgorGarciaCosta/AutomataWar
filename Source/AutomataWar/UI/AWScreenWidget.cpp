@@ -103,12 +103,28 @@ void UAWProgrammingScreen::OnKiterP2() { BroadcastAction(EAWUIAction::KiterP2); 
 void UAWProgrammingScreen::OnTrainingP1() { BroadcastAction(EAWUIAction::TrainingP1); }
 void UAWProgrammingScreen::OnTrainingP2() { BroadcastAction(EAWUIAction::TrainingP2); }
 
+void UAWSimulationDockWidget::SynchronizeProperties()
+{
+    Super::SynchronizeProperties();
+    if (SimulationDockTitle)
+    {
+        SimulationDockTitle->SetText(PlayerLabel);
+        SimulationDockTitle->SetColorAndOpacity(FSlateColor(AccentColor));
+    }
+}
+
+void UAWSimulationDockWidget::SetSource(const FString &Source)
+{
+    if (SimulationDockSourceText)
+        SimulationDockSourceText->SetText(FText::FromString(Source));
+}
+
 void UAWSimulationScreen::SetSources(const FString &PlayerOneSource, const FString &PlayerTwoSource)
 {
-    if (SimulationSourceP1Text)
-        SimulationSourceP1Text->SetText(FText::FromString(PlayerOneSource));
-    if (SimulationSourceP2Text)
-        SimulationSourceP2Text->SetText(FText::FromString(PlayerTwoSource));
+    if (SimulationP1DockWidget)
+        SimulationP1DockWidget->SetSource(PlayerOneSource);
+    if (SimulationP2DockWidget)
+        SimulationP2DockWidget->SetSource(PlayerTwoSource);
 }
 
 void UAWReplayAutopsyScreen::NativeConstruct()

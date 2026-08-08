@@ -11,7 +11,7 @@ Designer-authored UMG presentation for Automata War with native C++ behavior.
 - `AWScreenWidget.h/cpp` — Typed screen contracts, control bindings, and semantic UI events
 - `AWHUDWidget.h/cpp` — Root coordinator for navigation, game state, and screen data
 - `WBP_AWHUD` — Responsive shell, status bar, and six-screen switcher
-- `Content/UI/Screens` — One independently editable Widget Blueprint per screen
+- `Content/UI/Screens` — Independently editable screen Widget Blueprints and reusable simulation dock
 
 ## Screens
 

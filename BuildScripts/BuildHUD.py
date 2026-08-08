@@ -8,6 +8,7 @@ CODE_EDITOR_CLASS_PATH = "/Script/AutomataWar.AWCodeEditorWidget"
 SCREEN_BLUEPRINTS = {
     "MainMenu": ("WBP_AWMainMenuScreen", "/Script/AutomataWar.AWMainMenuScreen"),
     "Programming": ("WBP_AWProgrammingScreen", "/Script/AutomataWar.AWProgrammingScreen"),
+    "SimulationDock": ("WBP_AWSimulationDock", "/Script/AutomataWar.AWSimulationDockWidget"),
     "Simulation": ("WBP_AWSimulationScreen", "/Script/AutomataWar.AWSimulationScreen"),
     "ReplayAutopsy": ("WBP_AWReplayAutopsyScreen", "/Script/AutomataWar.AWReplayAutopsyScreen"),
     "ReplayBrowser": ("WBP_AWReplayBrowserScreen", "/Script/AutomataWar.AWReplayBrowserScreen"),
@@ -92,13 +93,18 @@ def begin_screen(screen_key):
     bridge.clear_widget_tree(tree)
 
 
+def save_widget_blueprint(widget_key):
+    widget_blueprint = screen_blueprints[widget_key]
+    widget_blueprint.modify()
+    unreal.BlueprintEditorLibrary.compile_blueprint(widget_blueprint)
+    unreal.EditorAssetLibrary.save_loaded_asset(
+        widget_blueprint, only_if_is_dirty=False)
+
+
 def attach_screen(screen_key, widget_name):
     global blueprint, tree
     screen_blueprint = screen_blueprints[screen_key]
-    screen_blueprint.modify()
-    unreal.BlueprintEditorLibrary.compile_blueprint(screen_blueprint)
-    unreal.EditorAssetLibrary.save_loaded_asset(
-        screen_blueprint, only_if_is_dirty=False)
+    save_widget_blueprint(screen_key)
 
     blueprint = hud_blueprint
     tree = hud_tree
@@ -378,6 +384,40 @@ add(editors_row, build_editor_panel(2, CORAL), fill=True,
 attach_screen("Programming", "ProgrammingScreenWidget")
 
 
+begin_screen("SimulationDock")
+simulation_dock = make(unreal.SizeBox, "SimulationDock")
+bridge.set_root_widget(tree, simulation_dock)
+simulation_dock.set_width_override(360.0)
+simulation_dock_panel, simulation_dock_body = panel(
+    "SimulationDockPanel", GAMEPLAY_PANEL, 12)
+simulation_dock.add_child(simulation_dock_panel)
+add(simulation_dock_body, label(
+    "SimulationDockTitle", "PLAYER PROGRAM", 16, CYAN,
+    bold=True, variable=True), padding=margin(0, 0, 0, 8))
+
+simulation_source_scroll = make(
+    unreal.ScrollBox, "SimulationSourceScroll")
+simulation_source_scroll.set_orientation(
+    unreal.Orientation.ORIENT_VERTICAL)
+simulation_source_scroll.set_always_show_scrollbar(True)
+simulation_source_horizontal_scroll = make(
+    unreal.ScrollBox, "SimulationSourceHorizontalScroll")
+simulation_source_horizontal_scroll.set_orientation(
+    unreal.Orientation.ORIENT_HORIZONTAL)
+simulation_source_horizontal_scroll.set_always_show_scrollbar(True)
+simulation_dock_source = label(
+    "SimulationDockSourceText", "AWAITING PROGRAM", 12, TEXT,
+    mono=True, variable=True)
+add(simulation_source_horizontal_scroll, simulation_dock_source,
+    padding=margin(6, 6, 12, 6), h=H_LEFT, v=V_TOP)
+add(simulation_source_scroll, simulation_source_horizontal_scroll,
+    h=H_FILL, v=V_TOP)
+add(simulation_dock_body, simulation_source_scroll,
+    fill=True, weight=1.0)
+save_widget_blueprint("SimulationDock")
+simulation_dock_class = screen_blueprints["SimulationDock"].generated_class()
+
+
 begin_screen("Simulation")
 simulation_screen = make(unreal.Border, "SimulationScreen")
 bridge.set_root_widget(tree, simulation_screen)
@@ -400,27 +440,14 @@ add(simulation_body, simulation_header)
 add(simulation_layout, simulation_banner, padding=margin(0, 0, 0, 12))
 
 
-def build_simulation_source_panel(index, accent):
-    source_panel, source_body = panel(
-        f"SimulationP{index}Panel", GAMEPLAY_PANEL, 12)
-    add(source_body, label(f"SimulationP{index}Title",
-                           f"PLAYER {index} PROGRAM", 16, accent, bold=True),
-        padding=margin(0, 0, 0, 8))
-    source_scroll = make(unreal.ScrollBox, f"SimulationP{index}SourceScroll")
-    source_scroll.set_always_show_scrollbar(True)
-    source_text = label(f"SimulationSourceP{index}Text", "AWAITING PROGRAM",
-                        12, TEXT, mono=True, variable=True)
-    add(source_scroll, source_text, padding=margin(6, 6, 12, 6),
-        h=H_LEFT, v=V_TOP)
-    add(source_body, source_scroll, fill=True, weight=1.0)
-    return source_panel
-
-
 simulation_workspace = make(unreal.HorizontalBox, "SimulationWorkspace")
-simulation_one_size = make(unreal.SizeBox, "SimulationP1Dock")
-simulation_one_size.set_width_override(360.0)
-simulation_one_size.add_child(build_simulation_source_panel(1, CYAN))
-add(simulation_workspace, simulation_one_size, padding=margin(0, 0, 10, 0))
+simulation_one_dock = make(
+    simulation_dock_class, "SimulationP1DockWidget", True)
+simulation_one_dock.set_editor_property(
+    "PlayerLabel", "PLAYER 1 PROGRAM")
+simulation_one_dock.set_editor_property("AccentColor", CYAN)
+add(simulation_workspace, simulation_one_dock,
+    padding=margin(0, 0, 10, 0))
 
 simulation_arena_frame = make(unreal.Border, "SimulationArenaFrame")
 simulation_arena_frame.set_brush_color(TRANSPARENT)
@@ -440,10 +467,13 @@ add(simulation_frame_layout, frame_rail("SimulationFrameBottom", height=6.0))
 add(simulation_workspace, simulation_arena_frame, fill=True,
     padding=margin(0, 0, 0, 0), weight=1.0)
 
-simulation_two_size = make(unreal.SizeBox, "SimulationP2Dock")
-simulation_two_size.set_width_override(360.0)
-simulation_two_size.add_child(build_simulation_source_panel(2, CORAL))
-add(simulation_workspace, simulation_two_size, padding=margin(10, 0, 0, 0))
+simulation_two_dock = make(
+    simulation_dock_class, "SimulationP2DockWidget", True)
+simulation_two_dock.set_editor_property(
+    "PlayerLabel", "PLAYER 2 PROGRAM")
+simulation_two_dock.set_editor_property("AccentColor", CORAL)
+add(simulation_workspace, simulation_two_dock,
+    padding=margin(10, 0, 0, 0))
 add(simulation_layout, simulation_workspace, fill=True, weight=1.0,
     padding=margin(0, 0, 0, 12))
 

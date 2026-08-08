@@ -10,6 +10,7 @@
 #include "AWScreenWidget.generated.h"
 
 class UAWCodeEditorWidget;
+class UAWSimulationDockWidget;
 class UComboBoxString;
 class UEditableTextBox;
 class USlider;
@@ -157,7 +158,36 @@ private:
     TObjectPtr<UAWCodeEditorWidget> EditorP2;
 };
 
-/** Read-only match execution presentation. */
+/** Reusable read-only source dock used by both simulation combatants. */
+UCLASS(Blueprintable)
+class AUTOMATAWAR_API UAWSimulationDockWidget : public UUserWidget
+{
+    GENERATED_BODY()
+
+public:
+    /** Replace the program displayed by this dock. */
+    void SetSource(const FString &Source);
+
+protected:
+    virtual void SynchronizeProperties() override;
+
+    /** Heading shown above the source listing. */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AutomataWar|UI")
+    FText PlayerLabel = INVTEXT("PLAYER PROGRAM");
+
+    /** Player accent applied to the heading. */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AutomataWar|UI")
+    FLinearColor AccentColor = FLinearColor(0.f, 0.78f, 0.9f, 1.f);
+
+private:
+    UPROPERTY(meta = (BindWidget))
+    TObjectPtr<UTextBlock> SimulationDockTitle;
+
+    UPROPERTY(meta = (BindWidget))
+    TObjectPtr<UTextBlock> SimulationDockSourceText;
+};
+
+/** Read-only match execution presentation composed from reusable docks. */
 UCLASS(Blueprintable)
 class AUTOMATAWAR_API UAWSimulationScreen : public UAWScreenWidget
 {
@@ -168,10 +198,10 @@ public:
 
 private:
     UPROPERTY(meta = (BindWidget))
-    TObjectPtr<UTextBlock> SimulationSourceP1Text;
+    TObjectPtr<UAWSimulationDockWidget> SimulationP1DockWidget;
 
     UPROPERTY(meta = (BindWidget))
-    TObjectPtr<UTextBlock> SimulationSourceP2Text;
+    TObjectPtr<UAWSimulationDockWidget> SimulationP2DockWidget;
 };
 
 /** Replay transport and debugger presentation. */
