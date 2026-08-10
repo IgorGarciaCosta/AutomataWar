@@ -90,8 +90,7 @@ simulation_dock_root = unreal.AWWidgetBlueprintLibrary.get_root_widget(
 simulation_dock_widgets = {}
 collect_widgets(simulation_dock_root, simulation_dock_widgets)
 required_dock_widgets = {
-    "SimulationDock", "SimulationDockTitle", "SimulationSourceScroll",
-    "SimulationSourceHorizontalScroll", "SimulationDockSourceText"}
+    "SimulationDock", "SimulationDockTitle", "SimulationDockSourceBox"}
 missing = sorted(required_dock_widgets - set(simulation_dock_widgets))
 if missing:
     raise RuntimeError(f"{SIMULATION_DOCK_PATH} is missing widgets: {missing}")
@@ -122,12 +121,13 @@ for name in ["SimulationP1DockWidget", "SimulationP2DockWidget"]:
     if screen_widgets[name].get_class().get_path_name() != SIMULATION_DOCK_CLASS_PATH:
         raise RuntimeError(f"{name} must use the reusable simulation dock WBP")
 
-vertical_scroll = simulation_dock_widgets["SimulationSourceScroll"]
-horizontal_scroll = simulation_dock_widgets["SimulationSourceHorizontalScroll"]
-if vertical_scroll.get_editor_property("orientation") != unreal.Orientation.ORIENT_VERTICAL:
-    raise RuntimeError("Simulation source must retain vertical scrolling")
-if horizontal_scroll.get_editor_property("orientation") != unreal.Orientation.ORIENT_HORIZONTAL:
-    raise RuntimeError("Simulation source must support horizontal scrolling")
+source_box = simulation_dock_widgets["SimulationDockSourceBox"]
+if source_box.get_class().get_name() != "MultiLineEditableTextBox":
+    raise RuntimeError("Simulation source must use a two-axis text viewport")
+if not source_box.get_editor_property("is_read_only"):
+    raise RuntimeError("Simulation source must remain read-only")
+if source_box.get_editor_property("auto_wrap_text"):
+    raise RuntimeError("Simulation source wrapping would disable horizontal scrolling")
 screen_widgets.update(simulation_dock_widgets)
 
 internal_widgets = set(screen_widgets) - HUD_WIDGETS

@@ -395,24 +395,13 @@ add(simulation_dock_body, label(
     "SimulationDockTitle", "PLAYER PROGRAM", 16, CYAN,
     bold=True, variable=True), padding=margin(0, 0, 0, 8))
 
-simulation_source_scroll = make(
-    unreal.ScrollBox, "SimulationSourceScroll")
-simulation_source_scroll.set_orientation(
-    unreal.Orientation.ORIENT_VERTICAL)
-simulation_source_scroll.set_always_show_scrollbar(True)
-simulation_source_horizontal_scroll = make(
-    unreal.ScrollBox, "SimulationSourceHorizontalScroll")
-simulation_source_horizontal_scroll.set_orientation(
-    unreal.Orientation.ORIENT_HORIZONTAL)
-simulation_source_horizontal_scroll.set_always_show_scrollbar(True)
-simulation_dock_source = label(
-    "SimulationDockSourceText", "AWAITING PROGRAM", 12, TEXT,
-    mono=True, variable=True)
-add(simulation_source_horizontal_scroll, simulation_dock_source,
-    padding=margin(6, 6, 12, 6), h=H_LEFT, v=V_TOP)
-add(simulation_source_scroll, simulation_source_horizontal_scroll,
-    h=H_FILL, v=V_TOP)
-add(simulation_dock_body, simulation_source_scroll,
+simulation_dock_source = make(
+    unreal.MultiLineEditableTextBox, "SimulationDockSourceBox", True)
+simulation_dock_source.set_text("AWAITING PROGRAM")
+simulation_dock_source.set_is_read_only(True)
+simulation_dock_source.set_editor_property("auto_wrap_text", False)
+simulation_dock_source.set_foreground_color(TEXT)
+add(simulation_dock_body, simulation_dock_source,
     fill=True, weight=1.0)
 save_widget_blueprint("SimulationDock")
 simulation_dock_class = screen_blueprints["SimulationDock"].generated_class()

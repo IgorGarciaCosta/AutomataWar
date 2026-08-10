@@ -13,6 +13,7 @@ class UAWCodeEditorWidget;
 class UAWSimulationDockWidget;
 class UComboBoxString;
 class UEditableTextBox;
+class UMultiLineEditableTextBox;
 class USlider;
 class UTextBlock;
 
@@ -184,7 +185,7 @@ private:
     TObjectPtr<UTextBlock> SimulationDockTitle;
 
     UPROPERTY(meta = (BindWidget))
-    TObjectPtr<UTextBlock> SimulationDockSourceText;
+    TObjectPtr<UMultiLineEditableTextBox> SimulationDockSourceBox;
 };
 
 /** Read-only match execution presentation composed from reusable docks. */

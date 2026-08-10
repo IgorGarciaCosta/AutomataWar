@@ -3,6 +3,7 @@
 #include "Components/Button.h"
 #include "Components/ComboBoxString.h"
 #include "Components/EditableTextBox.h"
+#include "Components/MultiLineEditableTextBox.h"
 #include "Components/Slider.h"
 #include "Components/TextBlock.h"
 
@@ -115,8 +116,8 @@ void UAWSimulationDockWidget::SynchronizeProperties()
 
 void UAWSimulationDockWidget::SetSource(const FString &Source)
 {
-    if (SimulationDockSourceText)
-        SimulationDockSourceText->SetText(FText::FromString(Source));
+    if (SimulationDockSourceBox)
+        SimulationDockSourceBox->SetText(FText::FromString(Source));
 }
 
 void UAWSimulationScreen::SetSources(const FString &PlayerOneSource, const FString &PlayerTwoSource)

@@ -26,7 +26,7 @@ void AAWIsometricCamera::FrameArena(int32 GridWidth, int32 GridHeight, float Cel
     const FVector Center(ArenaWidth * 0.5f, ArenaHeight * 0.5f, 0.f);
     const float ArenaSpan = FMath::Max(ArenaWidth, ArenaHeight);
 
-    Camera->SetOrthoWidth(ArenaSpan * 3.45f);
-    SetActorLocation(Center + FVector(0.f, 0.f, ArenaSpan));
+    Camera->SetOrthoWidth(ArenaSpan * 2.0f);
+    SetActorLocation(Center + FVector(0.f, 0.f, ArenaSpan * 0.5f));
     SetActorRotation(FRotator(-90.f, 0.f, 0.f));
 }
