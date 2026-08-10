@@ -94,7 +94,6 @@ void AAWArenaRenderer::ProcessEvents(const TArray<Automata::SimEvent> &Events, i
             AAWTankActor *Tank = Evt.robot == 0 ? PlayerOneTank.Get() : PlayerTwoTank.Get();
             const FTransform MuzzleTransform = Tank ? Tank->GetMuzzleTransform() : FTransform(DirToRotation(Robot.facing), Pos + FVector(0, 0, AWVisualConfig::ProjectileZ));
             TriggerMuzzleFlash(Evt.robot);
-            SpawnProjectileBolt(Evt.robot, MuzzleTransform.GetLocation(), DirToRotation(Robot.facing).Vector());
             PlaySFX(AWVisualAssets::SFX_Fire, MuzzleTransform.GetLocation());
             break;
         }
@@ -253,42 +252,6 @@ void AAWArenaRenderer::SpawnCoverVisuals(int32 Width, int32 Height, const TArray
             }
         }
     }
-}
-
-void AAWArenaRenderer::SpawnProjectileBolt(int32 OwnerIdx, FVector WorldPos, FVector Direction)
-{
-    UStaticMesh *CubeMesh = LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Cube.Cube"));
-    if (!CubeMesh)
-        return;
-
-    UStaticMeshComponent *Bolt = NewObject<UStaticMeshComponent>(this);
-    Bolt->SetupAttachment(GetRootComponent());
-    Bolt->SetStaticMesh(CubeMesh);
-    Bolt->SetWorldLocation(WorldPos);
-    Bolt->SetWorldScale3D(FVector(0.3f, 0.08f, 0.08f));
-    Bolt->SetWorldRotation(Direction.Rotation());
-    Bolt->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-    Bolt->SetCustomPrimitiveDataFloat(0, OwnerIdx == 0 ? 0.f : 1.f);
-    Bolt->RegisterComponent();
-    if (UMaterialInterface *EffectMaterial = LoadObject<UMaterialInterface>(nullptr, AWVisualAssets::M_Effect))
-        Bolt->SetMaterial(0, EffectMaterial);
-
-    UMaterialInstanceDynamic *Mat = Bolt->CreateDynamicMaterialInstance(0);
-    if (Mat)
-    {
-        FLinearColor Color = (OwnerIdx == 0) ? AWUIColors::AccentCyan : AWUIColors::AccentCoral;
-        Mat->SetVectorParameterValue(TEXT("BaseColor"), Color);
-        Mat->SetVectorParameterValue(TEXT("EmissiveColor"), Color * 5.f);
-    }
-
-    UPointLightComponent *Light = NewObject<UPointLightComponent>(Bolt);
-    Light->SetupAttachment(Bolt);
-    Light->SetIntensity(500.f);
-    Light->SetAttenuationRadius(150.f);
-    Light->SetLightColor((OwnerIdx == 0) ? FColor::Cyan : FColor(255, 90, 80));
-    Light->RegisterComponent();
-
-    ScheduleComponentDestruction(Bolt, AWVisualConfig::ProjectileBoltLifespan);
 }
 
 void AAWArenaRenderer::TriggerMuzzleFlash(int32 RobotIdx)

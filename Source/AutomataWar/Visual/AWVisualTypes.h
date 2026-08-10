@@ -51,8 +51,6 @@ namespace AWVisualConfig
     inline constexpr float InterpSpeed = 8.f;
     /** Duration in seconds for transient VFX components before destruction. */
     inline constexpr float TransientVFXLifespan = 0.3f;
-    /** Duration for projectile bolt visuals. */
-    inline constexpr float ProjectileBoltLifespan = 0.5f;
     /** Duration for shield bubble visual. */
     inline constexpr float ShieldBubbleLifespan = 2.0f;
 }

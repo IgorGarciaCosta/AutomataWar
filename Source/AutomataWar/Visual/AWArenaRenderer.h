@@ -57,9 +57,6 @@ protected:
     /** Spawn cover block visuals. */
     void SpawnCoverVisuals(int32 Width, int32 Height, const TArray<Automata::CellType> &Grid);
 
-    /** Spawn a projectile bolt visual. */
-    void SpawnProjectileBolt(int32 OwnerIdx, FVector WorldPos, FVector Direction);
-
     /** Trigger muzzle flash VFX on a tank's cannon socket. */
     void TriggerMuzzleFlash(int32 RobotIdx);
 

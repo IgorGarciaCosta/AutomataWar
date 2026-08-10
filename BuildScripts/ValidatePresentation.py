@@ -127,7 +127,8 @@ if source_box.get_class().get_name() != "MultiLineEditableTextBox":
 if not source_box.get_editor_property("is_read_only"):
     raise RuntimeError("Simulation source must remain read-only")
 if source_box.get_editor_property("auto_wrap_text"):
-    raise RuntimeError("Simulation source wrapping would disable horizontal scrolling")
+    raise RuntimeError(
+        "Simulation source wrapping would disable horizontal scrolling")
 screen_widgets.update(simulation_dock_widgets)
 
 internal_widgets = set(screen_widgets) - HUD_WIDGETS
