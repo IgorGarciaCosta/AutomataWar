@@ -13,7 +13,7 @@
 /**
  * @brief Authoritative replicated match state.
  *
- * Manages the phase state machine and replicates revealed scripts/outcomes
+ * Manages the phase state machine and replicates revealed commands/outcomes
  * only after simulation completes.
  */
 UCLASS()
@@ -40,13 +40,13 @@ public:
     UPROPERTY(Replicated, BlueprintReadOnly, Category = "Match")
     float SubmissionTimeRemaining = -1.f;
 
-    /** Revealed script for slot 0 (only valid in ReplayAutopsy phase). */
+    /** Revealed commands for slot 0 (only valid in ReplayAutopsy phase). */
     UPROPERTY(Replicated, BlueprintReadOnly, Category = "Match")
-    FString RevealedSource0;
+    TArray<EAWCommand> RevealedCommands0;
 
-    /** Revealed script for slot 1 (only valid in ReplayAutopsy phase). */
+    /** Revealed commands for slot 1 (only valid in ReplayAutopsy phase). */
     UPROPERTY(Replicated, BlueprintReadOnly, Category = "Match")
-    FString RevealedSource1;
+    TArray<EAWCommand> RevealedCommands1;
 
     /** Authoritative final state hash for desync detection. */
     UPROPERTY(Replicated, BlueprintReadOnly, Category = "Match")

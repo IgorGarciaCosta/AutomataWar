@@ -2,6 +2,14 @@
 
 This log records decisions made where the build brief allowed or required engineering judgment.
 
+## 2026-08-13 - Replace source programs with finite command queues
+
+**Decision:** Remove Automata Lang, its compiler, bytecode, VM, registers, energy model, script validator, examples, syntax editor, and tick cap. Players now append `MOVE`, `FIRE`, `TURN LEFT`, or `TURN RIGHT` through buttons. Simulation consumes each command once and ends when both queues finish or a tank is destroyed.
+
+**Alternatives:** Keep the compiler behind a button-generated source string; translate buttons into bytecode; retain the VM as a queue executor.
+
+**Rationale:** All three alternatives preserve layers that no longer provide behavior. A shared reflected enum can cross UI, RPC, replication, replay, desync, and simulation boundaries directly. This decision supersedes the 2026-08-01 bytecode, VM intent, action tick-cost, and tick-capped replay decisions, plus the source-size and Slate code-editor decisions below.
+
 ## 2026-08-01 - Pin Unreal Engine 5.5
 
 **Decision:** Bind `AutomataWar.uproject` to Unreal Engine 5.5 and verify against installed build 5.5.4, changelist 40574608.
@@ -84,7 +92,7 @@ This log records decisions made where the build brief allowed or required engine
 
 ## 2026-08-01 - Replicate inputs, not frames
 
-**Decision:** Replicate accepted source, seed, outcome, and authoritative hash.
+**Decision:** Replicate accepted input, seed, outcome, and authoritative hash. Input was source text originally and is a command array after the 2026-08-13 decision.
 
 **Alternatives:** Replicate robot transforms or per-tick snapshots.
 

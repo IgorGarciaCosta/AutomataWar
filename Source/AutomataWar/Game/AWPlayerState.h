@@ -13,7 +13,7 @@
 /**
  * @brief Tracks per-player submission readiness.
  *
- * The actual script source is NOT replicated here to preserve blind submission.
+ * Command queues are revealed through GameState only after simulation.
  */
 UCLASS()
 class AUTOMATAWAR_API AAWPlayerState : public APlayerState
@@ -24,11 +24,11 @@ public:
     /** Register slot and submission state for replication. */
     virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty> &OutLifetimeProps) const override;
 
-    /** Which script slot this player controls (0 or 1). */
+    /** Which command slot this player controls (0 or 1). */
     UPROPERTY(Replicated, BlueprintReadOnly, Category = "Match")
-    int32 ScriptSlot = -1;
+    int32 CommandSlot = -1;
 
-    /** Whether this player has submitted/locked their script this round. */
+    /** Whether this player has submitted/locked their commands this round. */
     UPROPERTY(Replicated, BlueprintReadOnly, Category = "Match")
     bool bSubmitted = false;
 

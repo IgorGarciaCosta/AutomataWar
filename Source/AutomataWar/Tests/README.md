@@ -2,7 +2,9 @@
 
 `Tests/` contains Unreal Automation coverage for the engine-independent Core and its Unreal integration boundaries.
 
-- `AutomataCoreTests.cpp`: compiler diagnostics, VM semantics, exact costs, safety, combat rules, replay integrity, headless execution, and 1,000-run determinism.
+- `AutomataCoreTests.cpp`: finite command execution, relative turns, deterministic hashes, and replay integrity.
+- `AWGameTests.cpp`: replay filename safety, payload bounds, and command labels.
+- `AWPresentationTests.cpp`: four-command UI contract, HUD screen count, and replay navigation.
 - `AWGameTests.cpp`: network submission validation, examples, replay services, payload bounds, and desync verification.
 - `AWPresentationTests.cpp`: replay navigation, generated language metadata, editor construction, and real content-asset resolution.
 

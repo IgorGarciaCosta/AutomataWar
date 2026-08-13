@@ -1,9 +1,8 @@
 #include "AWScreenWidget.h"
-#include "AWCodeEditorWidget.h"
+#include "AutomataWar/Core/AutomataRules.h"
 #include "Components/Button.h"
 #include "Components/ComboBoxString.h"
 #include "Components/EditableTextBox.h"
-#include "Components/MultiLineEditableTextBox.h"
 #include "Components/Slider.h"
 #include "Components/TextBlock.h"
 
@@ -69,40 +68,80 @@ void UAWProgrammingScreen::NativeConstruct()
     BIND_SCREEN_BUTTON("ProgrammingBackButton", UAWProgrammingScreen, OnBack);
     BIND_SCREEN_BUTTON("SubmitP1Button", UAWProgrammingScreen, OnSubmitP1);
     BIND_SCREEN_BUTTON("SubmitP2Button", UAWProgrammingScreen, OnSubmitP2);
-    BIND_SCREEN_BUTTON("AggressorP1Button", UAWProgrammingScreen, OnAggressorP1);
-    BIND_SCREEN_BUTTON("AggressorP2Button", UAWProgrammingScreen, OnAggressorP2);
-    BIND_SCREEN_BUTTON("CamperP1Button", UAWProgrammingScreen, OnCamperP1);
-    BIND_SCREEN_BUTTON("CamperP2Button", UAWProgrammingScreen, OnCamperP2);
-    BIND_SCREEN_BUTTON("KiterP1Button", UAWProgrammingScreen, OnKiterP1);
-    BIND_SCREEN_BUTTON("KiterP2Button", UAWProgrammingScreen, OnKiterP2);
-    BIND_SCREEN_BUTTON("TrainingP1Button", UAWProgrammingScreen, OnTrainingP1);
-    BIND_SCREEN_BUTTON("TrainingP2Button", UAWProgrammingScreen, OnTrainingP2);
+    BIND_SCREEN_BUTTON("MoveP1Button", UAWProgrammingScreen, OnMoveP1);
+    BIND_SCREEN_BUTTON("FireP1Button", UAWProgrammingScreen, OnFireP1);
+    BIND_SCREEN_BUTTON("TurnLeftP1Button", UAWProgrammingScreen, OnTurnLeftP1);
+    BIND_SCREEN_BUTTON("TurnRightP1Button", UAWProgrammingScreen, OnTurnRightP1);
+    BIND_SCREEN_BUTTON("RemoveActionP1Button", UAWProgrammingScreen, OnRemoveP1);
+    BIND_SCREEN_BUTTON("MoveP2Button", UAWProgrammingScreen, OnMoveP2);
+    BIND_SCREEN_BUTTON("FireP2Button", UAWProgrammingScreen, OnFireP2);
+    BIND_SCREEN_BUTTON("TurnLeftP2Button", UAWProgrammingScreen, OnTurnLeftP2);
+    BIND_SCREEN_BUTTON("TurnRightP2Button", UAWProgrammingScreen, OnTurnRightP2);
+    BIND_SCREEN_BUTTON("RemoveActionP2Button", UAWProgrammingScreen, OnRemoveP2);
+    RefreshCommands(0);
+    RefreshCommands(1);
 }
 
-FString UAWProgrammingScreen::GetSource(int32 PlayerIndex) const
+TArray<EAWCommand> UAWProgrammingScreen::GetCommands(int32 PlayerIndex) const
 {
-    const UAWCodeEditorWidget *Editor = PlayerIndex == 0 ? EditorP1.Get() : EditorP2.Get();
-    return Editor ? Editor->GetSourceText() : FString();
+    return Commands[FMath::Clamp(PlayerIndex, 0, 1)];
 }
 
-void UAWProgrammingScreen::SetSource(int32 PlayerIndex, const FString &Source)
+FString UAWProgrammingScreen::GetCommandText(int32 PlayerIndex) const
 {
-    UAWCodeEditorWidget *Editor = PlayerIndex == 0 ? EditorP1.Get() : EditorP2.Get();
-    if (Editor)
-        Editor->SetSourceText(Source);
+    FString Text;
+    for (EAWCommand Command : Commands[FMath::Clamp(PlayerIndex, 0, 1)])
+        Text += FString::Printf(TEXT("%s\n"), LexToString(Command));
+    return Text;
+}
+
+void UAWProgrammingScreen::AddCommand(int32 PlayerIndex, EAWCommand Command)
+{
+    if (Commands[PlayerIndex].Num() < Automata::MaxCommands)
+    {
+        Commands[PlayerIndex].Add(Command);
+        RefreshCommands(PlayerIndex);
+    }
+}
+
+void UAWProgrammingScreen::RemoveLastCommand(int32 PlayerIndex)
+{
+    if (!Commands[PlayerIndex].IsEmpty())
+    {
+        Commands[PlayerIndex].Pop();
+        RefreshCommands(PlayerIndex);
+    }
+}
+
+void UAWProgrammingScreen::RefreshCommands(int32 PlayerIndex)
+{
+    FString Text;
+    for (int32 Index = 0; Index < Commands[PlayerIndex].Num(); ++Index)
+        Text += FString::Printf(TEXT("%3d | %s\n"), Index + 1, LexToString(Commands[PlayerIndex][Index]));
+    if (Text.IsEmpty())
+        Text = TEXT("NO ACTIONS SELECTED");
+
+    UTextBlock *List = PlayerIndex == 0 ? ProgramP1Text.Get() : ProgramP2Text.Get();
+    UButton *Remove = PlayerIndex == 0 ? RemoveActionP1Button.Get() : RemoveActionP2Button.Get();
+    if (List)
+        List->SetText(FText::FromString(Text));
+    if (Remove)
+        Remove->SetVisibility(Commands[PlayerIndex].IsEmpty() ? ESlateVisibility::Collapsed : ESlateVisibility::Visible);
 }
 
 void UAWProgrammingScreen::OnBack() { BroadcastAction(EAWUIAction::BackToMainMenu); }
 void UAWProgrammingScreen::OnSubmitP1() { BroadcastAction(EAWUIAction::SubmitP1); }
 void UAWProgrammingScreen::OnSubmitP2() { BroadcastAction(EAWUIAction::SubmitP2); }
-void UAWProgrammingScreen::OnAggressorP1() { BroadcastAction(EAWUIAction::AggressorP1); }
-void UAWProgrammingScreen::OnAggressorP2() { BroadcastAction(EAWUIAction::AggressorP2); }
-void UAWProgrammingScreen::OnCamperP1() { BroadcastAction(EAWUIAction::CamperP1); }
-void UAWProgrammingScreen::OnCamperP2() { BroadcastAction(EAWUIAction::CamperP2); }
-void UAWProgrammingScreen::OnKiterP1() { BroadcastAction(EAWUIAction::KiterP1); }
-void UAWProgrammingScreen::OnKiterP2() { BroadcastAction(EAWUIAction::KiterP2); }
-void UAWProgrammingScreen::OnTrainingP1() { BroadcastAction(EAWUIAction::TrainingP1); }
-void UAWProgrammingScreen::OnTrainingP2() { BroadcastAction(EAWUIAction::TrainingP2); }
+void UAWProgrammingScreen::OnMoveP1() { AddCommand(0, EAWCommand::Move); }
+void UAWProgrammingScreen::OnFireP1() { AddCommand(0, EAWCommand::Fire); }
+void UAWProgrammingScreen::OnTurnLeftP1() { AddCommand(0, EAWCommand::TurnLeft); }
+void UAWProgrammingScreen::OnTurnRightP1() { AddCommand(0, EAWCommand::TurnRight); }
+void UAWProgrammingScreen::OnRemoveP1() { RemoveLastCommand(0); }
+void UAWProgrammingScreen::OnMoveP2() { AddCommand(1, EAWCommand::Move); }
+void UAWProgrammingScreen::OnFireP2() { AddCommand(1, EAWCommand::Fire); }
+void UAWProgrammingScreen::OnTurnLeftP2() { AddCommand(1, EAWCommand::TurnLeft); }
+void UAWProgrammingScreen::OnTurnRightP2() { AddCommand(1, EAWCommand::TurnRight); }
+void UAWProgrammingScreen::OnRemoveP2() { RemoveLastCommand(1); }
 
 void UAWSimulationDockWidget::SynchronizeProperties()
 {
@@ -112,20 +151,34 @@ void UAWSimulationDockWidget::SynchronizeProperties()
         SimulationDockTitle->SetText(PlayerLabel);
         SimulationDockTitle->SetColorAndOpacity(FSlateColor(AccentColor));
     }
+    if (SimulationDockDetails)
+        SimulationDockDetails->SetColorAndOpacity(FSlateColor(AccentColor));
 }
 
-void UAWSimulationDockWidget::SetSource(const FString &Source)
+void UAWSimulationDockWidget::SetCommands(const TArray<EAWCommand> &Commands, int32 CurrentCommand)
 {
-    if (SimulationDockSourceBox)
-        SimulationDockSourceBox->SetText(FText::FromString(Source));
+    FString Text;
+    for (int32 Index = 0; Index < Commands.Num(); ++Index)
+        Text += FString::Printf(TEXT("%s %3d | %s\n"), Index == CurrentCommand ? TEXT(">>") : TEXT("  "), Index + 1, LexToString(Commands[Index]));
+    if (SimulationDockCommandsText)
+        SimulationDockCommandsText->SetText(FText::FromString(Text));
 }
 
-void UAWSimulationScreen::SetSources(const FString &PlayerOneSource, const FString &PlayerTwoSource)
+void UAWSimulationDockWidget::SetDetails(const FString &Details)
+{
+    if (SimulationDockDetails)
+    {
+        SimulationDockDetails->SetText(FText::FromString(Details));
+        SimulationDockDetails->SetVisibility(Details.IsEmpty() ? ESlateVisibility::Collapsed : ESlateVisibility::HitTestInvisible);
+    }
+}
+
+void UAWSimulationScreen::SetCommands(const TArray<EAWCommand> &PlayerOneCommands, const TArray<EAWCommand> &PlayerTwoCommands)
 {
     if (SimulationP1DockWidget)
-        SimulationP1DockWidget->SetSource(PlayerOneSource);
+        SimulationP1DockWidget->SetCommands(PlayerOneCommands);
     if (SimulationP2DockWidget)
-        SimulationP2DockWidget->SetSource(PlayerTwoSource);
+        SimulationP2DockWidget->SetCommands(PlayerTwoCommands);
 }
 
 void UAWReplayAutopsyScreen::NativeConstruct()
@@ -136,8 +189,6 @@ void UAWReplayAutopsyScreen::NativeConstruct()
     BIND_SCREEN_BUTTON("ReplayPauseButton", UAWReplayAutopsyScreen, OnPause);
     BIND_SCREEN_BUTTON("ReplayPlayButton", UAWReplayAutopsyScreen, OnPlay);
     BIND_SCREEN_BUTTON("ReplayStepButton", UAWReplayAutopsyScreen, OnStep);
-    BIND_SCREEN_BUTTON("ReplayStepP1Button", UAWReplayAutopsyScreen, OnStepP1);
-    BIND_SCREEN_BUTTON("ReplayStepP2Button", UAWReplayAutopsyScreen, OnStepP2);
     BIND_SCREEN_BUTTON("ReplayQuarterButton", UAWReplayAutopsyScreen, OnSpeedQuarter);
     BIND_SCREEN_BUTTON("ReplayNormalButton", UAWReplayAutopsyScreen, OnSpeedNormal);
     BIND_SCREEN_BUTTON("ReplayDoubleButton", UAWReplayAutopsyScreen, OnSpeedDouble);
@@ -154,10 +205,8 @@ void UAWReplayAutopsyScreen::SetOutcome(const FString &Outcome)
         ReplayOutcomeText->SetText(FText::FromString(Outcome));
 }
 
-void UAWReplayAutopsyScreen::SetTimeline(int32 CurrentTick, int32 TotalTicks, float Speed, float NormalizedPosition)
+void UAWReplayAutopsyScreen::SetTimeline(float Speed, float NormalizedPosition)
 {
-    if (ReplayTickText)
-        ReplayTickText->SetText(FText::FromString(FString::Printf(TEXT("Tick: %d/%d"), CurrentTick, TotalTicks - 1)));
     SetSpeed(Speed);
     if (ReplayScrubSlider)
     {
@@ -172,14 +221,14 @@ void UAWReplayAutopsyScreen::SetSpeed(float Speed)
         ReplaySpeedText->SetText(FText::FromString(FString::Printf(TEXT("Speed: %.2fx"), Speed)));
 }
 
-void UAWReplayAutopsyScreen::SetCombatantData(int32 PlayerIndex, const FString &Source, const FString &Registers)
+void UAWReplayAutopsyScreen::SetCombatantData(int32 PlayerIndex, const TArray<EAWCommand> &Commands, int32 CurrentCommand, const FString &Details)
 {
-    UTextBlock *SourceText = PlayerIndex == 0 ? ReplaySourceAText.Get() : ReplaySourceBText.Get();
-    UTextBlock *RegisterText = PlayerIndex == 0 ? ReplayRegistersP1.Get() : ReplayRegistersP2.Get();
-    if (SourceText)
-        SourceText->SetText(FText::FromString(Source));
-    if (RegisterText)
-        RegisterText->SetText(FText::FromString(Registers));
+    UAWSimulationDockWidget *Dock = PlayerIndex == 0 ? ReplayP1DockWidget.Get() : ReplayP2DockWidget.Get();
+    if (Dock)
+    {
+        Dock->SetCommands(Commands, CurrentCommand);
+        Dock->SetDetails(Details);
+    }
 }
 
 void UAWReplayAutopsyScreen::SetEventLog(const FString &EventLog)
@@ -193,8 +242,6 @@ void UAWReplayAutopsyScreen::OnBack() { BroadcastAction(EAWUIAction::ReplayBack)
 void UAWReplayAutopsyScreen::OnPause() { BroadcastAction(EAWUIAction::ReplayPause); }
 void UAWReplayAutopsyScreen::OnPlay() { BroadcastAction(EAWUIAction::ReplayPlay); }
 void UAWReplayAutopsyScreen::OnStep() { BroadcastAction(EAWUIAction::ReplayStep); }
-void UAWReplayAutopsyScreen::OnStepP1() { BroadcastAction(EAWUIAction::ReplayStepP1); }
-void UAWReplayAutopsyScreen::OnStepP2() { BroadcastAction(EAWUIAction::ReplayStepP2); }
 void UAWReplayAutopsyScreen::OnSpeedQuarter() { BroadcastAction(EAWUIAction::ReplaySpeedQuarter); }
 void UAWReplayAutopsyScreen::OnSpeedNormal() { BroadcastAction(EAWUIAction::ReplaySpeedNormal); }
 void UAWReplayAutopsyScreen::OnSpeedDouble() { BroadcastAction(EAWUIAction::ReplaySpeedDouble); }

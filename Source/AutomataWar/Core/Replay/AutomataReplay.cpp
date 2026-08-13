@@ -83,7 +83,7 @@ namespace Automata
     std::vector<uint8_t> EncodeReplay(const ReplayData &data)
     {
         std::vector<uint8_t> out;
-        out.reserve(32 + data.sourceA.size() + data.sourceB.size());
+        out.reserve(32 + data.commandsA.Num() + data.commandsB.Num());
 
         // Magic.
         out.push_back('A');
@@ -94,15 +94,17 @@ namespace Automata
         WriteU64(out, data.rulesetHash);
         WriteU64(out, data.seed);
 
-        // Source A.
-        uint16_t lenA = static_cast<uint16_t>(std::min<size_t>(data.sourceA.size(), 65535));
+        // Commands A.
+        uint16_t lenA = static_cast<uint16_t>(FMath::Min<int32>(data.commandsA.Num(), MaxCommands));
         WriteU16(out, lenA);
-        out.insert(out.end(), data.sourceA.begin(), data.sourceA.begin() + lenA);
+        for (uint16_t Index = 0; Index < lenA; ++Index)
+            out.push_back(static_cast<uint8_t>(data.commandsA[Index]));
 
-        // Source B.
-        uint16_t lenB = static_cast<uint16_t>(std::min<size_t>(data.sourceB.size(), 65535));
+        // Commands B.
+        uint16_t lenB = static_cast<uint16_t>(FMath::Min<int32>(data.commandsB.Num(), MaxCommands));
         WriteU16(out, lenB);
-        out.insert(out.end(), data.sourceB.begin(), data.sourceB.begin() + lenB);
+        for (uint16_t Index = 0; Index < lenB; ++Index)
+            out.push_back(static_cast<uint8_t>(data.commandsB[Index]));
 
         // CRC.
         uint32_t crc = Crc32(out.data(), out.size());
@@ -153,7 +155,7 @@ namespace Automata
         result.data.seed = ReadU64(p);
         p += 8;
 
-        // Source A.
+        // Commands A.
         size_t remaining = bytes.size() - static_cast<size_t>(p - bytes.data());
         if (remaining < 2)
         {
@@ -163,16 +165,30 @@ namespace Automata
         uint16_t lenA = ReadU16(p);
         p += 2;
         remaining -= 2;
+        if (lenA == 0 || lenA > MaxCommands)
+        {
+            result.error = ReplayError::InvalidCommands;
+            return result;
+        }
         if (remaining < lenA)
         {
             result.error = ReplayError::Truncated;
             return result;
         }
-        result.data.sourceA.assign(reinterpret_cast<const char *>(p), lenA);
+        result.data.commandsA.Reserve(lenA);
+        for (uint16_t Index = 0; Index < lenA; ++Index)
+        {
+            if (p[Index] >= static_cast<uint8_t>(EAWCommand::Count))
+            {
+                result.error = ReplayError::InvalidCommands;
+                return result;
+            }
+            result.data.commandsA.Add(static_cast<EAWCommand>(p[Index]));
+        }
         p += lenA;
         remaining -= lenA;
 
-        // Source B.
+        // Commands B.
         if (remaining < 2)
         {
             result.error = ReplayError::Truncated;
@@ -181,12 +197,26 @@ namespace Automata
         uint16_t lenB = ReadU16(p);
         p += 2;
         remaining -= 2;
+        if (lenB == 0 || lenB > MaxCommands)
+        {
+            result.error = ReplayError::InvalidCommands;
+            return result;
+        }
         if (remaining < lenB)
         {
             result.error = ReplayError::Truncated;
             return result;
         }
-        result.data.sourceB.assign(reinterpret_cast<const char *>(p), lenB);
+        result.data.commandsB.Reserve(lenB);
+        for (uint16_t Index = 0; Index < lenB; ++Index)
+        {
+            if (p[Index] >= static_cast<uint8_t>(EAWCommand::Count))
+            {
+                result.error = ReplayError::InvalidCommands;
+                return result;
+            }
+            result.data.commandsB.Add(static_cast<EAWCommand>(p[Index]));
+        }
         p += lenB;
         remaining -= lenB;
 

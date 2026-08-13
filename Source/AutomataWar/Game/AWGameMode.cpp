@@ -2,7 +2,7 @@
 #include "AWGameState.h"
 #include "AWPlayerState.h"
 #include "AWPlayerController.h"
-#include "AutomataWar/Core/Lang/AutomataCompiler.h"
+#include "AutomataWar/Core/AutomataRules.h"
 #include "AutomataWar/Core/Sim/AutomataSimulation.h"
 #include "AutomataWar/Visual/AWSpectatorPawn.h"
 #include "Engine/World.h"
@@ -17,9 +17,8 @@ AAWGameMode::AAWGameMode()
     PlayerControllerClass = AAWPlayerController::StaticClass();
     DefaultPawnClass = AAWSpectatorPawn::StaticClass();
 
-    // Default sources to DefaultBot template
-    AcceptedSource[0] = FAWExampleScripts::DefaultBot();
-    AcceptedSource[1] = FAWExampleScripts::DefaultBot();
+    AcceptedCommands[0] = {EAWCommand::Move};
+    AcceptedCommands[1] = {EAWCommand::Move};
 }
 
 void AAWGameMode::InitGame(const FString &MapName, const FString &Options, FString &ErrorMessage)
@@ -35,7 +34,7 @@ void AAWGameMode::PostLogin(APlayerController *NewPlayer)
 
     if (AAWPlayerState *PS = NewPlayer->GetPlayerState<AAWPlayerState>())
     {
-        PS->ScriptSlot = NextSlot;
+        PS->CommandSlot = NextSlot;
         NextSlot = FMath::Min(NextSlot + 1, 1);
     }
 }
@@ -47,14 +46,14 @@ void AAWGameMode::Logout(AController *Exiting)
     {
         if (AAWPlayerState *PS = Exiting->GetPlayerState<AAWPlayerState>())
         {
-            UE_LOG(LogAutomataNet, Warning, TEXT("Player slot %d disconnected, treating as forfeit."), PS->ScriptSlot);
+            UE_LOG(LogAutomataNet, Warning, TEXT("Player slot %d disconnected, treating as forfeit."), PS->CommandSlot);
         }
 
         AAWGameState *GS = GetGameState<AAWGameState>();
         if (GS && GS->Phase != EAWMatchPhase::ReplayAutopsy)
         {
             // End the match as forfeit for the disconnected player
-            GS->Outcome.WinnerSlot = (Exiting->GetPlayerState<AAWPlayerState>()->ScriptSlot == 0) ? 1 : 0;
+            GS->Outcome.WinnerSlot = (Exiting->GetPlayerState<AAWPlayerState>()->CommandSlot == 0) ? 1 : 0;
             SetPhase(EAWMatchPhase::ReplayAutopsy);
         }
     }
@@ -67,8 +66,8 @@ void AAWGameMode::BeginLocalMatch()
     bLocalMatch = true;
     GetWorld()->GetTimerManager().ClearTimer(SubmissionTimerHandle);
 
-    AcceptedSource[0] = FAWExampleScripts::DefaultBot();
-    AcceptedSource[1] = FAWExampleScripts::DefaultBot();
+    AcceptedCommands[0] = {EAWCommand::Move};
+    AcceptedCommands[1] = {EAWCommand::Move};
     bSlotSubmitted[0] = false;
     bSlotSubmitted[1] = false;
 
@@ -76,8 +75,8 @@ void AAWGameMode::BeginLocalMatch()
     {
         GS->RoundNumber = 1;
         GS->SubmissionTimeRemaining = -1.f;
-        GS->RevealedSource0.Empty();
-        GS->RevealedSource1.Empty();
+        GS->RevealedCommands0.Reset();
+        GS->RevealedCommands1.Reset();
         GS->AuthoritativeHash = 0;
         GS->SimSeed = 0;
         GS->Outcome = FAWMatchOutcome();
@@ -86,7 +85,7 @@ void AAWGameMode::BeginLocalMatch()
     SetPhase(EAWMatchPhase::Programming);
 }
 
-FAWValidationResult AAWGameMode::HandleSubmission(int32 Slot, const FString &Source)
+FAWValidationResult AAWGameMode::HandleSubmission(int32 Slot, const TArray<EAWCommand> &Commands)
 {
     AAWGameState *GS = GetGameState<AAWGameState>();
     if (!GS || GS->Phase != EAWMatchPhase::Programming)
@@ -99,36 +98,34 @@ FAWValidationResult AAWGameMode::HandleSubmission(int32 Slot, const FString &Sou
     if (Slot < 0 || Slot > 1)
     {
         FAWValidationResult R;
-        R.ErrorMessage = TEXT("Invalid script slot.");
+        R.ErrorMessage = TEXT("Invalid command slot.");
         return R;
     }
 
-    // Validate structure
-    FAWValidationResult ValResult = FAWScriptValidator::Validate(Source);
-    if (!ValResult.bSuccess)
-    {
-        return ValResult;
-    }
-
-    // Compile to verify correctness
-    std::string StdSource = TCHAR_TO_UTF8(*Source);
-    Automata::CompileResult CompResult = Automata::Compile(StdSource);
-    if (!CompResult.Ok())
+    if (Commands.IsEmpty())
     {
         FAWValidationResult R;
-        R.ErrorMessage = TEXT("Compilation failed: ");
-        if (!CompResult.diagnostics.empty())
-        {
-            R.ErrorMessage += UTF8_TO_TCHAR(CompResult.diagnostics[0].message.c_str());
-        }
+        R.ErrorMessage = TEXT("Add at least one action before submitting.");
         return R;
     }
+    if (Commands.Num() > Automata::MaxCommands)
+    {
+        FAWValidationResult R;
+        R.ErrorMessage = FString::Printf(TEXT("A program can contain at most %d actions."), Automata::MaxCommands);
+        return R;
+    }
+    for (EAWCommand Command : Commands)
+        if (Command >= EAWCommand::Count)
+        {
+            FAWValidationResult R;
+            R.ErrorMessage = TEXT("Command list contains an invalid action.");
+            return R;
+        }
 
-    // Accept
-    AcceptedSource[Slot] = Source;
+    AcceptedCommands[Slot] = Commands;
     bSlotSubmitted[Slot] = true;
 
-    UE_LOG(LogAutomataGame, Log, TEXT("Slot %d submitted (%d chars)."), Slot, Source.Len());
+    UE_LOG(LogAutomataGame, Log, TEXT("Slot %d submitted (%d actions)."), Slot, Commands.Num());
 
     // Check if both submitted
     if (bSlotSubmitted[0] && bSlotSubmitted[1])
@@ -147,9 +144,9 @@ FAWValidationResult AAWGameMode::HandleSubmission(int32 Slot, const FString &Sou
         }
     }
 
-    ValResult.bSuccess = true;
-    ValResult.ErrorMessage.Empty();
-    return ValResult;
+    FAWValidationResult Result;
+    Result.bSuccess = true;
+    return Result;
 }
 
 void AAWGameMode::OnBothSubmitted()
@@ -166,7 +163,7 @@ void AAWGameMode::OnSubmissionTimerExpired()
     {
         if (!bSlotSubmitted[i])
         {
-            UE_LOG(LogAutomataNet, Log, TEXT("Slot %d timer expired, using last accepted source."), i);
+            UE_LOG(LogAutomataNet, Log, TEXT("Slot %d timer expired, using last accepted commands."), i);
             bSlotSubmitted[i] = true;
         }
     }
@@ -177,23 +174,13 @@ void AAWGameMode::RunSimulation()
 {
     SetPhase(EAWMatchPhase::Simulation);
 
-    std::string Src0 = TCHAR_TO_UTF8(*AcceptedSource[0]);
-    std::string Src1 = TCHAR_TO_UTF8(*AcceptedSource[1]);
-
-    Automata::CompileResult C0 = Automata::Compile(Src0);
-    Automata::CompileResult C1 = Automata::Compile(Src1);
-
-    // Both already validated; this should not fail
-    check(C0.Ok() && C1.Ok());
-
-    // Generate seed
     uint64 Seed = static_cast<uint64>(FMath::Rand()) ^ (static_cast<uint64>(FMath::Rand()) << 32);
 
     Automata::SimConfig Config;
     Config.seed = Seed;
 
     Automata::Simulation Sim;
-    Automata::MatchResult Result = Sim.RunMatch(C0.program, C1.program, Config);
+    Automata::MatchResult Result = Sim.RunMatch(AcceptedCommands[0], AcceptedCommands[1], Config);
     uint64 FinalHash = Sim.GetFinalHash();
 
     // Populate GameState
@@ -202,10 +189,9 @@ void AAWGameMode::RunSimulation()
     {
         GS->SimSeed = static_cast<int64>(Seed);
         GS->AuthoritativeHash = static_cast<int64>(FinalHash);
-        GS->RevealedSource0 = AcceptedSource[0];
-        GS->RevealedSource1 = AcceptedSource[1];
+        GS->RevealedCommands0 = AcceptedCommands[0];
+        GS->RevealedCommands1 = AcceptedCommands[1];
 
-        GS->Outcome.FinalTick = Result.finalTick;
         GS->Outcome.HP0 = Result.finalHP[0];
         GS->Outcome.HP1 = Result.finalHP[1];
         switch (Result.outcome)
@@ -245,8 +231,8 @@ void AAWGameMode::AdvanceToNextRound()
         return;
 
     GS->RoundNumber++;
-    GS->RevealedSource0.Empty();
-    GS->RevealedSource1.Empty();
+    GS->RevealedCommands0.Reset();
+    GS->RevealedCommands1.Reset();
     GS->SubmissionTimeRemaining = -1.f;
     bSlotSubmitted[0] = false;
     bSlotSubmitted[1] = false;

@@ -4,7 +4,7 @@ import unreal
 HUD_PATH = "/Game/UI/WBP_AWHUD"
 SCREEN_DIR = "/Game/UI/Screens"
 CONTROLLER_PATH = "/Game/Blueprints/BP_AWPlayerController"
-CODE_EDITOR_CLASS_PATH = "/Script/AutomataWar.AWCodeEditorWidget"
+LEGACY_CODE_EDITOR_PATH = "/Game/UI/WBP_AWCodeEditor"
 SCREEN_BLUEPRINTS = {
     "MainMenu": ("WBP_AWMainMenuScreen", "/Script/AutomataWar.AWMainMenuScreen"),
     "Programming": ("WBP_AWProgrammingScreen", "/Script/AutomataWar.AWProgrammingScreen"),
@@ -39,6 +39,8 @@ V_BOTTOM = unreal.VerticalAlignment.V_ALIGN_BOTTOM
 
 bridge = unreal.AWWidgetBlueprintLibrary
 asset_tools = unreal.AssetToolsHelpers.get_asset_tools()
+if unreal.EditorAssetLibrary.does_asset_exist(LEGACY_CODE_EDITOR_PATH):
+    unreal.EditorAssetLibrary.delete_asset(LEGACY_CODE_EDITOR_PATH)
 hud_blueprint = unreal.load_asset(HUD_PATH)
 if not hud_blueprint:
     raise RuntimeError(f"Missing Widget Blueprint: {HUD_PATH}")
@@ -46,11 +48,6 @@ if not hud_blueprint:
 hud_tree = bridge.get_widget_tree(hud_blueprint)
 if not hud_tree:
     raise RuntimeError("WBP_AWHUD has no WidgetTree")
-
-code_editor_class = unreal.load_class(None, CODE_EDITOR_CLASS_PATH)
-if not code_editor_class:
-    raise RuntimeError(
-        f"Missing native widget class: {CODE_EDITOR_CLASS_PATH}")
 
 screen_blueprints = {}
 for screen_key, (asset_name, native_class_path) in SCREEN_BLUEPRINTS.items():
@@ -72,7 +69,6 @@ for screen_key, (asset_name, native_class_path) in SCREEN_BLUEPRINTS.items():
 
 blueprint = hud_blueprint
 tree = hud_tree
-bridge.clear_widget_tree(hud_tree)
 
 
 def make(widget_class, name, variable=False):
@@ -101,16 +97,8 @@ def save_widget_blueprint(widget_key):
         widget_blueprint, only_if_is_dirty=False)
 
 
-def attach_screen(screen_key, widget_name):
-    global blueprint, tree
-    screen_blueprint = screen_blueprints[screen_key]
+def save_screen(screen_key):
     save_widget_blueprint(screen_key)
-
-    blueprint = hud_blueprint
-    tree = hud_tree
-    screen_widget = make(
-        screen_blueprint.generated_class(), widget_name, True)
-    screen_switcher.add_child(screen_widget)
 
 
 def margin(left=0.0, top=0.0, right=0.0, bottom=0.0):
@@ -163,8 +151,9 @@ def label(name, value, size=18, color=TEXT, bold=False, mono=False,
     return item
 
 
-def button(name, value, color=PANEL_ALT, tooltip="", compact=False):
-    item = make(unreal.Button, name)
+def button(name, value, color=PANEL_ALT, tooltip="", compact=False,
+           variable=False):
+    item = make(unreal.Button, name, variable)
     item.set_background_color(color)
     item.set_color_and_opacity(WHITE)
     if tooltip:
@@ -220,41 +209,6 @@ def screen_header(parent, eyebrow, title, subtitle="", accent=CYAN):
                           MUTED, wrap=True), padding=margin(0, 0, 0, 16))
 
 
-root = make(unreal.CanvasPanel, "HUDCanvas")
-bridge.set_root_widget(tree, root)
-
-background = make(unreal.Border, "HUDBackground")
-background.set_brush_color(TRANSPARENT)
-background.set_padding(margin())
-canvas_slot = root.add_child(background)
-canvas_slot.set_anchors(unreal.Anchors(
-    minimum=unreal.Vector2D(0.0, 0.0), maximum=unreal.Vector2D(1.0, 1.0)))
-canvas_slot.set_offsets(margin())
-
-scale_box = make(unreal.ScaleBox, "ResponsiveScale")
-scale_box.set_stretch(unreal.Stretch.SCALE_TO_FIT)
-scale_box.set_stretch_direction(unreal.StretchDirection.BOTH)
-background.add_child(scale_box)
-
-design_size = make(unreal.SizeBox, "DesignSize")
-design_size.set_width_override(1600.0)
-design_size.set_height_override(900.0)
-scale_box.add_child(design_size)
-
-shell = make(unreal.VerticalBox, "HUDShell")
-design_size.add_child(shell)
-
-screen_switcher = make(unreal.WidgetSwitcher, "ScreenSwitcher", True)
-add(shell, screen_switcher, fill=True, weight=1.0)
-
-status_border = make(unreal.Border, "StatusBar")
-status_border.set_brush_color(GAMEPLAY_PANEL)
-status_border.set_padding(margin(16, 8, 16, 8))
-status_text = label("StatusText", "READY", 14, MUTED, bold=True, variable=True)
-status_border.add_child(status_text)
-add(shell, status_border, padding=margin(0, 10, 0, 0), v=V_BOTTOM)
-
-
 begin_screen("MainMenu")
 main_screen = make(unreal.Border, "MainMenuScreen")
 bridge.set_root_widget(tree, main_screen)
@@ -270,10 +224,10 @@ add(identity, label("MainEyebrow", "DETERMINISTIC TACTICAL SIMULATION",
                     15, YELLOW, bold=True), padding=margin(0, 0, 0, 12))
 add(identity, label("MainTitle", "AUTOMATA\nWAR", 74, TEXT, bold=True),
     padding=margin(0, 0, 0, 14))
-add(identity, label("MainTagline", "PROGRAM. DEPLOY. OUTTHINK.", 21,
+add(identity, label("MainTagline", "PLAN. DEPLOY. OUTTHINK.", 21,
                     CYAN, bold=True), padding=margin(0, 0, 0, 24))
 add(identity, label("MainDescription",
-                    "CODE IS COMMAND. EVERY TICK LEAVES EVIDENCE.",
+                    "EVERY ACTION LEAVES EVIDENCE.",
                     17, MUTED, wrap=True), padding=margin(0, 0, 70, 0))
 
 menu_panel, menu = panel("MainActions", PANEL, 28)
@@ -284,7 +238,7 @@ add(main_layout, menu_size, padding=margin(0, 10, 0, 10), v=V_CENTER)
 add(menu, label("MainActionsTitle", "COMMAND CONSOLE", 20, TEXT, bold=True),
     padding=margin(0, 0, 0, 14))
 add(menu, button("LocalMatchButton", "START LOCAL MATCH", CYAN,
-                 "Configure both programs on this machine"),
+                 "Configure both command queues on this machine"),
     padding=margin(0, 0, 0, 10))
 
 lan_row = make(unreal.HorizontalBox, "LanActions")
@@ -316,12 +270,12 @@ utility_row = make(unreal.HorizontalBox, "UtilityActions")
 add(utility_row, button("ReplayBrowserButton", "REPLAYS", PANEL_ALT,
                         "Browse saved match replays", True),
     fill=True, padding=margin(0, 0, 5, 0))
-add(utility_row, button("LanguageReferenceButton", "LANGUAGE", PANEL_ALT,
-                        "Open the programming language reference", True),
+add(utility_row, button("LanguageReferenceButton", "COMMANDS", PANEL_ALT,
+                        "Open the command reference", True),
     fill=True, padding=margin(5, 0, 0, 0))
 add(menu, utility_row, padding=margin(0, 0, 0, 10))
 add(menu, button("QuitButton", "QUIT", CORAL, "Exit Automata War", True))
-attach_screen("MainMenu", "MainMenuScreenWidget")
+save_screen("MainMenu")
 
 
 begin_screen("Programming")
@@ -352,28 +306,65 @@ def build_editor_panel(player_index, accent):
                       13, MUTED, bold=True), h=H_RIGHT, v=V_CENTER)
     add(body, header, padding=margin(0, 0, 0, 10))
 
-    editor_name = f"EditorP{player_index}"
-    editor = make(code_editor_class, editor_name, True)
-    editor_frame = make(unreal.Border, f"{editor_name}Frame")
-    editor_frame.set_brush_color(BACKGROUND)
-    editor_frame.set_padding(margin(8, 8, 8, 8))
-    editor_frame.add_child(editor)
-    add(body, editor_frame, fill=True, weight=1.0,
+    workspace = make(unreal.HorizontalBox, f"Player{player_index}Workspace")
+
+    queue = make(unreal.VerticalBox, f"Player{player_index}Queue")
+    queue_header = make(unreal.HorizontalBox, f"Player{player_index}QueueHeader")
+    add(queue_header, label(f"Player{player_index}QueueTitle", "ACTION QUEUE",
+                            14, MUTED, bold=True), fill=True, v=V_CENTER)
+    remove = button(f"RemoveActionP{player_index}Button", "REMOVE ACTION",
+                    CORAL, "Remove the last action", True, True)
+    remove.set_visibility(unreal.SlateVisibility.COLLAPSED)
+    add(queue_header, remove, h=H_RIGHT, v=V_CENTER)
+    add(queue, queue_header, padding=margin(0, 0, 0, 8))
+
+    queue_frame = make(unreal.Border, f"Player{player_index}QueueFrame")
+    queue_frame.set_brush_color(BACKGROUND)
+    queue_frame.set_padding(margin(8, 8, 8, 8))
+    queue_scroll = make(unreal.ScrollBox, f"Player{player_index}QueueScroll")
+    queue_scroll.set_always_show_scrollbar(True)
+    queue_text = label(f"ProgramP{player_index}Text",
+                       "NO ACTIONS SELECTED", 14, TEXT,
+                       mono=True, variable=True)
+    add(queue_scroll, queue_text, padding=margin(4, 4, 12, 4),
+        h=H_FILL, v=V_TOP)
+    queue_frame.add_child(queue_scroll)
+    add(queue, queue_frame, fill=True, weight=1.0)
+    add(workspace, queue, fill=True, padding=margin(0, 0, 10, 0), weight=1.0)
+
+    commands_frame = make(unreal.Border, f"Player{player_index}CommandsFrame")
+    commands_frame.set_brush_color(GAMEPLAY_PANEL)
+    commands_frame.set_padding(margin(10, 10, 10, 10))
+    commands = make(unreal.VerticalBox, f"Player{player_index}Commands")
+    commands_frame.add_child(commands)
+    add(commands, label(f"Player{player_index}CommandsTitle",
+                        "AVAILABLE COMMANDS", 14, accent, bold=True,
+                        wrap=True), padding=margin(0, 0, 0, 8))
+    command_scroll = make(unreal.ScrollBox,
+                          f"Player{player_index}CommandsScroll")
+    command_buttons = make(unreal.VerticalBox,
+                           f"Player{player_index}CommandButtons")
+    for name, value in [
+            ("Move", "MOVE"),
+            ("Fire", "FIRE"),
+            ("TurnLeft", "TURN LEFT"),
+            ("TurnRight", "TURN RIGHT")]:
+        add(command_buttons,
+            button(f"{name}P{player_index}Button", value, PANEL_ALT,
+                   f"Add {value.lower()} to the queue", True),
+            padding=margin(0, 0, 0, 8))
+    add(command_scroll, command_buttons, h=H_FILL, v=V_TOP)
+    add(commands, command_scroll, fill=True, weight=1.0)
+    commands_size = make(unreal.SizeBox, f"Player{player_index}CommandsSize")
+    commands_size.set_width_override(190.0)
+    commands_size.add_child(commands_frame)
+    add(workspace, commands_size)
+    add(body, workspace, fill=True, weight=1.0,
         padding=margin(0, 0, 0, 10))
 
-    actions = make(unreal.HorizontalBox, f"Player{player_index}Actions")
-    add(actions, button(f"SubmitP{player_index}Button", "SUBMIT", accent,
-                        f"Submit player {player_index} program", True),
-        fill=True, padding=margin(0, 0, 5, 0))
-    for script_name in ["Aggressor", "Camper", "Kiter"]:
-        add(actions, button(f"{script_name}P{player_index}Button",
-                            script_name.upper(), PANEL_ALT,
-                            f"Load the {script_name} example", True),
-            padding=margin(5, 0, 0, 0))
-    add(actions, button(f"TrainingP{player_index}Button", "TRAIN", GREEN,
-                        "Run ten quick training matches", True),
-        padding=margin(5, 0, 0, 0))
-    add(body, actions)
+    add(body, button(f"SubmitP{player_index}Button", "SUBMIT", accent,
+                     f"Submit player {player_index} command queue", True),
+        h=H_FILL)
     return player_panel
 
 
@@ -381,7 +372,7 @@ add(editors_row, build_editor_panel(1, CYAN), fill=True,
     padding=margin(0, 0, 8, 0), weight=1.0)
 add(editors_row, build_editor_panel(2, CORAL), fill=True,
     padding=margin(8, 0, 0, 0), weight=1.0)
-attach_screen("Programming", "ProgrammingScreenWidget")
+save_screen("Programming")
 
 
 begin_screen("SimulationDock")
@@ -392,17 +383,31 @@ simulation_dock_panel, simulation_dock_body = panel(
     "SimulationDockPanel", GAMEPLAY_PANEL, 12)
 simulation_dock.add_child(simulation_dock_panel)
 add(simulation_dock_body, label(
-    "SimulationDockTitle", "PLAYER PROGRAM", 16, CYAN,
+    "SimulationDockTitle", "PLAYER COMMANDS", 16, CYAN,
     bold=True, variable=True), padding=margin(0, 0, 0, 8))
 
-simulation_dock_source = make(
-    unreal.MultiLineEditableTextBox, "SimulationDockSourceBox", True)
-simulation_dock_source.set_text("AWAITING PROGRAM")
-simulation_dock_source.set_is_read_only(True)
-simulation_dock_source.set_editor_property("auto_wrap_text", False)
-simulation_dock_source.set_foreground_color(TEXT)
-add(simulation_dock_body, simulation_dock_source,
-    fill=True, weight=1.0)
+simulation_dock_vertical_scroll = make(
+    unreal.ScrollBox, "SimulationDockVerticalScroll")
+simulation_dock_vertical_scroll.set_always_show_scrollbar(True)
+simulation_dock_horizontal_scroll = make(
+    unreal.ScrollBox, "SimulationDockHorizontalScroll")
+simulation_dock_horizontal_scroll.set_orientation(
+    unreal.Orientation.ORIENT_HORIZONTAL)
+simulation_dock_horizontal_scroll.set_always_show_scrollbar(True)
+simulation_dock_source = label(
+    "SimulationDockCommandsText", "AWAITING COMMANDS", 13, TEXT,
+    mono=True, variable=True)
+add(simulation_dock_horizontal_scroll, simulation_dock_source,
+    padding=margin(8, 8, 8, 8), h=H_LEFT, v=V_TOP)
+add(simulation_dock_vertical_scroll, simulation_dock_horizontal_scroll,
+    h=H_FILL, v=V_FILL)
+add(simulation_dock_body, simulation_dock_vertical_scroll,
+    fill=True, weight=1.0, padding=margin(0, 0, 0, 8))
+simulation_dock_details = label(
+    "SimulationDockDetails", "", 11, CYAN,
+    mono=True, wrap=True, variable=True)
+simulation_dock_details.set_visibility(unreal.SlateVisibility.COLLAPSED)
+add(simulation_dock_body, simulation_dock_details)
 save_widget_blueprint("SimulationDock")
 simulation_dock_class = screen_blueprints["SimulationDock"].generated_class()
 
@@ -423,7 +428,7 @@ add(simulation_titles, label("SimulationEyebrow", "MATCH ENGINE", 12,
 add(simulation_titles, label("SimulationTitle", "TACTICAL EXECUTION", 25,
                              CYAN, bold=True))
 add(simulation_header, simulation_titles, fill=True, v=V_CENTER)
-add(simulation_header, label("SimulationStatus", "PROGRAMS LOCKED", 14,
+add(simulation_header, label("SimulationStatus", "COMMANDS LOCKED", 14,
                              GREEN, bold=True), h=H_RIGHT, v=V_CENTER)
 add(simulation_body, simulation_header)
 add(simulation_layout, simulation_banner, padding=margin(0, 0, 0, 12))
@@ -433,7 +438,7 @@ simulation_workspace = make(unreal.HorizontalBox, "SimulationWorkspace")
 simulation_one_dock = make(
     simulation_dock_class, "SimulationP1DockWidget", True)
 simulation_one_dock.set_editor_property(
-    "PlayerLabel", "PLAYER 1 PROGRAM")
+    "PlayerLabel", "PLAYER 1 COMMANDS")
 simulation_one_dock.set_editor_property("AccentColor", CYAN)
 add(simulation_workspace, simulation_one_dock,
     padding=margin(0, 0, 10, 0))
@@ -459,7 +464,7 @@ add(simulation_workspace, simulation_arena_frame, fill=True,
 simulation_two_dock = make(
     simulation_dock_class, "SimulationP2DockWidget", True)
 simulation_two_dock.set_editor_property(
-    "PlayerLabel", "PLAYER 2 PROGRAM")
+    "PlayerLabel", "PLAYER 2 COMMANDS")
 simulation_two_dock.set_editor_property("AccentColor", CORAL)
 add(simulation_workspace, simulation_two_dock,
     padding=margin(10, 0, 0, 0))
@@ -475,7 +480,7 @@ add(simulation_footer_row, label("SimulationReadout", "RESOLVING MATCH...",
                                  13, MUTED, bold=True), h=H_RIGHT)
 add(simulation_footer_body, simulation_footer_row)
 add(simulation_layout, simulation_footer)
-attach_screen("Simulation", "SimulationScreenWidget")
+save_screen("Simulation")
 
 
 begin_screen("ReplayAutopsy")
@@ -500,12 +505,10 @@ transport_panel, transport = panel("ReplayTransport", GAMEPLAY_PANEL, 12)
 transport_row = make(unreal.HorizontalBox, "TransportRow")
 for name, value, tip in [
         ("ReplayStartButton", "|<", "Jump to start"),
-        ("ReplayBackButton", "<", "Step back one tick"),
+        ("ReplayBackButton", "<", "Step back one action"),
         ("ReplayPauseButton", "||", "Pause playback"),
         ("ReplayPlayButton", ">", "Play replay"),
-        ("ReplayStepButton", ">|", "Step forward one tick"),
-        ("ReplayStepP1Button", "P1 >|", "Step to player one instruction"),
-        ("ReplayStepP2Button", "P2 >|", "Step to player two instruction")]:
+        ("ReplayStepButton", ">|", "Step forward one action")]:
     add(transport_row, button(name, value, PANEL_ALT, tip, True),
         padding=margin(0, 0, 5, 0), v=V_CENTER)
 
@@ -527,9 +530,6 @@ add(transport_row, scrub, fill=True, v=V_CENTER, weight=1.0)
 add(transport, transport_row)
 
 timeline_status = make(unreal.HorizontalBox, "TimelineStatus")
-add(timeline_status, label("ReplayTickText", "TICK 0 / 0", 14,
-                           TEXT, bold=True, variable=True),
-    padding=margin(0, 0, 18, 0))
 add(timeline_status, label("ReplaySpeedText", "SPEED 1x", 14,
                            MUTED, bold=True, variable=True))
 add(transport, timeline_status, padding=margin(0, 8, 0, 0))
@@ -537,31 +537,10 @@ add(replay_screen, transport_panel, padding=margin(0, 0, 0, 12))
 
 source_row = make(unreal.HorizontalBox, "ReplaySources")
 
-
-def build_source_panel(index, accent):
-    source_panel, body = panel(
-        f"ReplayP{index}Panel", GAMEPLAY_PANEL, 12)
-    add(body, label(f"ReplayP{index}Title", f"PLAYER {index} SOURCE",
-                    17, accent, bold=True), padding=margin(0, 0, 0, 8))
-    source_scroll = make(unreal.ScrollBox, f"ReplayP{index}SourceScroll")
-    source_scroll.set_always_show_scrollbar(True)
-    source_text = label(f"ReplaySource{'A' if index == 1 else 'B'}Text",
-                        "", 13, TEXT, mono=True, variable=True)
-    add(source_scroll, source_text, padding=margin(8, 8, 8, 8),
-        h=H_LEFT, v=V_TOP)
-    add(body, source_scroll, fill=True, weight=1.0,
-        padding=margin(0, 0, 0, 8))
-    register_name = f"ReplayRegistersP{index}"
-    registers = label(register_name, "REGISTERS", 11, accent,
-                      mono=True, wrap=True, variable=True)
-    add(body, registers)
-    return source_panel
-
-
-source_one_size = make(unreal.SizeBox, "ReplayP1Dock")
-source_one_size.set_width_override(380.0)
-source_one_size.add_child(build_source_panel(1, CYAN))
-add(source_row, source_one_size, padding=margin(0, 0, 10, 0))
+replay_one_dock = make(simulation_dock_class, "ReplayP1DockWidget", True)
+replay_one_dock.set_editor_property("PlayerLabel", "PLAYER 1 COMMANDS")
+replay_one_dock.set_editor_property("AccentColor", CYAN)
+add(source_row, replay_one_dock, padding=margin(0, 0, 10, 0))
 replay_arena_frame = make(unreal.Border, "ReplayArenaFrame")
 replay_arena_frame.set_brush_color(TRANSPARENT)
 replay_frame_layout = make(unreal.VerticalBox, "ReplayFrameLayout")
@@ -577,10 +556,10 @@ add(replay_frame_center, frame_rail("ReplayFrameRight", width=6.0))
 add(replay_frame_layout, replay_frame_center, fill=True, weight=1.0)
 add(replay_frame_layout, frame_rail("ReplayFrameBottom", height=6.0))
 add(source_row, replay_arena_frame, fill=True, weight=1.0)
-source_two_size = make(unreal.SizeBox, "ReplayP2Dock")
-source_two_size.set_width_override(380.0)
-source_two_size.add_child(build_source_panel(2, CORAL))
-add(source_row, source_two_size, padding=margin(10, 0, 0, 0))
+replay_two_dock = make(simulation_dock_class, "ReplayP2DockWidget", True)
+replay_two_dock.set_editor_property("PlayerLabel", "PLAYER 2 COMMANDS")
+replay_two_dock.set_editor_property("AccentColor", CORAL)
+add(source_row, replay_two_dock, padding=margin(10, 0, 0, 0))
 add(replay_screen, source_row, fill=True, weight=1.0,
     padding=margin(0, 0, 0, 12))
 
@@ -595,16 +574,22 @@ add(event_header, button("NextRoundButton", "NEXT ROUND", GREEN,
                          "Configure the next round", True),
     padding=margin(8, 0, 0, 0), v=V_CENTER)
 add(event_body, event_header, padding=margin(0, 0, 0, 6))
-event_scroll = make(unreal.ScrollBox, "ReplayEventScroll")
+event_scroll = make(unreal.ScrollBox, "ReplayEventVerticalScroll")
+event_scroll.set_always_show_scrollbar(True)
+event_horizontal_scroll = make(unreal.ScrollBox, "ReplayEventHorizontalScroll")
+event_horizontal_scroll.set_orientation(unreal.Orientation.ORIENT_HORIZONTAL)
+event_horizontal_scroll.set_always_show_scrollbar(True)
 event_text = label("ReplayEventLog", "NO EVENTS", 12, MUTED,
                    mono=True, variable=True)
-add(event_scroll, event_text, padding=margin(4, 4, 4, 4), h=H_LEFT, v=V_TOP)
+add(event_horizontal_scroll, event_text, padding=margin(4, 4, 4, 4),
+    h=H_LEFT, v=V_TOP)
+add(event_scroll, event_horizontal_scroll, h=H_FILL, v=V_FILL)
 add(event_body, event_scroll, fill=True, weight=1.0)
 event_panel_size = make(unreal.SizeBox, "ReplayEventsDock")
 event_panel_size.set_height_override(112.0)
 event_panel_size.add_child(event_panel)
 add(replay_screen, event_panel_size)
-attach_screen("ReplayAutopsy", "ReplayAutopsyScreenWidget")
+save_screen("ReplayAutopsy")
 
 
 begin_screen("ReplayBrowser")
@@ -656,7 +641,7 @@ add(browser_body, import_row, padding=margin(0, 0, 0, 18))
 add(browser_body, label("ReplayBrowserStatus", "ARCHIVE READY", 14,
                         MUTED, bold=True, variable=True))
 add(browser_screen, browser_panel, fill=True, weight=1.0)
-attach_screen("ReplayBrowser", "ReplayBrowserScreenWidget")
+save_screen("ReplayBrowser")
 
 
 begin_screen("LanguageReference")
@@ -668,9 +653,9 @@ language_screen = make(unreal.VerticalBox, "LanguageReferenceScreen")
 language_backdrop.add_child(language_screen)
 language_toolbar = make(unreal.HorizontalBox, "LanguageToolbar")
 language_titles = make(unreal.VerticalBox, "LanguageTitles")
-add(language_titles, label("LanguageEyebrow", "PROGRAMMING MANUAL", 13,
+add(language_titles, label("LanguageEyebrow", "COMMAND MANUAL", 13,
                            YELLOW, bold=True))
-add(language_titles, label("LanguageTitle", "LANGUAGE REFERENCE", 30,
+add(language_titles, label("LanguageTitle", "COMMAND REFERENCE", 30,
                            TEXT, bold=True))
 add(language_toolbar, language_titles, fill=True, v=V_CENTER)
 add(language_toolbar, button("LanguageBackButton", "BACK", PANEL_ALT,
@@ -685,7 +670,55 @@ add(language_scroll, reference_text, padding=margin(6, 6, 24, 6),
     h=H_FILL, v=V_TOP)
 add(language_body, language_scroll, fill=True, weight=1.0)
 add(language_screen, language_panel, fill=True, weight=1.0)
-attach_screen("LanguageReference", "LanguageReferenceScreenWidget")
+save_screen("LanguageReference")
+
+blueprint = hud_blueprint
+tree = hud_tree
+bridge.clear_widget_tree(tree)
+
+root = make(unreal.CanvasPanel, "HUDCanvas")
+bridge.set_root_widget(tree, root)
+
+background = make(unreal.Border, "HUDBackground")
+background.set_brush_color(TRANSPARENT)
+background.set_padding(margin())
+canvas_slot = root.add_child(background)
+canvas_slot.set_anchors(unreal.Anchors(
+    minimum=unreal.Vector2D(0.0, 0.0), maximum=unreal.Vector2D(1.0, 1.0)))
+canvas_slot.set_offsets(margin())
+
+scale_box = make(unreal.ScaleBox, "ResponsiveScale")
+scale_box.set_stretch(unreal.Stretch.SCALE_TO_FIT)
+scale_box.set_stretch_direction(unreal.StretchDirection.BOTH)
+background.add_child(scale_box)
+
+design_size = make(unreal.SizeBox, "DesignSize")
+design_size.set_width_override(1600.0)
+design_size.set_height_override(900.0)
+scale_box.add_child(design_size)
+
+shell = make(unreal.VerticalBox, "HUDShell")
+design_size.add_child(shell)
+
+screen_switcher = make(unreal.WidgetSwitcher, "ScreenSwitcher", True)
+add(shell, screen_switcher, fill=True, weight=1.0)
+for screen_key, widget_name in [
+        ("MainMenu", "MainMenuScreenWidget"),
+        ("Programming", "ProgrammingScreenWidget"),
+        ("Simulation", "SimulationScreenWidget"),
+        ("ReplayAutopsy", "ReplayAutopsyScreenWidget"),
+        ("ReplayBrowser", "ReplayBrowserScreenWidget"),
+        ("LanguageReference", "LanguageReferenceScreenWidget")]:
+    screen_widget = make(
+        screen_blueprints[screen_key].generated_class(), widget_name, True)
+    screen_switcher.add_child(screen_widget)
+
+status_border = make(unreal.Border, "StatusBar")
+status_border.set_brush_color(GAMEPLAY_PANEL)
+status_border.set_padding(margin(16, 8, 16, 8))
+status_text = label("StatusText", "READY", 14, MUTED, bold=True, variable=True)
+status_border.add_child(status_text)
+add(shell, status_border, padding=margin(0, 10, 0, 0), v=V_BOTTOM)
 
 screen_switcher.set_active_widget_index(0)
 hud_blueprint.modify()

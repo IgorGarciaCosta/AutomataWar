@@ -48,7 +48,7 @@ void AAWPlayerController::BeginPlay()
     }
 }
 
-void AAWPlayerController::SubmitScript(const FString &Source)
+void AAWPlayerController::SubmitCommands(const TArray<EAWCommand> &Commands)
 {
     if (HasAuthority())
     {
@@ -58,25 +58,25 @@ void AAWPlayerController::SubmitScript(const FString &Source)
             AAWPlayerState *PS = GetPlayerState<AAWPlayerState>();
             if (PS)
             {
-                FAWValidationResult Result = GM->HandleSubmission(PS->ScriptSlot, Source);
+                FAWValidationResult Result = GM->HandleSubmission(PS->CommandSlot, Commands);
                 Client_SubmissionResult(Result.bSuccess, Result.ErrorMessage);
             }
         }
     }
     else
     {
-        Server_SubmitScript(Source);
+        Server_SubmitCommands(Commands);
     }
 }
 
-void AAWPlayerController::Server_SubmitScript_Implementation(const FString &Source)
+void AAWPlayerController::Server_SubmitCommands_Implementation(const TArray<EAWCommand> &Commands)
 {
     AAWGameMode *GM = GetWorld()->GetAuthGameMode<AAWGameMode>();
     AAWPlayerState *PS = GetPlayerState<AAWPlayerState>();
     if (!GM || !PS)
         return;
 
-    FAWValidationResult Result = GM->HandleSubmission(PS->ScriptSlot, Source);
+    FAWValidationResult Result = GM->HandleSubmission(PS->CommandSlot, Commands);
     Client_SubmissionResult(Result.bSuccess, Result.ErrorMessage);
 }
 

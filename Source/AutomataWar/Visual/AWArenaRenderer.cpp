@@ -50,7 +50,7 @@ void AAWArenaRenderer::InitializeArena(const Automata::SimConfig &Config, const 
     SpawnCoverVisuals(Config.gridWidth, Config.gridHeight, Grid);
 }
 
-void AAWArenaRenderer::SetSnapshot(const Automata::TickSnapshot &Snapshot)
+void AAWArenaRenderer::SetSnapshot(const Automata::StepSnapshot &Snapshot)
 {
     if (bHasSnapshot)
     {
@@ -76,11 +76,11 @@ void AAWArenaRenderer::SetSnapshot(const Automata::TickSnapshot &Snapshot)
         PlayerTwoTank->SetTargetTransform(GridToWorld(Snapshot.robots[1].x, Snapshot.robots[1].y), DirToRotation(Snapshot.robots[1].facing));
 }
 
-void AAWArenaRenderer::ProcessEvents(const TArray<Automata::SimEvent> &Events, int32 FromTick, int32 ToTick)
+void AAWArenaRenderer::ProcessEvents(const TArray<Automata::SimEvent> &Events, int32 FromStep, int32 ToStep)
 {
     for (const Automata::SimEvent &Evt : Events)
     {
-        if (Evt.tick < FromTick || Evt.tick > ToTick)
+        if (Evt.step < FromStep || Evt.step > ToStep)
             continue;
 
         const auto &Robot = CurrentSnapshot.robots[Evt.robot];
@@ -97,16 +97,12 @@ void AAWArenaRenderer::ProcessEvents(const TArray<Automata::SimEvent> &Events, i
             PlaySFX(AWVisualAssets::SFX_Fire, MuzzleTransform.GetLocation());
             break;
         }
-        case Automata::EventType::ProjectileBlocked:
+        case Automata::EventType::ShotBlocked:
             TriggerImpact(GridToWorld(Evt.paramA, Evt.paramB));
             break;
         case Automata::EventType::Hit:
             TriggerImpact(Pos);
             PlaySFX(AWVisualAssets::SFX_Impact, Pos);
-            break;
-        case Automata::EventType::ShieldActivate:
-            TriggerShieldBubble(Evt.robot);
-            PlaySFX(AWVisualAssets::SFX_Shield, Pos);
             break;
         case Automata::EventType::Move:
             StartMovementSound(Evt.robot);
@@ -284,48 +280,6 @@ void AAWArenaRenderer::TriggerImpact(FVector WorldPos)
     else
     {
         SpawnTransientLight(WorldPos, 5000.f, 150.f, FColor::Orange, AWVisualConfig::TransientVFXLifespan);
-    }
-}
-
-void AAWArenaRenderer::TriggerShieldBubble(int32 RobotIdx)
-{
-    ResolveTankActors();
-    AAWTankActor *Tank = RobotIdx == 0 ? PlayerOneTank.Get() : PlayerTwoTank.Get();
-    if (!Tank)
-        return;
-
-    FVector Pos = Tank->GetActorLocation();
-
-    UNiagaraSystem *NS = LoadObject<UNiagaraSystem>(nullptr, AWVisualAssets::NS_Shield);
-    if (NS)
-    {
-        UNiagaraFunctionLibrary::SpawnSystemAtLocation(GetWorld(), NS, Pos);
-    }
-    else
-    {
-        UStaticMesh *SphereMesh = LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Sphere.Sphere"));
-        if (SphereMesh)
-        {
-            UStaticMeshComponent *Shield = NewObject<UStaticMeshComponent>(this);
-            Shield->SetupAttachment(GetRootComponent());
-            Shield->SetStaticMesh(SphereMesh);
-            Shield->SetWorldLocation(Pos);
-            Shield->SetWorldScale3D(FVector(1.5f));
-            Shield->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-            Shield->RegisterComponent();
-            if (UMaterialInterface *EffectMaterial = LoadObject<UMaterialInterface>(nullptr, AWVisualAssets::M_Effect))
-                Shield->SetMaterial(0, EffectMaterial);
-
-            UMaterialInstanceDynamic *Mat = Shield->CreateDynamicMaterialInstance(0);
-            if (Mat)
-            {
-                FLinearColor Color = (RobotIdx == 0) ? AWUIColors::AccentCyan : AWUIColors::AccentCoral;
-                Mat->SetVectorParameterValue(TEXT("EmissiveColor"), Color * 3.f);
-                Mat->SetScalarParameterValue(TEXT("Opacity"), 0.3f);
-            }
-
-            ScheduleComponentDestruction(Shield, AWVisualConfig::ShieldBubbleLifespan);
-        }
     }
 }
 

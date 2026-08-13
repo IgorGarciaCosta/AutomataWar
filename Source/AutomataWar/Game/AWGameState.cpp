@@ -12,8 +12,8 @@ void AAWGameState::GetLifetimeReplicatedProps(TArray<FLifetimeProperty> &OutLife
     DOREPLIFETIME(AAWGameState, Phase);
     DOREPLIFETIME(AAWGameState, RoundNumber);
     DOREPLIFETIME(AAWGameState, SubmissionTimeRemaining);
-    DOREPLIFETIME(AAWGameState, RevealedSource0);
-    DOREPLIFETIME(AAWGameState, RevealedSource1);
+    DOREPLIFETIME(AAWGameState, RevealedCommands0);
+    DOREPLIFETIME(AAWGameState, RevealedCommands1);
     DOREPLIFETIME(AAWGameState, AuthoritativeHash);
     DOREPLIFETIME(AAWGameState, SimSeed);
     DOREPLIFETIME(AAWGameState, Outcome);

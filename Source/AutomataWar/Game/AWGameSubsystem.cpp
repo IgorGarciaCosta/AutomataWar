@@ -2,9 +2,6 @@
 #include "AWGameMode.h"
 #include "AWGameState.h"
 #include "AWReplayService.h"
-#include "AWExampleScripts.h"
-#include "AutomataWar/Core/Lang/AutomataCompiler.h"
-#include "AutomataWar/Core/Sim/AutomataSimulation.h"
 #include "AutomataWar/Core/Replay/AutomataReplay.h"
 #include "OnlineSubsystem.h"
 #include "OnlineSessionSettings.h"
@@ -39,7 +36,7 @@ void UAWGameSubsystem::StartLocalMatch()
     OnError.Broadcast(TEXT("Local match requires the Automata War arena."));
 }
 
-FAWValidationResult UAWGameSubsystem::SubmitLocalScript(int32 Slot, const FString &Source)
+FAWValidationResult UAWGameSubsystem::SubmitLocalCommands(int32 Slot, const TArray<EAWCommand> &Commands)
 {
     UWorld *World = GetGameInstance()->GetWorld();
     if (!World)
@@ -57,7 +54,7 @@ FAWValidationResult UAWGameSubsystem::SubmitLocalScript(int32 Slot, const FStrin
         return R;
     }
 
-    return GM->HandleSubmission(Slot, Source);
+    return GM->HandleSubmission(Slot, Commands);
 }
 
 void UAWGameSubsystem::NextRound()
@@ -276,47 +273,6 @@ void UAWGameSubsystem::CleanupSessionDelegates()
     }
 }
 
-// ─── Training ────────────────────────────────────────────────────────────────
-
-void UAWGameSubsystem::RunTraining(const FString &UserSource, int32 Iterations, int32 &OutWins, int32 &OutLosses, int32 &OutDraws)
-{
-    OutWins = OutLosses = OutDraws = 0;
-
-    std::string UserSrc = TCHAR_TO_UTF8(*UserSource);
-    Automata::CompileResult UserCompile = Automata::Compile(UserSrc);
-    if (!UserCompile.Ok())
-        return;
-
-    std::string BotSrc = TCHAR_TO_UTF8(*FAWExampleScripts::DefaultBot());
-    Automata::CompileResult BotCompile = Automata::Compile(BotSrc);
-    if (!BotCompile.Ok())
-        return;
-
-    Iterations = FMath::Clamp(Iterations, 1, 1000);
-
-    for (int32 i = 0; i < Iterations; ++i)
-    {
-        Automata::SimConfig Config;
-        Config.seed = static_cast<uint64>(i * 7919 + 42);
-
-        Automata::Simulation Sim;
-        Automata::MatchResult Result = Sim.RunMatch(UserCompile.program, BotCompile.program, Config);
-
-        switch (Result.outcome)
-        {
-        case Automata::MatchOutcome::Robot0Wins:
-            ++OutWins;
-            break;
-        case Automata::MatchOutcome::Robot1Wins:
-            ++OutLosses;
-            break;
-        default:
-            ++OutDraws;
-            break;
-        }
-    }
-}
-
 // ─── Replay ──────────────────────────────────────────────────────────────────
 
 TArray<FAWReplayInfo> UAWGameSubsystem::GetReplayList()
@@ -338,13 +294,13 @@ bool UAWGameSubsystem::SaveReplay(const FString &Filename)
 
     Automata::ReplayData Data;
     Data.seed = static_cast<uint64>(GS->SimSeed);
-    Data.sourceA = TCHAR_TO_UTF8(*GS->RevealedSource0);
-    Data.sourceB = TCHAR_TO_UTF8(*GS->RevealedSource1);
+    Data.commandsA = GS->RevealedCommands0;
+    Data.commandsB = GS->RevealedCommands1;
 
     return FAWReplayService::Save(Filename, Data);
 }
 
-bool UAWGameSubsystem::LoadReplay(const FString &Filename, FString &OutSource0, FString &OutSource1, int64 &OutSeed, FString &OutError)
+bool UAWGameSubsystem::LoadReplay(const FString &Filename, TArray<EAWCommand> &OutCommands0, TArray<EAWCommand> &OutCommands1, int64 &OutSeed, FString &OutError)
 {
     Automata::ReplayData Data;
     if (!FAWReplayService::Load(Filename, Data, OutError))
@@ -352,8 +308,8 @@ bool UAWGameSubsystem::LoadReplay(const FString &Filename, FString &OutSource0, 
         return false;
     }
 
-    OutSource0 = UTF8_TO_TCHAR(Data.sourceA.c_str());
-    OutSource1 = UTF8_TO_TCHAR(Data.sourceB.c_str());
+    OutCommands0 = MoveTemp(Data.commandsA);
+    OutCommands1 = MoveTemp(Data.commandsB);
     OutSeed = static_cast<int64>(Data.seed);
     return true;
 }
@@ -395,7 +351,7 @@ FAWMatchOutcome UAWGameSubsystem::GetOutcome() const
     return GS ? GS->Outcome : FAWMatchOutcome();
 }
 
-void UAWGameSubsystem::GetRevealedScripts(FString &OutSource0, FString &OutSource1) const
+void UAWGameSubsystem::GetRevealedCommands(TArray<EAWCommand> &OutCommands0, TArray<EAWCommand> &OutCommands1) const
 {
     UWorld *World = GetGameInstance()->GetWorld();
     if (!World)
@@ -404,7 +360,7 @@ void UAWGameSubsystem::GetRevealedScripts(FString &OutSource0, FString &OutSourc
     AAWGameState *GS = World->GetGameState<AAWGameState>();
     if (GS)
     {
-        OutSource0 = GS->RevealedSource0;
-        OutSource1 = GS->RevealedSource1;
+        OutCommands0 = GS->RevealedCommands0;
+        OutCommands1 = GS->RevealedCommands1;
     }
 }

@@ -101,28 +101,10 @@ private:
     void OnQuit();
 
     void OnSubmitSlot(int32 Slot);
-    void OnLoadExample(int32 Slot, const FString &ScriptName);
-    void OnTrainingBot(int32 Slot);
     UFUNCTION()
     void OnSubmitP1();
     UFUNCTION()
     void OnSubmitP2();
-    UFUNCTION()
-    void OnAggressorP1();
-    UFUNCTION()
-    void OnAggressorP2();
-    UFUNCTION()
-    void OnCamperP1();
-    UFUNCTION()
-    void OnCamperP2();
-    UFUNCTION()
-    void OnKiterP1();
-    UFUNCTION()
-    void OnKiterP2();
-    UFUNCTION()
-    void OnTrainingP1();
-    UFUNCTION()
-    void OnTrainingP2();
     UFUNCTION()
     void OnNextRound();
 
@@ -131,18 +113,13 @@ private:
     UFUNCTION()
     void OnReplayPause();
     UFUNCTION()
-    void OnReplayStepTick();
+    void OnReplayStep();
     UFUNCTION()
     void OnReplayStepBack();
-    void OnReplayStepInstruction(int32 RobotIndex);
     void OnReplaySetSpeed(float Speed);
-    void OnReplayScrub(int32 Tick);
+    void OnReplayScrub(int32 Step);
     UFUNCTION()
     void OnReplayScrubStart();
-    UFUNCTION()
-    void OnReplayStepP1();
-    UFUNCTION()
-    void OnReplayStepP2();
     UFUNCTION()
     void OnReplaySpeedQuarter();
     UFUNCTION()
@@ -153,7 +130,7 @@ private:
     void OnReplaySpeedQuadruple();
     void OnReplayScrubChanged(float Value);
     void InitializeReplayFromGameState();
-    bool InitializeReplay(const FString &SourceA, const FString &SourceB, int64 Seed);
+    bool InitializeReplay(const TArray<EAWCommand> &CommandsA, const TArray<EAWCommand> &CommandsB, int64 Seed);
     void UpdateReplayUI();
     void UpdateArenaFromReplay();
 

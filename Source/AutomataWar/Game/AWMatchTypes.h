@@ -11,13 +11,42 @@
 DECLARE_LOG_CATEGORY_EXTERN(LogAutomataGame, Log, All);
 DECLARE_LOG_CATEGORY_EXTERN(LogAutomataNet, Log, All);
 
+/** One player-selected action, executed relative to the tank's current facing. */
+UENUM(BlueprintType)
+enum class EAWCommand : uint8
+{
+    Move UMETA(DisplayName = "Move"),
+    Fire UMETA(DisplayName = "Fire"),
+    TurnLeft UMETA(DisplayName = "Turn Left"),
+    TurnRight UMETA(DisplayName = "Turn Right"),
+    Count UMETA(Hidden)
+};
+
+/** Human-readable label used by command lists and replay views. */
+inline const TCHAR *LexToString(EAWCommand Command)
+{
+    switch (Command)
+    {
+    case EAWCommand::Move:
+        return TEXT("MOVE");
+    case EAWCommand::Fire:
+        return TEXT("FIRE");
+    case EAWCommand::TurnLeft:
+        return TEXT("TURN LEFT");
+    case EAWCommand::TurnRight:
+        return TEXT("TURN RIGHT");
+    default:
+        return TEXT("INVALID");
+    }
+}
+
 /** Replicated match phase enum representing the state machine. */
 UENUM(BlueprintType)
 enum class EAWMatchPhase : uint8
 {
-    /** Players write/edit scripts. */
+    /** Players assemble command lists. */
     Programming UMETA(DisplayName = "Programming"),
-    /** Scripts locked, awaiting both submissions. */
+    /** Command queues locked, awaiting both submissions. */
     Submission UMETA(DisplayName = "Submission"),
     /** Server executing deterministic simulation. */
     Simulation UMETA(DisplayName = "Simulation"),
@@ -25,7 +54,7 @@ enum class EAWMatchPhase : uint8
     ReplayAutopsy UMETA(DisplayName = "ReplayAutopsy")
 };
 
-/** Result of a script validation attempt. */
+/** Result of a command-list validation attempt. */
 USTRUCT(BlueprintType)
 struct FAWValidationResult
 {
@@ -46,8 +75,6 @@ struct FAWMatchOutcome
     /** -1 = draw, 0 = player0 wins, 1 = player1 wins. */
     UPROPERTY(BlueprintReadOnly)
     int32 WinnerSlot = -1;
-    UPROPERTY(BlueprintReadOnly)
-    int32 FinalTick = 0;
     UPROPERTY(BlueprintReadOnly)
     int32 HP0 = 0;
     UPROPERTY(BlueprintReadOnly)

@@ -4,12 +4,13 @@
  * @file AutomataReplay.h
  * @brief Compact binary replay codec for Automata War matches.
  *
- * A replay contains both script sources, seed, version, and ruleset hash.
+ * A replay contains both command lists, seed, version, and ruleset hash.
  * No simulation snapshots are stored; the match is re-simulated from the replay.
- * Supports base64 import/export. Engine-independent.
+ * Supports base64 import/export.
  */
 
 #include "AutomataWar/Core/AutomataRules.h"
+#include "AutomataWar/Game/AWMatchTypes.h"
 #include <string>
 #include <vector>
 #include <cstdint>
@@ -25,10 +26,10 @@ namespace Automata
      *   [4..5]   ReplayVersion (uint16)
      *   [6..13]  RulesetHash (uint64)
      *   [14..21] seed (uint64)
-     *   [22..23] sourceA length (uint16)
-     *   [24..N]  sourceA bytes (UTF-8)
-     *   [N..N+1] sourceB length (uint16)
-     *   [N+2..M] sourceB bytes (UTF-8)
+        *   [22..23] commandsA length (uint16)
+        *   [24..N]  commandsA bytes
+        *   [N..N+1] commandsB length (uint16)
+        *   [N+2..M] commandsB bytes
      *   [M..M+3] CRC-32 of all preceding bytes
      */
     struct ReplayData
@@ -36,8 +37,8 @@ namespace Automata
         uint16_t version = ReplayVersion;
         uint64_t rulesetHash = RulesetHash;
         uint64_t seed = 0;
-        std::string sourceA;
-        std::string sourceB;
+        TArray<EAWCommand> commandsA;
+        TArray<EAWCommand> commandsB;
     };
 
     /** Error codes from replay decode. */
@@ -49,6 +50,7 @@ namespace Automata
         RulesetMismatch,
         Truncated,
         ChecksumFailed,
+        InvalidCommands,
         Base64Invalid
     };
 

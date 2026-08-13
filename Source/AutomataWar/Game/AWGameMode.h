@@ -11,15 +11,13 @@
 #include "CoreMinimal.h"
 #include "GameFramework/GameModeBase.h"
 #include "AWMatchTypes.h"
-#include "AWScriptValidator.h"
-#include "AWExampleScripts.h"
 #include "AWGameMode.generated.h"
 
 /**
  * @brief Central authority for Automata War matches.
  *
  * Manages the Programming -> Submission -> Simulation -> ReplayAutopsy cycle.
- * In standalone, two script slots are filled by direct calls.
+ * In standalone, two command slots are filled by direct calls.
  * In online, slots map to connected players via PlayerState.
  */
 UCLASS(Blueprintable)
@@ -33,7 +31,7 @@ public:
 
     /** Determine standalone versus network authority when the arena initializes. */
     virtual void InitGame(const FString &MapName, const FString &Options, FString &ErrorMessage) override;
-    /** Assign the next stable script slot to a newly connected player. */
+    /** Assign the next stable command slot to a newly connected player. */
     virtual void PostLogin(APlayerController *NewPlayer) override;
     /** Convert an online disconnect into a deterministic forfeit and clean logout. */
     virtual void Logout(AController *Exiting) override;
@@ -42,15 +40,15 @@ public:
     void BeginLocalMatch();
 
     /**
-     * @brief Handle a script submission for a given slot.
+    * @brief Handle a command-list submission for a given slot.
      * @param Slot 0 or 1.
-     * @param Source Script text.
+    * @param Commands Ordered tank actions.
      * @return Validation result.
      *
      * This is the single authoritative entry point used by both local
      * direct calls and Server RPCs.
      */
-    FAWValidationResult HandleSubmission(int32 Slot, const FString &Source);
+    FAWValidationResult HandleSubmission(int32 Slot, const TArray<EAWCommand> &Commands);
 
     /** Force advance to next round (ReplayAutopsy -> Programming). */
     UFUNCTION(BlueprintCallable, Category = "AutomataWar")
@@ -77,8 +75,8 @@ protected:
     /** Timer callback for submission deadline. */
     void OnSubmissionTimerExpired();
 
-    /** Accepted source per slot. */
-    FString AcceptedSource[2];
+    /** Last accepted command list per slot. */
+    TArray<EAWCommand> AcceptedCommands[2];
 
     /** Whether each slot has submitted this round. */
     bool bSlotSubmitted[2] = {false, false};

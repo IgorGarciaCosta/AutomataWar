@@ -4,7 +4,7 @@
  * @file AWGameSubsystem.h
  * @brief GameInstance subsystem providing the full public BlueprintCallable API.
  *
- * Handles: local match start, hosting, LAN discovery, joining, training,
+ * Handles: local match start, hosting, LAN discovery, joining,
  * replay service, and phase/status delegates for a later C++ UMG UI.
  */
 
@@ -33,13 +33,13 @@ public:
 
     // ─── Local Match ─────────────────────────────────────────────────────────
 
-    /** Start a local hot-seat match (two script slots, one process). */
+    /** Start a local hot-seat match (two command slots, one process). */
     UFUNCTION(BlueprintCallable, Category = "AutomataWar|Local")
     void StartLocalMatch();
 
-    /** Submit a script for a specific local slot (0 or 1). */
+    /** Submit commands for a specific local slot (0 or 1). */
     UFUNCTION(BlueprintCallable, Category = "AutomataWar|Local")
-    FAWValidationResult SubmitLocalScript(int32 Slot, const FString &Source);
+    FAWValidationResult SubmitLocalCommands(int32 Slot, const TArray<EAWCommand> &Commands);
 
     /** Advance to next round (local or host). */
     UFUNCTION(BlueprintCallable, Category = "AutomataWar|Match")
@@ -81,19 +81,6 @@ public:
     UPROPERTY(BlueprintAssignable, Category = "AutomataWar|Network")
     FOnNetworkError OnNetworkError;
 
-    // ─── Training ────────────────────────────────────────────────────────────
-
-    /**
-     * @brief Run a training match: user script vs default bot, no state mutation.
-     * @param UserSource The script to train with.
-     * @param Iterations Number of matches to run.
-     * @param OutWins Wins for the user script.
-     * @param OutLosses Losses.
-     * @param OutDraws Draws.
-     */
-    UFUNCTION(BlueprintCallable, Category = "AutomataWar|Training")
-    void RunTraining(const FString &UserSource, int32 Iterations, int32 &OutWins, int32 &OutLosses, int32 &OutDraws);
-
     // ─── Replay ──────────────────────────────────────────────────────────────
 
     /** List all saved replays. */
@@ -104,9 +91,9 @@ public:
     UFUNCTION(BlueprintCallable, Category = "AutomataWar|Replay")
     bool SaveReplay(const FString &Filename);
 
-    /** Load a replay by filename; returns scripts/seed for re-simulation. */
+    /** Load a replay by filename; returns commands and seed for re-simulation. */
     UFUNCTION(BlueprintCallable, Category = "AutomataWar|Replay")
-    bool LoadReplay(const FString &Filename, FString &OutSource0, FString &OutSource1, int64 &OutSeed, FString &OutError);
+    bool LoadReplay(const FString &Filename, TArray<EAWCommand> &OutCommands0, TArray<EAWCommand> &OutCommands1, int64 &OutSeed, FString &OutError);
 
     /** Delete a replay. */
     UFUNCTION(BlueprintCallable, Category = "AutomataWar|Replay")
@@ -130,9 +117,9 @@ public:
     UFUNCTION(BlueprintCallable, Category = "AutomataWar|Status")
     FAWMatchOutcome GetOutcome() const;
 
-    /** Get revealed scripts (valid in ReplayAutopsy). */
+    /** Get revealed commands (valid in ReplayAutopsy). */
     UFUNCTION(BlueprintCallable, Category = "AutomataWar|Status")
-    void GetRevealedScripts(FString &OutSource0, FString &OutSource1) const;
+    void GetRevealedCommands(TArray<EAWCommand> &OutCommands0, TArray<EAWCommand> &OutCommands1) const;
 
     /** Delegate broadcast on any error from this subsystem. */
     DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnError, const FString &, Message);

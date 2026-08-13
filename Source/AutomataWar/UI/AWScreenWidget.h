@@ -7,13 +7,13 @@
 
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
+#include "AutomataWar/Game/AWMatchTypes.h"
 #include "AWScreenWidget.generated.h"
 
-class UAWCodeEditorWidget;
 class UAWSimulationDockWidget;
+class UButton;
 class UComboBoxString;
 class UEditableTextBox;
-class UMultiLineEditableTextBox;
 class USlider;
 class UTextBlock;
 
@@ -32,21 +32,11 @@ enum class EAWUIAction : uint8
     BackToMainMenu,
     SubmitP1,
     SubmitP2,
-    AggressorP1,
-    AggressorP2,
-    CamperP1,
-    CamperP2,
-    KiterP1,
-    KiterP2,
-    TrainingP1,
-    TrainingP2,
     ReplayStart,
     ReplayBack,
     ReplayPause,
     ReplayPlay,
     ReplayStep,
-    ReplayStepP1,
-    ReplayStepP2,
     ReplaySpeedQuarter,
     ReplaySpeedNormal,
     ReplaySpeedDouble,
@@ -116,7 +106,7 @@ private:
     TObjectPtr<UComboBoxString> SessionComboBox;
 };
 
-/** Source editors and programming actions for both combatants. */
+/** Button-built command lists for both combatants. */
 UCLASS(Blueprintable)
 class AUTOMATAWAR_API UAWProgrammingScreen : public UAWScreenWidget
 {
@@ -125,8 +115,8 @@ class AUTOMATAWAR_API UAWProgrammingScreen : public UAWScreenWidget
 public:
     virtual void NativeConstruct() override;
 
-    FString GetSource(int32 PlayerIndex) const;
-    void SetSource(int32 PlayerIndex, const FString &Source);
+    TArray<EAWCommand> GetCommands(int32 PlayerIndex) const;
+    FString GetCommandText(int32 PlayerIndex) const;
 
 private:
     UFUNCTION()
@@ -136,47 +126,64 @@ private:
     UFUNCTION()
     void OnSubmitP2();
     UFUNCTION()
-    void OnAggressorP1();
+    void OnMoveP1();
     UFUNCTION()
-    void OnAggressorP2();
+    void OnFireP1();
     UFUNCTION()
-    void OnCamperP1();
+    void OnTurnLeftP1();
     UFUNCTION()
-    void OnCamperP2();
+    void OnTurnRightP1();
     UFUNCTION()
-    void OnKiterP1();
+    void OnRemoveP1();
     UFUNCTION()
-    void OnKiterP2();
+    void OnMoveP2();
     UFUNCTION()
-    void OnTrainingP1();
+    void OnFireP2();
     UFUNCTION()
-    void OnTrainingP2();
+    void OnTurnLeftP2();
+    UFUNCTION()
+    void OnTurnRightP2();
+    UFUNCTION()
+    void OnRemoveP2();
+
+    void AddCommand(int32 PlayerIndex, EAWCommand Command);
+    void RemoveLastCommand(int32 PlayerIndex);
+    void RefreshCommands(int32 PlayerIndex);
 
     UPROPERTY(meta = (BindWidget))
-    TObjectPtr<UAWCodeEditorWidget> EditorP1;
+    TObjectPtr<UTextBlock> ProgramP1Text;
 
     UPROPERTY(meta = (BindWidget))
-    TObjectPtr<UAWCodeEditorWidget> EditorP2;
+    TObjectPtr<UTextBlock> ProgramP2Text;
+
+    UPROPERTY(meta = (BindWidget))
+    TObjectPtr<UButton> RemoveActionP1Button;
+
+    UPROPERTY(meta = (BindWidget))
+    TObjectPtr<UButton> RemoveActionP2Button;
+
+    TArray<EAWCommand> Commands[2];
 };
 
-/** Reusable read-only source dock used by both simulation combatants. */
+/** Reusable read-only command dock used by simulation and replay. */
 UCLASS(Blueprintable)
 class AUTOMATAWAR_API UAWSimulationDockWidget : public UUserWidget
 {
     GENERATED_BODY()
 
 public:
-    /** Replace the program displayed by this dock. */
-    void SetSource(const FString &Source);
+    /** Replace the command list and optionally highlight one action. */
+    void SetCommands(const TArray<EAWCommand> &Commands, int32 CurrentCommand = INDEX_NONE);
+
+    /** Replace the optional tank-state readout. */
+    void SetDetails(const FString &Details);
 
 protected:
     virtual void SynchronizeProperties() override;
 
-    /** Heading shown above the source listing. */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AutomataWar|UI")
     FText PlayerLabel = INVTEXT("PLAYER PROGRAM");
 
-    /** Player accent applied to the heading. */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AutomataWar|UI")
     FLinearColor AccentColor = FLinearColor(0.f, 0.78f, 0.9f, 1.f);
 
@@ -185,7 +192,10 @@ private:
     TObjectPtr<UTextBlock> SimulationDockTitle;
 
     UPROPERTY(meta = (BindWidget))
-    TObjectPtr<UMultiLineEditableTextBox> SimulationDockSourceBox;
+    TObjectPtr<UTextBlock> SimulationDockCommandsText;
+
+    UPROPERTY(meta = (BindWidget))
+    TObjectPtr<UTextBlock> SimulationDockDetails;
 };
 
 /** Read-only match execution presentation composed from reusable docks. */
@@ -195,7 +205,7 @@ class AUTOMATAWAR_API UAWSimulationScreen : public UAWScreenWidget
     GENERATED_BODY()
 
 public:
-    void SetSources(const FString &PlayerOneSource, const FString &PlayerTwoSource);
+    void SetCommands(const TArray<EAWCommand> &PlayerOneCommands, const TArray<EAWCommand> &PlayerTwoCommands);
 
 private:
     UPROPERTY(meta = (BindWidget))
@@ -218,9 +228,9 @@ public:
     FAWReplayScrubEvent OnScrubbed;
 
     void SetOutcome(const FString &Outcome);
-    void SetTimeline(int32 CurrentTick, int32 TotalTicks, float Speed, float NormalizedPosition);
+    void SetTimeline(float Speed, float NormalizedPosition);
     void SetSpeed(float Speed);
-    void SetCombatantData(int32 PlayerIndex, const FString &Source, const FString &Registers);
+    void SetCombatantData(int32 PlayerIndex, const TArray<EAWCommand> &Commands, int32 CurrentCommand, const FString &Details);
     void SetEventLog(const FString &EventLog);
 
 private:
@@ -234,10 +244,6 @@ private:
     void OnPlay();
     UFUNCTION()
     void OnStep();
-    UFUNCTION()
-    void OnStepP1();
-    UFUNCTION()
-    void OnStepP2();
     UFUNCTION()
     void OnSpeedQuarter();
     UFUNCTION()
@@ -254,25 +260,16 @@ private:
     void OnScrubChanged(float Value);
 
     UPROPERTY(meta = (BindWidget))
-    TObjectPtr<UTextBlock> ReplayTickText;
-
-    UPROPERTY(meta = (BindWidget))
     TObjectPtr<UTextBlock> ReplaySpeedText;
 
     UPROPERTY(meta = (BindWidget))
     TObjectPtr<UTextBlock> ReplayOutcomeText;
 
     UPROPERTY(meta = (BindWidget))
-    TObjectPtr<UTextBlock> ReplaySourceAText;
+    TObjectPtr<UAWSimulationDockWidget> ReplayP1DockWidget;
 
     UPROPERTY(meta = (BindWidget))
-    TObjectPtr<UTextBlock> ReplaySourceBText;
-
-    UPROPERTY(meta = (BindWidget))
-    TObjectPtr<UTextBlock> ReplayRegistersP1;
-
-    UPROPERTY(meta = (BindWidget))
-    TObjectPtr<UTextBlock> ReplayRegistersP2;
+    TObjectPtr<UAWSimulationDockWidget> ReplayP2DockWidget;
 
     UPROPERTY(meta = (BindWidget))
     TObjectPtr<UTextBlock> ReplayEventLog;

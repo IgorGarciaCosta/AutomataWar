@@ -41,11 +41,11 @@ public:
     /** Initialize the grid and cover visuals from a sim config. */
     void InitializeArena(const Automata::SimConfig &Config, const TArray<Automata::CellType> &Grid);
 
-    /** Set the current snapshot for interpolation display. */
-    void SetSnapshot(const Automata::TickSnapshot &Snapshot);
+    /** Set the current step snapshot for interpolation display. */
+    void SetSnapshot(const Automata::StepSnapshot &Snapshot);
 
     /** Process a batch of sim events for VFX/audio triggers. */
-    void ProcessEvents(const TArray<Automata::SimEvent> &Events, int32 FromTick, int32 ToTick);
+    void ProcessEvents(const TArray<Automata::SimEvent> &Events, int32 FromStep, int32 ToStep);
 
     /** Reset visuals to initial state. */
     void ResetVisuals();
@@ -62,9 +62,6 @@ protected:
 
     /** Trigger impact VFX at position. */
     void TriggerImpact(FVector WorldPos);
-
-    /** Trigger shield bubble VFX on robot. */
-    void TriggerShieldBubble(int32 RobotIdx);
 
     /** Trigger destruction VFX at position. */
     void TriggerDestruction(FVector WorldPos);
@@ -105,7 +102,7 @@ protected:
     TSubclassOf<ATableObstable> ObstacleClass;
 
     /** Current display snapshot. */
-    Automata::TickSnapshot CurrentSnapshot;
+    Automata::StepSnapshot CurrentSnapshot;
 
     UPROPERTY(Transient)
     TMap<int32, TObjectPtr<ATableObstable>> Obstacles;

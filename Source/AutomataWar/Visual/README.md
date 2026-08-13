@@ -5,7 +5,7 @@ C++ presentation-only visuals for Automata War. Reads simulation snapshots; neve
 ## Structure
 
 - `AWVisualTypes.h/cpp` — Log category, asset soft paths, visual config constants
-- `AWArenaRenderer.h/cpp` — Floor grid, dynamic cover, projectile/VFX/audio coordination
+- `AWArenaRenderer.h/cpp` — Floor grid, dynamic cover, shot/VFX/audio coordination
 - `AWTankActor.h/cpp` — Level-authored tank mesh, accent light, and snapshot interpolation
 - `AWIsometricCamera.h/cpp` — Fixed orthographic top-down camera framing the arena inside the HUD viewport
 - `AWSpectatorPawn.h/cpp` — Minimal pawn (no movement, no collision)
@@ -19,4 +19,4 @@ C++ presentation-only visuals for Automata War. Reads simulation snapshots; neve
 - Cover variants chosen deterministically from cell index (3 visual styles)
 - VFX: references optional Niagara systems via soft paths; complete emissive/point-light fallback
 - Audio: soft-path references; silent when assets absent
-- Interpolation uses float/Tick purely for visual smoothness
+- Interpolation uses frame delta purely for visual smoothness

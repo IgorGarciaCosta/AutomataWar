@@ -4,96 +4,62 @@
 namespace Automata
 {
 
-    bool FAWReplayController::Initialize(const std::string &SourceA, const std::string &SourceB, uint64_t Seed)
+    bool FAWReplayController::Initialize(const TArray<EAWCommand> &CommandsA, const TArray<EAWCommand> &CommandsB, uint64_t Seed)
     {
         bValid_ = false;
-        sourceA_ = SourceA;
-        sourceB_ = SourceB;
-
-        CompileResult cA = Compile(SourceA);
-        if (!cA.Ok())
-            return false;
-        CompileResult cB = Compile(SourceB);
-        if (!cB.Ok())
-            return false;
-
-        programA_ = cA.program;
-        programB_ = cB.program;
-
+        commandsA_ = CommandsA;
+        commandsB_ = CommandsB;
         config_.seed = Seed;
 
         Simulation Sim;
-        result_ = Sim.RunMatch(programA_, programB_, config_);
+        result_ = Sim.RunMatch(commandsA_, commandsB_, config_);
         snapshots_ = Sim.GetSnapshots();
         events_ = Sim.GetEvents();
         grid_ = Sim.GetGrid();
 
-        currentTick_ = 0;
+        currentStep_ = 0;
         bValid_ = !snapshots_.empty();
         return bValid_;
     }
 
-    void FAWReplayController::SeekToTick(int32_t Tick)
+    void FAWReplayController::SeekToStep(int32_t Step)
     {
-        if (!bValid_)
-            return;
-        currentTick_ = std::clamp(Tick, 0, GetTotalTicks() - 1);
+        if (bValid_)
+            currentStep_ = std::clamp(Step, 0, GetTotalSteps() - 1);
     }
 
     bool FAWReplayController::StepForward()
     {
-        if (!bValid_ || currentTick_ >= GetTotalTicks() - 1)
+        if (!bValid_ || currentStep_ >= GetTotalSteps() - 1)
             return false;
-        ++currentTick_;
+        ++currentStep_;
         return true;
     }
 
     bool FAWReplayController::StepBackward()
     {
-        if (!bValid_ || currentTick_ <= 0)
+        if (!bValid_ || currentStep_ <= 0)
             return false;
-        --currentTick_;
+        --currentStep_;
         return true;
     }
 
-    bool FAWReplayController::StepInstruction(int32_t RobotIdx)
+    std::vector<SimEvent> FAWReplayController::GetEventsForStep(int32_t Step) const
     {
-        if (!bValid_ || RobotIdx < 0 || RobotIdx > 1)
-            return false;
-        if (currentTick_ >= GetTotalTicks() - 1)
-            return false;
-
-        int32_t startCount = snapshots_[currentTick_].robots[RobotIdx].vm.instrExecCount;
-
-        while (currentTick_ < GetTotalTicks() - 1)
-        {
-            ++currentTick_;
-            if (snapshots_[currentTick_].robots[RobotIdx].vm.instrExecCount > startCount)
-                return true;
-        }
-        return true;
+        std::vector<SimEvent> Result;
+        for (const SimEvent &Event : events_)
+            if (Event.step == Step)
+                Result.push_back(Event);
+        return Result;
     }
 
-    std::vector<SimEvent> FAWReplayController::GetEventsForTick(int32_t Tick) const
+    std::vector<SimEvent> FAWReplayController::GetEventsInRange(int32_t FromStep, int32_t ToStep) const
     {
-        std::vector<SimEvent> result;
-        for (const auto &e : events_)
-        {
-            if (e.tick == Tick)
-                result.push_back(e);
-        }
-        return result;
-    }
-
-    std::vector<SimEvent> FAWReplayController::GetEventsInRange(int32_t FromTick, int32_t ToTick) const
-    {
-        std::vector<SimEvent> result;
-        for (const auto &e : events_)
-        {
-            if (e.tick >= FromTick && e.tick <= ToTick)
-                result.push_back(e);
-        }
-        return result;
+        std::vector<SimEvent> Result;
+        for (const SimEvent &Event : events_)
+            if (Event.step >= FromStep && Event.step <= ToStep)
+                Result.push_back(Event);
+        return Result;
     }
 
 } // namespace Automata
