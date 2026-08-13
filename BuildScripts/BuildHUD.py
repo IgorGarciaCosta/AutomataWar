@@ -309,7 +309,8 @@ def build_editor_panel(player_index, accent):
     workspace = make(unreal.HorizontalBox, f"Player{player_index}Workspace")
 
     queue = make(unreal.VerticalBox, f"Player{player_index}Queue")
-    queue_header = make(unreal.HorizontalBox, f"Player{player_index}QueueHeader")
+    queue_header = make(unreal.HorizontalBox,
+                        f"Player{player_index}QueueHeader")
     add(queue_header, label(f"Player{player_index}QueueTitle", "ACTION QUEUE",
                             14, MUTED, bold=True), fill=True, v=V_CENTER)
     remove = button(f"RemoveActionP{player_index}Button", "REMOVE ACTION",

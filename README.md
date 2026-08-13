@@ -6,12 +6,12 @@ Automata War is a deterministic 1-versus-1 tank game built in C++ for Unreal Eng
 
 Each command is relative to the tank's current facing:
 
-| Command | Effect |
-| --- | --- |
-| `MOVE` | Move one cell forward. Walls, cover, and the other tank block movement. |
-| `FIRE` | Fire straight ahead. The first tank or obstacle in the line is hit. |
-| `TURN LEFT` | Rotate 90 degrees left from the tank's point of view. |
-| `TURN RIGHT` | Rotate 90 degrees right from the tank's point of view. |
+| Command      | Effect                                                                  |
+| ------------ | ----------------------------------------------------------------------- |
+| `MOVE`       | Move one cell forward. Walls, cover, and the other tank block movement. |
+| `FIRE`       | Fire straight ahead. The first tank or obstacle in the line is hit.     |
+| `TURN LEFT`  | Rotate 90 degrees left from the tank's point of view.                   |
+| `TURN RIGHT` | Rotate 90 degrees right from the tank's point of view.                  |
 
 Commands execute once in order. A tank with a shorter queue waits while the other finishes. The round ends when both queues are exhausted or a tank is destroyed. There is no parser, bytecode, virtual machine, program loop, or match tick cap.
 

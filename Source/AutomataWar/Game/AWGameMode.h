@@ -40,9 +40,9 @@ public:
     void BeginLocalMatch();
 
     /**
-    * @brief Handle a command-list submission for a given slot.
+     * @brief Handle a command-list submission for a given slot.
      * @param Slot 0 or 1.
-    * @param Commands Ordered tank actions.
+     * @param Commands Ordered tank actions.
      * @return Validation result.
      *
      * This is the single authoritative entry point used by both local
