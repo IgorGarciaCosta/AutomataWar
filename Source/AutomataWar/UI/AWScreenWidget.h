@@ -227,7 +227,6 @@ public:
     /** Raised for player-driven timeline changes only. */
     FAWReplayScrubEvent OnScrubbed;
 
-    void SetOutcome(const FString &Outcome);
     void SetTimeline(float Speed, float NormalizedPosition);
     void SetSpeed(float Speed);
     void SetCombatantData(int32 PlayerIndex, const TArray<EAWCommand> &Commands, int32 CurrentCommand, const FString &Details);
@@ -261,9 +260,6 @@ private:
 
     UPROPERTY(meta = (BindWidget))
     TObjectPtr<UTextBlock> ReplaySpeedText;
-
-    UPROPERTY(meta = (BindWidget))
-    TObjectPtr<UTextBlock> ReplayOutcomeText;
 
     UPROPERTY(meta = (BindWidget))
     TObjectPtr<UAWSimulationDockWidget> ReplayP1DockWidget;

@@ -500,26 +500,6 @@ bool UAWHUDWidget::InitializeReplay(const TArray<EAWCommand> &CommandsA, const T
         Renderer->InitializeArena(ReplayController->GetConfig(), Grid);
     }
 
-    if (ReplayAutopsyScreenWidget)
-    {
-        const auto &R = ReplayController->GetResult();
-        FString Outcome;
-        switch (R.outcome)
-        {
-        case Automata::MatchOutcome::Robot0Wins:
-            Outcome = TEXT("P1 WINS");
-            break;
-        case Automata::MatchOutcome::Robot1Wins:
-            Outcome = TEXT("P2 WINS");
-            break;
-        default:
-            Outcome = TEXT("DRAW");
-            break;
-        }
-        Outcome += FString::Printf(TEXT(" | HP: %d/%d"), R.finalHP[0], R.finalHP[1]);
-        ReplayAutopsyScreenWidget->SetOutcome(Outcome);
-    }
-
     UpdateReplayUI();
     UpdateArenaFromReplay();
     return true;

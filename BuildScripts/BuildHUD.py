@@ -498,8 +498,6 @@ add(replay_titles, label("ReplayEyebrow", "POST-MATCH ANALYSIS", 13,
 add(replay_titles, label("ReplayTitle", "REPLAY AUTOPSY", 30,
                          TEXT, bold=True))
 add(replay_header, replay_titles, fill=True, v=V_CENTER)
-add(replay_header, label("ReplayOutcomeText", "AWAITING REPLAY", 21,
-                         CYAN, bold=True, variable=True), h=H_RIGHT, v=V_CENTER)
 add(replay_screen, replay_header, padding=margin(0, 0, 0, 12))
 
 transport_panel, transport = panel("ReplayTransport", GAMEPLAY_PANEL, 12)

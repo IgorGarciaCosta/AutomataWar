@@ -199,12 +199,6 @@ void UAWReplayAutopsyScreen::NativeConstruct()
         ReplayScrubSlider->OnValueChanged.AddUniqueDynamic(this, &UAWReplayAutopsyScreen::OnScrubChanged);
 }
 
-void UAWReplayAutopsyScreen::SetOutcome(const FString &Outcome)
-{
-    if (ReplayOutcomeText)
-        ReplayOutcomeText->SetText(FText::FromString(Outcome));
-}
-
 void UAWReplayAutopsyScreen::SetTimeline(float Speed, float NormalizedPosition)
 {
     SetSpeed(Speed);
