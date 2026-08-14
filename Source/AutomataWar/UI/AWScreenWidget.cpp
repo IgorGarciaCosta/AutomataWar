@@ -151,11 +151,28 @@ void UAWProgrammingPanelWidget::ResetSubmissionState()
     ApplyPowerTransition();
 }
 
+void UAWProgrammingPanelWidget::SetPlayerStats(int32 Health, int32 ActionPoints)
+{
+    PlayerHealth = FMath::Max(0, Health);
+    AvailableActionPoints = FMath::Max(0, ActionPoints);
+    RefreshCommands();
+}
+
+void UAWProgrammingPanelWidget::ResetForNewMatch(int32 Health, int32 ActionPoints)
+{
+    Commands.Reset();
+    SetPlayerStats(Health, ActionPoints);
+    ResetSubmissionState();
+}
+
 void UAWProgrammingPanelWidget::AddCommand(EAWCommand Command)
 {
-    if (!bSubmitted && !bAwaitingSubmissionResult && Commands.Num() < Automata::MaxCommands)
+    const int32 Cost = GetActionPointCost(Command);
+    if (!bSubmitted && !bAwaitingSubmissionResult && Commands.Num() < Automata::MaxCommands &&
+        Cost <= AvailableActionPoints)
     {
         Commands.Add(Command);
+        AvailableActionPoints -= Cost;
         RefreshCommands();
     }
 }
@@ -172,6 +189,18 @@ void UAWProgrammingPanelWidget::RefreshCommands()
         ProgrammingProgramText->SetText(FText::FromString(Text));
     if (ProgrammingRemoveActionButton)
         ProgrammingRemoveActionButton->SetVisibility(Commands.IsEmpty() ? ESlateVisibility::Collapsed : ESlateVisibility::Visible);
+    if (UTextBlock *Stats = Cast<UTextBlock>(GetWidgetFromName(TEXT("ProgrammingPlayerStats"))))
+        Stats->SetText(FText::FromString(FString::Printf(TEXT("HP %d  |  AP %d"), PlayerHealth, AvailableActionPoints)));
+
+    const bool bCanEdit = !bSubmitted && !bAwaitingSubmissionResult && Commands.Num() < Automata::MaxCommands;
+    const TPair<const TCHAR *, EAWCommand> CommandButtons[] = {
+        {TEXT("ProgrammingMoveButton"), EAWCommand::Move},
+        {TEXT("ProgrammingFireButton"), EAWCommand::Fire},
+        {TEXT("ProgrammingTurnLeftButton"), EAWCommand::TurnLeft},
+        {TEXT("ProgrammingTurnRightButton"), EAWCommand::TurnRight}};
+    for (const TPair<const TCHAR *, EAWCommand> &Entry : CommandButtons)
+        if (UButton *Button = Cast<UButton>(GetWidgetFromName(Entry.Key)))
+            Button->SetIsEnabled(bCanEdit && GetActionPointCost(Entry.Value) <= AvailableActionPoints);
 }
 
 void UAWProgrammingPanelWidget::StartPowerTransition(bool bTurningOff)
@@ -209,6 +238,7 @@ void UAWProgrammingPanelWidget::OnRemove()
 {
     if (!bSubmitted && !bAwaitingSubmissionResult && !Commands.IsEmpty())
     {
+        AvailableActionPoints += GetActionPointCost(Commands.Last());
         Commands.Pop();
         RefreshCommands();
     }
@@ -281,6 +311,20 @@ void UAWProgrammingScreen::ResetSubmissionState()
         ProgrammingP2PanelWidget->ResetSubmissionState();
 }
 
+void UAWProgrammingScreen::SetPlayerStats(int32 PlayerIndex, int32 Health, int32 ActionPoints)
+{
+    if (UAWProgrammingPanelWidget *Panel = GetPanel(FMath::Clamp(PlayerIndex, 0, 1)))
+        Panel->SetPlayerStats(Health, ActionPoints);
+}
+
+void UAWProgrammingScreen::ResetForNewMatch(int32 ActionPoints0, int32 ActionPoints1)
+{
+    if (ProgrammingP1PanelWidget)
+        ProgrammingP1PanelWidget->ResetForNewMatch(Automata::MaxHP, ActionPoints0);
+    if (ProgrammingP2PanelWidget)
+        ProgrammingP2PanelWidget->ResetForNewMatch(Automata::MaxHP, ActionPoints1);
+}
+
 void UAWProgrammingScreen::OnBack() { BroadcastAction(EAWUIAction::BackToMainMenu); }
 
 void UAWProgrammingScreen::OnPanelSubmitted(int32 PlayerIndex)
@@ -330,6 +374,13 @@ void UAWSimulationScreen::SetCommands(const TArray<EAWCommand> &PlayerOneCommand
     if (SimulationP2DockWidget)
         SimulationP2DockWidget->SetCommands(PlayerTwoCommands);
 }
+
+    void UAWSimulationScreen::SetPlayerDetails(int32 PlayerIndex, const FString &Details)
+    {
+        UAWSimulationDockWidget *Dock = PlayerIndex == 0 ? SimulationP1DockWidget.Get() : SimulationP2DockWidget.Get();
+        if (Dock)
+        Dock->SetDetails(Details);
+    }
 
 void UAWReplayAutopsyScreen::NativeConstruct()
 {

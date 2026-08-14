@@ -17,6 +17,13 @@ namespace Automata
     inline constexpr int32_t MaxCommands = 256;
     inline constexpr int32_t ProjectileDamage = 20;
     inline constexpr int32_t ObstacleMaxHealth = 60;
+    inline constexpr int32_t InitialActionPoints = 100;
+    inline constexpr int32_t MoveActionPointCost = 10;
+    inline constexpr int32_t FireActionPointCost = 20;
+    inline constexpr int32_t TurnActionPointCost = 5;
+    inline constexpr int32_t ActionPointItemCount = 12;
+    inline constexpr int32_t ActionPointItemMinValue = 10;
+    inline constexpr int32_t ActionPointItemMaxValue = 20;
 
     /** Cardinal facing values ordered clockwise. */
     enum class Dir : uint8_t
@@ -31,7 +38,7 @@ namespace Automata
     inline constexpr std::array<int32_t, 4> DirDY = {-1, 0, 1, 0};
 
     /** Compact replay format storing one byte per command. */
-    inline constexpr uint16_t ReplayVersion = 3;
+    inline constexpr uint16_t ReplayVersion = 4;
 
     /** Changes whenever command semantics or balance changes. */
     inline constexpr uint64_t RulesetHash = []() constexpr -> uint64_t
@@ -51,6 +58,13 @@ namespace Automata
         Mix(MaxCommands);
         Mix(ProjectileDamage);
         Mix(ObstacleMaxHealth);
+        Mix(InitialActionPoints);
+        Mix(MoveActionPointCost);
+        Mix(FireActionPointCost);
+        Mix(TurnActionPointCost);
+        Mix(ActionPointItemCount);
+        Mix(ActionPointItemMinValue);
+        Mix(ActionPointItemMaxValue);
         return Hash;
     }();
 

@@ -19,6 +19,7 @@ class UActorComponent;
 class UStaticMeshComponent;
 class UPointLightComponent;
 class UNiagaraComponent;
+class AAWAPItemSpawner;
 class AAWTankActor;
 class ATableObstable;
 
@@ -38,7 +39,8 @@ public:
     /** Build initial visual state after the actor enters the world. */
     virtual void BeginPlay() override;
     /** Initialize the grid and cover visuals from a sim config. */
-    void InitializeArena(const Automata::SimConfig &Config, const TArray<Automata::CellType> &Grid);
+    void InitializeArena(const Automata::SimConfig &Config, const TArray<Automata::CellType> &Grid,
+                         const TArray<Automata::SimEvent> &Events);
 
     /** Set the current step snapshot for interpolation display. */
     void SetSnapshot(const Automata::StepSnapshot &Snapshot);
@@ -83,6 +85,9 @@ protected:
     /** Resolve the two level-authored tank actors when references are unset. */
     void ResolveTankActors();
 
+    /** Resolve or create the actor that owns AP pickup visuals. */
+    void ResolveActionPointItemSpawner();
+
     UPROPERTY(VisibleAnywhere, Category = "Arena")
     TObjectPtr<UProceduralMeshComponent> FloorMesh;
 
@@ -96,6 +101,9 @@ protected:
     /** Blueprint class used for runtime obstacle actors. */
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Arena|Actors")
     TSubclassOf<ATableObstable> ObstacleClass;
+
+    UPROPERTY(EditInstanceOnly, BlueprintReadOnly, Category = "Arena|Actors")
+    TObjectPtr<AAWAPItemSpawner> ActionPointItemSpawner;
 
     /** Current display snapshot. */
     Automata::StepSnapshot CurrentSnapshot;

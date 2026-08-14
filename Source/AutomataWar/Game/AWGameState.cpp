@@ -17,6 +17,18 @@ void AAWGameState::GetLifetimeReplicatedProps(TArray<FLifetimeProperty> &OutLife
     DOREPLIFETIME(AAWGameState, AuthoritativeHash);
     DOREPLIFETIME(AAWGameState, SimSeed);
     DOREPLIFETIME(AAWGameState, Outcome);
+    DOREPLIFETIME(AAWGameState, ActionPoints0);
+    DOREPLIFETIME(AAWGameState, ActionPoints1);
+    DOREPLIFETIME(AAWGameState, ReplayStartActionPoints0);
+    DOREPLIFETIME(AAWGameState, ReplayStartActionPoints1);
+}
+
+void AAWGameState::SetActionPoints(int32 Slot, int32 Value)
+{
+    if (Slot == 0)
+        ActionPoints0 = FMath::Max(0, Value);
+    else if (Slot == 1)
+        ActionPoints1 = FMath::Max(0, Value);
 }
 
 void AAWGameState::OnRep_Phase()

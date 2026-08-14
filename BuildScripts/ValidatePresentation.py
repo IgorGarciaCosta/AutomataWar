@@ -127,7 +127,8 @@ if cursor_resource.get_editor_property("mip_gen_settings") != unreal.TextureMipG
     raise RuntimeError("Custom cursor texture must not generate mipmaps")
 for old_cursor_part in ("AWCursorTopRail", "AWCursorTailRow"):
     if old_cursor_part in cursor_widgets and cursor_widgets[old_cursor_part].get_visibility() != unreal.SlateVisibility.COLLAPSED:
-        raise RuntimeError(f"Legacy cursor part remains visible: {old_cursor_part}")
+        raise RuntimeError(
+            f"Legacy cursor part remains visible: {old_cursor_part}")
 
 
 hud_widgets = {}

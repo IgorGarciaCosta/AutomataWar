@@ -292,7 +292,7 @@ def label(name, value, size=18, color=TEXT, bold=False, mono=False,
 
 
 def button(name, value, color=PANEL_ALT, tooltip="", compact=False,
-           variable=False):
+           variable=False, caption_size=None):
     item = make(unreal.Button, name, variable)
     item.set_background_color(color)
     item.set_color_and_opacity(WHITE)
@@ -317,12 +317,29 @@ def button(name, value, color=PANEL_ALT, tooltip="", compact=False,
     style.set_editor_property("pressed_slate_sound", pressed_sound)
     style.set_editor_property("hovered_slate_sound", hovered_sound)
     item.set_editor_property("widget_style", style)
-    caption = label(f"{name}Label", value, 15 if compact else 18,
+    caption = label(f"{name}Label", value,
+                    caption_size or (15 if compact else 18),
                     TEXT, bold=True)
     slot = item.add_child(caption)
     slot.set_padding(
         margin(12, 7 if compact else 10, 12, 7 if compact else 10))
     slot.set_horizontal_alignment(H_CENTER)
+    slot.set_vertical_alignment(V_CENTER)
+    return item
+
+
+def command_button(name, value, cost):
+    item = button(name, "", PANEL_ALT,
+                  f"Add {value.lower()} to the queue ({cost} AP)", True)
+    item.clear_children()
+    row = make(unreal.HorizontalBox, f"{name}Content")
+    add(row, label(f"{name}Action", value, 12, TEXT, bold=True),
+        fill=True, h=H_LEFT, v=V_CENTER)
+    add(row, label(f"{name}Cost", f"{cost} AP", 11, MUTED, bold=True),
+        h=H_RIGHT, v=V_CENTER)
+    slot = item.add_child(row)
+    slot.set_padding(margin(10, 7, 10, 7))
+    slot.set_horizontal_alignment(H_FILL)
     slot.set_vertical_alignment(V_CENTER)
     return item
 
@@ -504,6 +521,10 @@ add(programming_panel_header, label(
     "ProgrammingPlayerTitle", "PLAYER 1", 22, CYAN,
     bold=True, variable=True), fill=True)
 add(programming_panel_header, label(
+    "ProgrammingPlayerStats", "HP 100  |  AP 100", 13, TEXT,
+    bold=True, mono=True), padding=margin(0, 0, 18, 0),
+    h=H_RIGHT, v=V_CENTER)
+add(programming_panel_header, label(
     "ProgrammingPlayerSlot", "SLOT 0", 13, MUTED,
     bold=True, variable=True), h=H_RIGHT, v=V_CENTER)
 add(programming_panel_body, programming_panel_header,
@@ -551,21 +572,20 @@ programming_command_scroll = make(
     unreal.ScrollBox, "ProgrammingCommandsScroll")
 programming_command_buttons = make(
     unreal.VerticalBox, "ProgrammingCommandButtons")
-for name, value in [
-        ("Move", "MOVE"),
-        ("Fire", "FIRE"),
-        ("TurnLeft", "TURN LEFT"),
-        ("TurnRight", "TURN RIGHT")]:
-    add(programming_command_buttons, button(
-        f"Programming{name}Button", value, PANEL_ALT,
-        f"Add {value.lower()} to the queue", True),
+for name, value, cost in [
+    ("Move", "MOVE", 10),
+    ("Fire", "FIRE", 20),
+    ("TurnLeft", "TURN LEFT", 5),
+    ("TurnRight", "TURN RIGHT", 5)]:
+    add(programming_command_buttons, command_button(
+        f"Programming{name}Button", value, cost),
         padding=margin(0, 0, 0, 8))
 add(programming_command_scroll, programming_command_buttons,
     h=H_FILL, v=V_TOP)
 add(programming_commands, programming_command_scroll,
     fill=True, weight=1.0)
 programming_commands_size = make(unreal.SizeBox, "ProgrammingCommandsSize")
-programming_commands_size.set_width_override(190.0)
+programming_commands_size.set_width_override(250.0)
 programming_commands_size.add_child(programming_commands_frame)
 add(programming_workspace, programming_commands_size)
 add(programming_panel_body, programming_workspace, fill=True, weight=1.0,

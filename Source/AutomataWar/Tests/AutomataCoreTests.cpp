@@ -82,6 +82,43 @@ bool FCommandsDeterministic::RunTest(const FString &Parameters)
     return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FActionPointRules, "AutomataWar.Core.ActionPoints.Rules",
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FActionPointRules::RunTest(const FString &Parameters)
+{
+    TestEqual(TEXT("Move costs 10 AP"), GetActionPointCost(EAWCommand::Move), 10);
+    TestEqual(TEXT("Fire costs 20 AP"), GetActionPointCost(EAWCommand::Fire), 20);
+    TestEqual(TEXT("Turns cost 5 AP"), GetActionPointCost(EAWCommand::TurnLeft), 5);
+
+    Automata::SimConfig Config;
+    Config.gridWidth = 4;
+    Config.gridHeight = 4;
+    Config.seed = 314159;
+    Config.initialActionPoints = {17, 23};
+
+    Automata::Simulation First;
+    Automata::Simulation Second;
+    const Automata::MatchResult FirstResult = First.RunMatch({EAWCommand::Move}, {EAWCommand::Fire}, Config);
+    const Automata::MatchResult SecondResult = Second.RunMatch({EAWCommand::Move}, {EAWCommand::Fire}, Config);
+
+    TestTrue(TEXT("Moving onto the only free south cell awards at least 10 AP"), FirstResult.finalActionPoints[0] >= 27);
+    TestTrue(TEXT("A pickup awards no more than 20 AP"), FirstResult.finalActionPoints[0] <= 37);
+    TestEqual(TEXT("Pickup awards are deterministic"), FirstResult.finalActionPoints[0], SecondResult.finalActionPoints[0]);
+
+    Automata::Simulation StandardBoard;
+    StandardBoard.RunMatch({EAWCommand::Move}, {EAWCommand::Move});
+    int32 PickupCount = 0;
+    const std::vector<Automata::CellType> &Grid = StandardBoard.GetGrid();
+    for (Automata::CellType Cell : Grid)
+        PickupCount += Cell == Automata::CellType::ActionPointItem ? 1 : 0;
+    TestEqual(TEXT("Standard board spawns exactly 12 AP items"), PickupCount, Automata::ActionPointItemCount);
+    TestEqual(TEXT("P1 start is never occupied"), Grid[Automata::DefaultGridWidth + 1], Automata::CellType::Empty);
+    TestEqual(TEXT("P2 start is never occupied"), Grid[(Automata::DefaultGridHeight - 2) * Automata::DefaultGridWidth +
+                                                       Automata::DefaultGridWidth - 2], Automata::CellType::Empty);
+    return true;
+}
+
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCommandReplayRoundTrip, "AutomataWar.Core.Replay.CommandRoundTrip",
                                  EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 
@@ -89,6 +126,8 @@ bool FCommandReplayRoundTrip::RunTest(const FString &Parameters)
 {
     Automata::ReplayData Data;
     Data.seed = 42;
+    Data.initialActionPointsA = 37;
+    Data.initialActionPointsB = 81;
     Data.commandsA = {EAWCommand::Move, EAWCommand::Fire};
     Data.commandsB = {EAWCommand::TurnLeft, EAWCommand::TurnRight};
 
@@ -96,6 +135,8 @@ bool FCommandReplayRoundTrip::RunTest(const FString &Parameters)
     const Automata::ReplayDecodeResult Decoded = Automata::DecodeReplay(Encoded);
     TestTrue(TEXT("Replay decodes"), Decoded.Ok());
     TestEqual(TEXT("Seed survives"), Decoded.data.seed, Data.seed);
+    TestEqual(TEXT("P1 initial AP survives"), Decoded.data.initialActionPointsA, Data.initialActionPointsA);
+    TestEqual(TEXT("P2 initial AP survives"), Decoded.data.initialActionPointsB, Data.initialActionPointsB);
     TestTrue(TEXT("P1 commands survive"), Decoded.data.commandsA == Data.commandsA);
     TestTrue(TEXT("P2 commands survive"), Decoded.data.commandsB == Data.commandsB);
     return true;
@@ -110,7 +151,7 @@ bool FCommandReplayRejectsInvalidAction::RunTest(const FString &Parameters)
     Data.commandsA = {EAWCommand::Move};
     Data.commandsB = {EAWCommand::Fire};
     std::vector<uint8_t> Encoded = Automata::EncodeReplay(Data);
-    Encoded[24] = 255;
+    Encoded[32] = 255;
 
     const Automata::ReplayDecodeResult Decoded = Automata::DecodeReplay(Encoded);
     TestEqual(TEXT("Invalid enum byte is rejected"), Decoded.error, Automata::ReplayError::InvalidCommands);

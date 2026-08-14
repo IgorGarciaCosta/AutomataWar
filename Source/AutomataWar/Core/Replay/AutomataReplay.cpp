@@ -93,6 +93,8 @@ namespace Automata
         WriteU16(out, data.version);
         WriteU64(out, data.rulesetHash);
         WriteU64(out, data.seed);
+        WriteU32(out, static_cast<uint32_t>(FMath::Max(0, data.initialActionPointsA)));
+        WriteU32(out, static_cast<uint32_t>(FMath::Max(0, data.initialActionPointsB)));
 
         // Commands A.
         uint16_t lenA = static_cast<uint16_t>(FMath::Min<int32>(data.commandsA.Num(), MaxCommands));
@@ -118,7 +120,7 @@ namespace Automata
     ReplayDecodeResult DecodeReplay(const std::vector<uint8_t> &bytes)
     {
         ReplayDecodeResult result;
-        const size_t minSize = 4 + 2 + 8 + 8 + 2 + 2 + 4; // 30 bytes minimum
+        const size_t minSize = 4 + 2 + 8 + 8 + 4 + 4 + 2 + 2 + 4; // 38 bytes minimum
 
         if (bytes.size() < minSize)
         {
@@ -154,6 +156,11 @@ namespace Automata
 
         result.data.seed = ReadU64(p);
         p += 8;
+
+        result.data.initialActionPointsA = static_cast<int32_t>(ReadU32(p));
+        p += 4;
+        result.data.initialActionPointsB = static_cast<int32_t>(ReadU32(p));
+        p += 4;
 
         // Commands A.
         size_t remaining = bytes.size() - static_cast<size_t>(p - bytes.data());

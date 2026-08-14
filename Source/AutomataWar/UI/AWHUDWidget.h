@@ -131,7 +131,9 @@ private:
     void OnReplaySpeedQuadruple();
     void OnReplayScrubChanged(float Value);
     void InitializeReplayFromGameState();
-    bool InitializeReplay(const TArray<EAWCommand> &CommandsA, const TArray<EAWCommand> &CommandsB, int64 Seed);
+    bool InitializeReplay(const TArray<EAWCommand> &CommandsA, const TArray<EAWCommand> &CommandsB, int64 Seed,
+                          int32 ActionPointsA = Automata::InitialActionPoints,
+                          int32 ActionPointsB = Automata::InitialActionPoints);
     void UpdateReplayUI();
     void UpdateArenaFromReplay();
 

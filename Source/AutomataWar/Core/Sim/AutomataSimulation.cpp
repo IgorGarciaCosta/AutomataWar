@@ -37,6 +37,29 @@ namespace Automata
             grid_[static_cast<size_t>(Y * Width + Width - 1)] = CellType::Wall;
         }
 
+        actionPointItemValues_.assign(grid_.size(), 0);
+        std::vector<size_t> EmptyCells;
+        for (int32_t Y = 1; Y < Height - 1; ++Y)
+            for (int32_t X = 1; X < Width - 1; ++X)
+            {
+                const size_t CellIndex = static_cast<size_t>(Y * Width + X);
+                const bool bRobotStart = (X == 1 && Y == 1) || (X == Width - 2 && Y == Height - 2);
+                if (!bRobotStart && grid_[CellIndex] == CellType::Empty)
+                    EmptyCells.push_back(CellIndex);
+            }
+
+        const int32_t ItemCount = std::min<int32_t>(ActionPointItemCount, static_cast<int32_t>(EmptyCells.size()));
+        for (int32_t ItemIndex = 0; ItemIndex < ItemCount; ++ItemIndex)
+        {
+            const size_t CandidateIndex = static_cast<size_t>(Rng.Next() % EmptyCells.size());
+            const size_t CellIndex = EmptyCells[CandidateIndex];
+            grid_[CellIndex] = CellType::ActionPointItem;
+            actionPointItemValues_[CellIndex] = ActionPointItemMinValue +
+                                                static_cast<int32_t>(Rng.Next() % (ActionPointItemMaxValue - ActionPointItemMinValue + 1));
+            EmptyCells[CandidateIndex] = EmptyCells.back();
+            EmptyCells.pop_back();
+        }
+
         initialGrid_ = grid_;
         obstacleHealth_.assign(grid_.size(), 0);
         for (size_t CellIndex = 0; CellIndex < grid_.size(); ++CellIndex)
@@ -44,17 +67,19 @@ namespace Automata
                 obstacleHealth_[CellIndex] = ObstacleMaxHealth;
     }
 
-    void Simulation::SpawnRobots(int32_t Width, int32_t Height)
+    void Simulation::SpawnRobots(int32_t Width, int32_t Height, const std::array<int32_t, 2> &StartingActionPoints)
     {
         robots_[0] = {};
         robots_[0].x = 1;
         robots_[0].y = 1;
         robots_[0].facing = Dir::South;
+        robots_[0].actionPoints = StartingActionPoints[0];
 
         robots_[1] = {};
         robots_[1].x = Width - 2;
         robots_[1].y = Height - 2;
         robots_[1].facing = Dir::North;
+        robots_[1].actionPoints = StartingActionPoints[1];
     }
 
     bool Simulation::InBounds(int32_t X, int32_t Y) const
@@ -127,6 +152,16 @@ namespace Automata
                 Robot.x = X;
                 Robot.y = Y;
                 events_.push_back({Step, RobotIndex, EventType::Move, X, Y});
+                const size_t CellIndex = static_cast<size_t>(Y * gridWidth_ + X);
+                if (grid_[CellIndex] == CellType::ActionPointItem)
+                {
+                    const int32_t Award = actionPointItemValues_[CellIndex];
+                    Robot.actionPoints += Award;
+                    grid_[CellIndex] = CellType::Empty;
+                    actionPointItemValues_[CellIndex] = 0;
+                    events_.push_back({Step, RobotIndex, EventType::ActionPointsCollected,
+                                       static_cast<int32_t>(CellIndex), Award});
+                }
             }
             break;
         }
@@ -164,6 +199,7 @@ namespace Automata
         {
             Mix(static_cast<int64_t>(grid_[CellIndex]));
             Mix(obstacleHealth_[CellIndex]);
+            Mix(actionPointItemValues_[CellIndex]);
         }
         for (const RobotState &Robot : robots_)
         {
@@ -171,6 +207,7 @@ namespace Automata
             Mix(Robot.y);
             Mix(static_cast<int64_t>(Robot.facing));
             Mix(Robot.hp);
+            Mix(Robot.actionPoints);
             Mix(Robot.currentCommand);
             Mix(Robot.nextCommand);
         }
@@ -181,7 +218,7 @@ namespace Automata
     {
         Xorshift64 Rng{Config.seed == 0 ? 1 : Config.seed};
         InitGrid(Config.gridWidth, Config.gridHeight, Rng);
-        SpawnRobots(Config.gridWidth, Config.gridHeight);
+        SpawnRobots(Config.gridWidth, Config.gridHeight, Config.initialActionPoints);
         events_.clear();
         snapshots_.clear();
 
@@ -223,6 +260,7 @@ namespace Automata
         MatchResult Result;
         Result.stepsExecuted = static_cast<int32_t>(snapshots_.size());
         Result.finalHP = {robots_[0].hp, robots_[1].hp};
+        Result.finalActionPoints = {robots_[0].actionPoints, robots_[1].actionPoints};
         if (robots_[0].hp > robots_[1].hp)
             Result.outcome = MatchOutcome::Robot0Wins;
         else if (robots_[1].hp > robots_[0].hp)

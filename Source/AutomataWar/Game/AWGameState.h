@@ -60,6 +60,23 @@ public:
     UPROPERTY(Replicated, BlueprintReadOnly, Category = "Match")
     FAWMatchOutcome Outcome;
 
+    /** AP currently available to each command slot. */
+    UPROPERTY(Replicated, BlueprintReadOnly, Category = "Match|Action Points")
+    int32 ActionPoints0 = Automata::InitialActionPoints;
+
+    UPROPERTY(Replicated, BlueprintReadOnly, Category = "Match|Action Points")
+    int32 ActionPoints1 = Automata::InitialActionPoints;
+
+    /** AP at simulation start, retained so replay reconstruction is exact. */
+    UPROPERTY(Replicated, BlueprintReadOnly, Category = "Match|Action Points")
+    int32 ReplayStartActionPoints0 = Automata::InitialActionPoints;
+
+    UPROPERTY(Replicated, BlueprintReadOnly, Category = "Match|Action Points")
+    int32 ReplayStartActionPoints1 = Automata::InitialActionPoints;
+
+    int32 GetActionPoints(int32 Slot) const { return Slot == 0 ? ActionPoints0 : ActionPoints1; }
+    void SetActionPoints(int32 Slot, int32 Value);
+
     /** Delegate broadcast on phase change. */
     DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnPhaseChanged, EAWMatchPhase, NewPhase);
     UPROPERTY(BlueprintAssignable, Category = "Match")

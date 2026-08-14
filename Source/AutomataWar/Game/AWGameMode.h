@@ -84,6 +84,9 @@ protected:
     /** Whether each slot has submitted this round. */
     bool bSlotSubmitted[2] = {false, false};
 
+    /** AP already reserved by each slot's last accepted persistent program. */
+    int32 CommittedProgramCosts[2] = {0, 0};
+
     /** Timer handle for submission deadline. */
     FTimerHandle SubmissionTimerHandle;
 

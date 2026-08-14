@@ -19,7 +19,8 @@ namespace Automata
     {
         Empty,
         Wall,
-        Cover
+        Cover,
+        ActionPointItem
     };
 
     /** Complete canonical state for one tank. */
@@ -29,6 +30,7 @@ namespace Automata
         int32_t y = 0;
         Dir facing = Dir::North;
         int32_t hp = MaxHP;
+        int32_t actionPoints = InitialActionPoints;
         int32_t currentCommand = -1;
         int32_t nextCommand = 0;
     };
@@ -43,7 +45,8 @@ namespace Automata
         Turn,
         Fire,
         Hit,
-        ShotBlocked
+        ShotBlocked,
+        ActionPointsCollected
     };
 
     /** Compact event record used by replay, VFX, and audio. */
@@ -79,6 +82,7 @@ namespace Automata
         MatchOutcome outcome = MatchOutcome::Draw;
         int32_t stepsExecuted = 0;
         std::array<int32_t, 2> finalHP = {};
+        std::array<int32_t, 2> finalActionPoints = {};
     };
 
     /** Explicit deterministic inputs controlling arena generation. */
@@ -87,6 +91,7 @@ namespace Automata
         int32_t gridWidth = DefaultGridWidth;
         int32_t gridHeight = DefaultGridHeight;
         uint64_t seed = 12345;
+        std::array<int32_t, 2> initialActionPoints = {InitialActionPoints, InitialActionPoints};
     };
 
     /** Runs each finite command list once, with no parser, VM, or tick cap. */
@@ -114,7 +119,7 @@ namespace Automata
         };
 
         void InitGrid(int32_t Width, int32_t Height, Xorshift64 &Rng);
-        void SpawnRobots(int32_t Width, int32_t Height);
+        void SpawnRobots(int32_t Width, int32_t Height, const std::array<int32_t, 2> &StartingActionPoints);
         void ExecuteCommand(int32_t RobotIndex, EAWCommand Command, int32_t Step);
         void Fire(int32_t RobotIndex, int32_t Step);
         bool InBounds(int32_t X, int32_t Y) const;
@@ -126,6 +131,7 @@ namespace Automata
         std::vector<CellType> grid_;
         std::vector<CellType> initialGrid_;
         std::vector<int32_t> obstacleHealth_;
+        std::vector<int32_t> actionPointItemValues_;
         std::array<RobotState, 2> robots_;
         std::vector<SimEvent> events_;
         std::vector<StepSnapshot> snapshots_;

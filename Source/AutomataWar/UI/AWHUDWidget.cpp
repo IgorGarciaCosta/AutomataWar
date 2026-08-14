@@ -45,6 +45,8 @@ namespace
             return TEXT("hit");
         case Automata::EventType::ShotBlocked:
             return TEXT("shot blocked");
+        case Automata::EventType::ActionPointsCollected:
+            return TEXT("collected AP");
         default:
             return TEXT("unknown");
         }
@@ -327,12 +329,28 @@ void UAWHUDWidget::OnPhaseChanged(EAWMatchPhase NewPhase)
     {
     case EAWMatchPhase::Programming:
         if (ProgrammingScreenWidget)
+        {
             ProgrammingScreenWidget->ResetSubmissionState();
+            if (AAWGameState *GS = GetWorld()->GetGameState<AAWGameState>())
+            {
+                ProgrammingScreenWidget->SetPlayerStats(0, Automata::MaxHP, GS->GetActionPoints(0));
+                ProgrammingScreenWidget->SetPlayerStats(1, Automata::MaxHP, GS->GetActionPoints(1));
+            }
+        }
         ShowScreen(EAWScreen::Programming);
         break;
     case EAWMatchPhase::Simulation:
         if (SimulationScreenWidget && ProgrammingScreenWidget)
+        {
             SimulationScreenWidget->SetCommands(ProgrammingScreenWidget->GetCommands(0), ProgrammingScreenWidget->GetCommands(1));
+            if (AAWGameState *GS = GetWorld()->GetGameState<AAWGameState>())
+            {
+                SimulationScreenWidget->SetPlayerDetails(0, FString::Printf(
+                    TEXT("HP %d  |  AP %d  |  FACING SOUTH"), Automata::MaxHP, GS->GetActionPoints(0)));
+                SimulationScreenWidget->SetPlayerDetails(1, FString::Printf(
+                    TEXT("HP %d  |  AP %d  |  FACING NORTH"), Automata::MaxHP, GS->GetActionPoints(1)));
+            }
+        }
         PlayUISound(AWVisualAssets::SFX_MatchStart);
         ShowScreen(EAWScreen::Simulation);
         break;
@@ -385,6 +403,8 @@ void UAWHUDWidget::OnLocalMatch()
     {
         Sub->StartLocalMatch();
     }
+    if (ProgrammingScreenWidget)
+        ProgrammingScreenWidget->ResetForNewMatch(Automata::InitialActionPoints, Automata::InitialActionPoints);
     ShowScreen(EAWScreen::Programming);
 }
 
@@ -538,20 +558,22 @@ void UAWHUDWidget::InitializeReplayFromGameState()
     if (!GS)
         return;
 
-    if (!InitializeReplay(GS->RevealedCommands0, GS->RevealedCommands1, GS->SimSeed))
+    if (!InitializeReplay(GS->RevealedCommands0, GS->RevealedCommands1, GS->SimSeed,
+                          GS->ReplayStartActionPoints0, GS->ReplayStartActionPoints1))
     {
         SetStatus(TEXT("Failed to reconstruct simulation for replay."), true);
     }
 }
 
-bool UAWHUDWidget::InitializeReplay(const TArray<EAWCommand> &CommandsA, const TArray<EAWCommand> &CommandsB, int64 Seed)
+bool UAWHUDWidget::InitializeReplay(const TArray<EAWCommand> &CommandsA, const TArray<EAWCommand> &CommandsB, int64 Seed,
+                                   int32 ActionPointsA, int32 ActionPointsB)
 {
     bReplayPlaying = false;
     ReplayAccumulator = 0.0;
     ReplaySpeed = 1.f;
 
     ReplayController = MakeUnique<Automata::FAWReplayController>();
-    if (!ReplayController->Initialize(CommandsA, CommandsB, static_cast<uint64_t>(Seed)))
+    if (!ReplayController->Initialize(CommandsA, CommandsB, static_cast<uint64_t>(Seed), ActionPointsA, ActionPointsB))
         return false;
 
     if (AAWArenaRenderer *Renderer = FindOrSpawnRenderer())
@@ -560,7 +582,10 @@ bool UAWHUDWidget::InitializeReplay(const TArray<EAWCommand> &CommandsA, const T
         Grid.Reserve(ReplayController->GetGrid().size());
         for (auto c : ReplayController->GetGrid())
             Grid.Add(c);
-        Renderer->InitializeArena(ReplayController->GetConfig(), Grid);
+        TArray<Automata::SimEvent> Events;
+        for (const Automata::SimEvent &Event : ReplayController->GetEventsInRange(0, ReplayController->GetTotalSteps()))
+            Events.Add(Event);
+        Renderer->InitializeArena(ReplayController->GetConfig(), Grid, Events);
     }
 
     UpdateReplayUI();
@@ -584,7 +609,7 @@ void UAWHUDWidget::UpdateReplayUI()
     auto FormatDetails = [&](int32 Idx) -> FString
     {
         const auto &R = Snap.robots[Idx];
-        return FString::Printf(TEXT("HP %d  |  FACING %s"), R.hp, FacingName(R.facing));
+        return FString::Printf(TEXT("HP %d  |  AP %d  |  FACING %s"), R.hp, R.actionPoints, FacingName(R.facing));
     };
     if (ReplayAutopsyScreenWidget)
     {
@@ -736,14 +761,15 @@ void UAWHUDWidget::OnReplayLoad(const FString &Filename)
     TArray<EAWCommand> Commands0, Commands1;
     FString Error;
     int64 Seed;
-    if (!Sub->LoadReplay(Filename, Commands0, Commands1, Seed, Error))
+    int32 ActionPoints0, ActionPoints1;
+    if (!Sub->LoadReplay(Filename, Commands0, Commands1, Seed, ActionPoints0, ActionPoints1, Error))
     {
         if (ReplayBrowserScreenWidget)
             ReplayBrowserScreenWidget->SetStatus(Error);
         return;
     }
 
-    if (!InitializeReplay(Commands0, Commands1, Seed))
+    if (!InitializeReplay(Commands0, Commands1, Seed, ActionPoints0, ActionPoints1))
     {
         if (ReplayBrowserScreenWidget)
             ReplayBrowserScreenWidget->SetStatus(TEXT("Failed to resimulate replay."));
@@ -856,9 +882,9 @@ void UAWHUDWidget::PopulateLanguageReference()
 
     const FString Reference = TEXT(
         "AVAILABLE COMMANDS\n\n"
-        "MOVE        Move one cell in the direction the tank is facing.\n\n"
-        "FIRE        Fire in a straight line from the tank's cannon.\n\n"
-        "TURN LEFT   Rotate 90 degrees left from the tank's point of view.\n\n"
-        "TURN RIGHT  Rotate 90 degrees right from the tank's point of view.\n");
+        "MOVE        10 AP  |  Move one cell in the direction the tank is facing.\n\n"
+        "FIRE        20 AP  |  Fire in a straight line from the tank's cannon.\n\n"
+        "TURN LEFT    5 AP  |  Rotate 90 degrees left from the tank's point of view.\n\n"
+        "TURN RIGHT   5 AP  |  Rotate 90 degrees right from the tank's point of view.\n");
     LanguageReferenceScreenWidget->SetReference(Reference);
 }

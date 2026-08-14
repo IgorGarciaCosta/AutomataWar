@@ -139,6 +139,12 @@ public:
     /** Reopen the panel for a new programming phase without clearing commands. */
     void ResetSubmissionState();
 
+    /** Replace the live HP/AP readout for this player. */
+    void SetPlayerStats(int32 Health, int32 ActionPoints);
+
+    /** Clear the prior program and restore stats for a fresh match. */
+    void ResetForNewMatch(int32 Health, int32 ActionPoints);
+
 protected:
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AutomataWar|UI")
     int32 PlayerIndex = 0;
@@ -208,6 +214,8 @@ private:
     int8 PowerTransitionDirection = 0;
     bool bAwaitingSubmissionResult = false;
     bool bSubmitted = false;
+    int32 PlayerHealth = Automata::MaxHP;
+    int32 AvailableActionPoints = Automata::InitialActionPoints;
 };
 
 /** Programming screen composed from two reusable combatant panels. */
@@ -223,6 +231,8 @@ public:
     FString GetCommandText(int32 PlayerIndex) const;
     void ResolveSubmission(int32 PlayerIndex, bool bAccepted);
     void ResetSubmissionState();
+    void SetPlayerStats(int32 PlayerIndex, int32 Health, int32 ActionPoints);
+    void ResetForNewMatch(int32 ActionPoints0, int32 ActionPoints1);
 
 private:
     UFUNCTION()
@@ -280,6 +290,7 @@ class AUTOMATAWAR_API UAWSimulationScreen : public UAWScreenWidget
 
 public:
     void SetCommands(const TArray<EAWCommand> &PlayerOneCommands, const TArray<EAWCommand> &PlayerTwoCommands);
+    void SetPlayerDetails(int32 PlayerIndex, const FString &Details);
 
 private:
     UPROPERTY(meta = (BindWidget))

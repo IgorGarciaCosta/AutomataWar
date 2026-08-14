@@ -4,6 +4,7 @@
  */
 
 #include "AWArenaRenderer.h"
+#include "AWAPItemSpawner.h"
 #include "AWTankActor.h"
 #include "AWVisualTypes.h"
 #include "TableObstable.h"
@@ -41,12 +42,17 @@ void AAWArenaRenderer::BeginPlay()
 {
     Super::BeginPlay();
     ResolveTankActors();
+    ResolveActionPointItemSpawner();
 }
 
-void AAWArenaRenderer::InitializeArena(const Automata::SimConfig &Config, const TArray<Automata::CellType> &Grid)
+void AAWArenaRenderer::InitializeArena(const Automata::SimConfig &Config, const TArray<Automata::CellType> &Grid,
+                                      const TArray<Automata::SimEvent> &Events)
 {
     BuildFloorGrid(Config.gridWidth, Config.gridHeight);
     SpawnCoverVisuals(Config.gridWidth, Config.gridHeight, Grid);
+    ResolveActionPointItemSpawner();
+    if (ActionPointItemSpawner)
+        ActionPointItemSpawner->InitializeItems(Config, Grid, Events);
 }
 
 void AAWArenaRenderer::SetSnapshot(const Automata::StepSnapshot &Snapshot)
@@ -62,6 +68,8 @@ void AAWArenaRenderer::SetSnapshot(const Automata::StepSnapshot &Snapshot)
         PlayerOneTank->SetTargetTransform(GridToWorld(Snapshot.robots[0].x, Snapshot.robots[0].y), DirToRotation(Snapshot.robots[0].facing));
     if (PlayerTwoTank)
         PlayerTwoTank->SetTargetTransform(GridToWorld(Snapshot.robots[1].x, Snapshot.robots[1].y), DirToRotation(Snapshot.robots[1].facing));
+    if (ActionPointItemSpawner)
+        ActionPointItemSpawner->SetReplayStep(Snapshot.step);
 }
 
 void AAWArenaRenderer::ProcessEvents(const TArray<Automata::SimEvent> &Events, int32 FromStep, int32 ToStep)
@@ -117,6 +125,8 @@ void AAWArenaRenderer::ResetVisuals()
         PlayerOneTank->ResetVisual();
     if (PlayerTwoTank)
         PlayerTwoTank->ResetVisual();
+    if (ActionPointItemSpawner)
+        ActionPointItemSpawner->SetReplayStep(INDEX_NONE);
     for (const TPair<int32, TObjectPtr<ATableObstable>> &Entry : Obstacles)
         if (Entry.Value)
             Entry.Value->ResetHealth();
@@ -346,4 +356,22 @@ void AAWArenaRenderer::ResolveTankActors()
         else if (Tank->GetRobotIndex() == 1 && !PlayerTwoTank)
             PlayerTwoTank = Tank;
     }
+}
+
+void AAWArenaRenderer::ResolveActionPointItemSpawner()
+{
+    if (ActionPointItemSpawner)
+        return;
+
+    for (TActorIterator<AAWAPItemSpawner> It(GetWorld()); It; ++It)
+    {
+        ActionPointItemSpawner = *It;
+        return;
+    }
+
+    FActorSpawnParameters SpawnParameters;
+    SpawnParameters.Owner = this;
+    SpawnParameters.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+    ActionPointItemSpawner = GetWorld()->SpawnActor<AAWAPItemSpawner>(
+        AAWAPItemSpawner::StaticClass(), GetActorTransform(), SpawnParameters);
 }

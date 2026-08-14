@@ -4,12 +4,14 @@
 namespace Automata
 {
 
-    bool FAWReplayController::Initialize(const TArray<EAWCommand> &CommandsA, const TArray<EAWCommand> &CommandsB, uint64_t Seed)
+    bool FAWReplayController::Initialize(const TArray<EAWCommand> &CommandsA, const TArray<EAWCommand> &CommandsB, uint64_t Seed,
+                                         int32_t InitialActionPointsA, int32_t InitialActionPointsB)
     {
         bValid_ = false;
         commandsA_ = CommandsA;
         commandsB_ = CommandsB;
         config_.seed = Seed;
+        config_.initialActionPoints = {InitialActionPointsA, InitialActionPointsB};
 
         Simulation Sim;
         result_ = Sim.RunMatch(commandsA_, commandsB_, config_);

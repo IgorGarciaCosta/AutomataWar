@@ -6,6 +6,7 @@
  */
 
 #include "CoreMinimal.h"
+#include "AutomataWar/Core/AutomataRules.h"
 #include "AWMatchTypes.generated.h"
 
 DECLARE_LOG_CATEGORY_EXTERN(LogAutomataGame, Log, All);
@@ -21,6 +22,32 @@ enum class EAWCommand : uint8
     TurnRight UMETA(DisplayName = "Turn Right"),
     Count UMETA(Hidden)
 };
+
+/** AP reserved while this command is present in a player's program. */
+inline constexpr int32 GetActionPointCost(EAWCommand Command)
+{
+    switch (Command)
+    {
+    case EAWCommand::Move:
+        return Automata::MoveActionPointCost;
+    case EAWCommand::Fire:
+        return Automata::FireActionPointCost;
+    case EAWCommand::TurnLeft:
+    case EAWCommand::TurnRight:
+        return Automata::TurnActionPointCost;
+    default:
+        return 0;
+    }
+}
+
+/** Total AP reserved by a complete command program. */
+inline int32 GetProgramActionPointCost(TConstArrayView<EAWCommand> Commands)
+{
+    int32 Cost = 0;
+    for (EAWCommand Command : Commands)
+        Cost += GetActionPointCost(Command);
+    return Cost;
+}
 
 /** Human-readable label used by command lists and replay views. */
 inline const TCHAR *LexToString(EAWCommand Command)

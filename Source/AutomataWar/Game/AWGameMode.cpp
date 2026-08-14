@@ -4,8 +4,10 @@
 #include "AWPlayerController.h"
 #include "AutomataWar/Core/AutomataRules.h"
 #include "AutomataWar/Core/Sim/AutomataSimulation.h"
+#include "AutomataWar/Visual/AWAPItemSpawner.h"
 #include "AutomataWar/Visual/AWSpectatorPawn.h"
 #include "Engine/World.h"
+#include "EngineUtils.h"
 #include "TimerManager.h"
 
 DEFINE_LOG_CATEGORY(LogAutomataNet);
@@ -70,6 +72,8 @@ void AAWGameMode::BeginLocalMatch()
     AcceptedCommands[1] = {EAWCommand::Move};
     bSlotSubmitted[0] = false;
     bSlotSubmitted[1] = false;
+    CommittedProgramCosts[0] = 0;
+    CommittedProgramCosts[1] = 0;
 
     if (AAWGameState *GS = GetGameState<AAWGameState>())
     {
@@ -80,6 +84,10 @@ void AAWGameMode::BeginLocalMatch()
         GS->AuthoritativeHash = 0;
         GS->SimSeed = 0;
         GS->Outcome = FAWMatchOutcome();
+        GS->SetActionPoints(0, Automata::InitialActionPoints);
+        GS->SetActionPoints(1, Automata::InitialActionPoints);
+        GS->ReplayStartActionPoints0 = Automata::InitialActionPoints;
+        GS->ReplayStartActionPoints1 = Automata::InitialActionPoints;
     }
 
     SetPhase(EAWMatchPhase::Programming);
@@ -122,7 +130,19 @@ FAWValidationResult AAWGameMode::HandleSubmission(int32 Slot, const TArray<EAWCo
             return R;
         }
 
+    const int32 NewProgramCost = GetProgramActionPointCost(Commands);
+    const int32 CostDelta = NewProgramCost - CommittedProgramCosts[Slot];
+    if (CostDelta > GS->GetActionPoints(Slot))
+    {
+        FAWValidationResult R;
+        R.ErrorMessage = FString::Printf(TEXT("Program needs %d more AP; only %d AP available."),
+                                         CostDelta, GS->GetActionPoints(Slot));
+        return R;
+    }
+
     AcceptedCommands[Slot] = Commands;
+    GS->SetActionPoints(Slot, GS->GetActionPoints(Slot) - CostDelta);
+    CommittedProgramCosts[Slot] = NewProgramCost;
     bSlotSubmitted[Slot] = true;
 
     UE_LOG(LogAutomataGame, Log, TEXT("Slot %d submitted (%d actions)."), Slot, Commands.Num());
@@ -186,10 +206,21 @@ void AAWGameMode::OnBothSubmitted()
 void AAWGameMode::OnSubmissionTimerExpired()
 {
     // Use last accepted/default for non-submitted slots
+    AAWGameState *GS = GetGameState<AAWGameState>();
     for (int32 i = 0; i < 2; ++i)
     {
         if (!bSlotSubmitted[i])
         {
+            if (GS)
+            {
+                const int32 NewProgramCost = GetProgramActionPointCost(AcceptedCommands[i]);
+                const int32 CostDelta = NewProgramCost - CommittedProgramCosts[i];
+                if (CostDelta <= GS->GetActionPoints(i))
+                {
+                    GS->SetActionPoints(i, GS->GetActionPoints(i) - CostDelta);
+                    CommittedProgramCosts[i] = NewProgramCost;
+                }
+            }
             UE_LOG(LogAutomataNet, Log, TEXT("Slot %d timer expired, using last accepted commands."), i);
             bSlotSubmitted[i] = true;
         }
@@ -201,17 +232,31 @@ void AAWGameMode::RunSimulation()
 {
     SetPhase(EAWMatchPhase::Simulation);
 
-    uint64 Seed = static_cast<uint64>(FMath::Rand()) ^ (static_cast<uint64>(FMath::Rand()) << 32);
+    uint64 Seed = 0;
+    for (TActorIterator<AAWAPItemSpawner> It(GetWorld()); It; ++It)
+    {
+        Seed = static_cast<uint64>(It->GetSpawnSeed());
+        break;
+    }
+    if (Seed == 0)
+        Seed = static_cast<uint64>(FMath::Rand()) ^ (static_cast<uint64>(FMath::Rand()) << 32);
 
     Automata::SimConfig Config;
     Config.seed = Seed;
+
+    AAWGameState *GS = GetGameState<AAWGameState>();
+    if (GS)
+    {
+        Config.initialActionPoints = {GS->GetActionPoints(0), GS->GetActionPoints(1)};
+        GS->ReplayStartActionPoints0 = Config.initialActionPoints[0];
+        GS->ReplayStartActionPoints1 = Config.initialActionPoints[1];
+    }
 
     Automata::Simulation Sim;
     Automata::MatchResult Result = Sim.RunMatch(AcceptedCommands[0], AcceptedCommands[1], Config);
     uint64 FinalHash = Sim.GetFinalHash();
 
     // Populate GameState
-    AAWGameState *GS = GetGameState<AAWGameState>();
     if (GS)
     {
         GS->SimSeed = static_cast<int64>(Seed);
@@ -221,6 +266,8 @@ void AAWGameMode::RunSimulation()
 
         GS->Outcome.HP0 = Result.finalHP[0];
         GS->Outcome.HP1 = Result.finalHP[1];
+        GS->SetActionPoints(0, Result.finalActionPoints[0]);
+        GS->SetActionPoints(1, Result.finalActionPoints[1]);
         switch (Result.outcome)
         {
         case Automata::MatchOutcome::Robot0Wins:

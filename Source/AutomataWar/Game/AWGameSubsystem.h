@@ -97,7 +97,8 @@ public:
 
     /** Load a replay by filename; returns commands and seed for re-simulation. */
     UFUNCTION(BlueprintCallable, Category = "AutomataWar|Replay")
-    bool LoadReplay(const FString &Filename, TArray<EAWCommand> &OutCommands0, TArray<EAWCommand> &OutCommands1, int64 &OutSeed, FString &OutError);
+    bool LoadReplay(const FString &Filename, TArray<EAWCommand> &OutCommands0, TArray<EAWCommand> &OutCommands1,
+                    int64 &OutSeed, int32 &OutActionPoints0, int32 &OutActionPoints1, FString &OutError);
 
     /** Delete a replay. */
     UFUNCTION(BlueprintCallable, Category = "AutomataWar|Replay")

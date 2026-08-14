@@ -16,11 +16,13 @@ namespace AWVisualAssets
     inline const TCHAR *M_ArenaCell = TEXT("/Game/Art/Materials/M_ArenaCell.M_ArenaCell");
     inline const TCHAR *M_Robot = TEXT("/Game/Art/Materials/M_Robot.M_Robot");
     inline const TCHAR *M_Cover = TEXT("/Game/Art/Materials/M_Cover.M_Cover");
+    inline const TCHAR *M_Effect = TEXT("/Game/Art/Materials/M_Effect.M_Effect");
 
     // ─── Niagara ─────────────────────────────────────────────────────────────
     inline const TCHAR *NS_MuzzleFlash = TEXT("/Game/Art/VFX/NS_MuzzleFlash.NS_MuzzleFlash");
     inline const TCHAR *NS_Impact = TEXT("/Game/Art/VFX/NS_Impact.NS_Impact");
     inline const TCHAR *NS_Destruction = TEXT("/Game/Art/VFX/NS_Destruction.NS_Destruction");
+    inline const TCHAR *NS_ActionPointPickup = TEXT("/Game/Art/VFX/NS_Impact.NS_Impact");
 
     // ─── SFX ─────────────────────────────────────────────────────────────────
     inline const TCHAR *SFX_Fire = TEXT("/Game/Audio/SFX/S_Fire.S_Fire");
@@ -28,11 +30,12 @@ namespace AWVisualAssets
     inline const TCHAR *SFX_Destroy = TEXT("/Game/Audio/SFX/S_Destroy.S_Destroy");
     inline const TCHAR *SFX_MatchStart = TEXT("/Game/Audio/SFX/S_MatchStart.S_MatchStart");
     inline const TCHAR *SFX_MatchEnd = TEXT("/Game/Audio/SFX/S_MatchEnd.S_MatchEnd");
+    inline const TCHAR *SFX_ActionPointPickup = TEXT("/Game/Audio/SFX/S_Shield.S_Shield");
 
     /** Total count of material asset paths (for test validation). */
-    inline constexpr int32 MaterialAssetCount = 3;
+    inline constexpr int32 MaterialAssetCount = 4;
     /** Total count of all soft-path assets. */
-    inline constexpr int32 TotalAssetPathCount = 12;
+    inline constexpr int32 TotalAssetPathCount = 14;
 }
 
 /** Visual config constants. */
