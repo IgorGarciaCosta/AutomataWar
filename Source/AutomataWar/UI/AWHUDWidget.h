@@ -190,4 +190,5 @@ private:
     float ReplaySpeed = 1.f;
     bool bReplayPlaying = false;
     double ReplayAccumulator = 0.0;
+    int32 LastProcessedReplayEventStep = INDEX_NONE;
 };

@@ -570,7 +570,8 @@ bool UAWHUDWidget::InitializeReplay(const TArray<EAWCommand> &CommandsA, const T
 {
     bReplayPlaying = false;
     ReplayAccumulator = 0.0;
-    ReplaySpeed = 1.f;
+    LastProcessedReplayEventStep = INDEX_NONE;
+    ReplaySpeed = .1f;
 
     ReplayController = MakeUnique<Automata::FAWReplayController>();
     if (!ReplayController->Initialize(CommandsA, CommandsB, static_cast<uint64_t>(Seed), ActionPointsA, ActionPointsB))
@@ -639,6 +640,10 @@ void UAWHUDWidget::UpdateArenaFromReplay()
 
     int32 Step = ReplayController->GetCurrentStep();
     Renderer->SetSnapshot(ReplayController->GetCurrentSnapshot());
+
+    if (Step == LastProcessedReplayEventStep)
+        return;
+    LastProcessedReplayEventStep = Step;
 
     auto Events = ReplayController->GetEventsForStep(Step);
     TArray<Automata::SimEvent> UEEvents;
