@@ -47,6 +47,13 @@ protected:
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "AutomataWar|UI")
     TSubclassOf<class UAWHUDWidget> HUDWidgetClass;
 
+    /** Software cursor Blueprint used throughout the game viewport. */
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "AutomataWar|UI")
+    TSubclassOf<class UUserWidget> CursorWidgetClass;
+
     UPROPERTY()
     TObjectPtr<class UAWHUDWidget> HUDWidget;
+
+    UPROPERTY()
+    TObjectPtr<class UUserWidget> CursorWidget;
 };

@@ -9,7 +9,6 @@
 #include "TableObstable.h"
 #include "AutomataWar/UI/AWUITypes.h"
 #include "ProceduralMeshComponent.h"
-#include "Components/AudioComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Components/PointLightComponent.h"
 #include "NiagaraComponent.h"
@@ -52,17 +51,6 @@ void AAWArenaRenderer::InitializeArena(const Automata::SimConfig &Config, const 
 
 void AAWArenaRenderer::SetSnapshot(const Automata::StepSnapshot &Snapshot)
 {
-    if (bHasSnapshot)
-    {
-        for (int32 RobotIdx = 0; RobotIdx < 2; ++RobotIdx)
-        {
-            const bool bMoved = CurrentSnapshot.robots[RobotIdx].x != Snapshot.robots[RobotIdx].x ||
-                                CurrentSnapshot.robots[RobotIdx].y != Snapshot.robots[RobotIdx].y;
-            if (!bMoved)
-                StopMovementSound(RobotIdx);
-        }
-    }
-
     CurrentSnapshot = Snapshot;
     bHasSnapshot = true;
     for (const TPair<int32, TObjectPtr<ATableObstable>> &Entry : Obstacles)
@@ -104,9 +92,6 @@ void AAWArenaRenderer::ProcessEvents(const TArray<Automata::SimEvent> &Events, i
             TriggerImpact(Pos);
             PlaySFX(AWVisualAssets::SFX_Impact, Pos);
             break;
-        case Automata::EventType::Move:
-            StartMovementSound(Evt.robot);
-            break;
         default:
             break;
         }
@@ -126,8 +111,6 @@ void AAWArenaRenderer::ProcessEvents(const TArray<Automata::SimEvent> &Events, i
 
 void AAWArenaRenderer::ResetVisuals()
 {
-    StopMovementSound(0);
-    StopMovementSound(1);
     bHasSnapshot = false;
     ResolveTankActors();
     if (PlayerOneTank)
@@ -323,32 +306,6 @@ void AAWArenaRenderer::PlaySFX(const TCHAR *SoftPath, FVector Location)
     {
         UGameplayStatics::PlaySoundAtLocation(GetWorld(), Sound, Location);
     }
-}
-
-void AAWArenaRenderer::StartMovementSound(int32 RobotIdx)
-{
-    if (MovementAudio[RobotIdx].IsValid())
-    {
-        if (!MovementAudio[RobotIdx]->IsPlaying())
-            MovementAudio[RobotIdx]->Play();
-        return;
-    }
-
-    ResolveTankActors();
-    AAWTankActor *Tank = RobotIdx == 0 ? PlayerOneTank.Get() : PlayerTwoTank.Get();
-    USoundBase *Sound = LoadObject<USoundBase>(nullptr, AWVisualAssets::SFX_Move);
-    if (Tank && Sound)
-    {
-        MovementAudio[RobotIdx] = UGameplayStatics::SpawnSoundAttached(
-            Sound, Tank->GetRootComponent(), NAME_None, FVector::ZeroVector, FRotator::ZeroRotator,
-            EAttachLocation::KeepRelativeOffset, true, 1.f, 1.f, 0.f, nullptr, nullptr, false);
-    }
-}
-
-void AAWArenaRenderer::StopMovementSound(int32 RobotIdx)
-{
-    if (MovementAudio[RobotIdx].IsValid())
-        MovementAudio[RobotIdx]->Stop();
 }
 
 FVector AAWArenaRenderer::GridToWorld(int32 X, int32 Y) const

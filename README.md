@@ -28,6 +28,7 @@ Both slots reuse `WBP_AWProgrammingPanel`. Each panel contains:
 Free-form text entry is not available. See [Docs/LANGUAGE.md](Docs/LANGUAGE.md) for the complete command semantics.
 
 Every screen is presented inside the shared AW-80 phosphor-terminal shell. See [Docs/VISUAL_STYLE.md](Docs/VISUAL_STYLE.md) for its palette, typography, motion, accessibility limits, and references.
+The game viewport also uses a matching software cursor and categorized terminal button sounds; tank movement is intentionally silent.
 
 ## Replays
 

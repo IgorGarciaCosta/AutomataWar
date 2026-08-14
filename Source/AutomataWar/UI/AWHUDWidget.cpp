@@ -94,6 +94,7 @@ void UAWHUDWidget::NativeConstruct()
     if (FParse::Value(FCommandLine::Get(), TEXT("AutomataCapture="), CaptureMode))
     {
         float ScreenshotDelay = 1.f;
+        FParse::Value(FCommandLine::Get(), TEXT("AutomataCaptureDelay="), ScreenshotDelay);
         if (CaptureMode.Equals(TEXT("Programming"), ESearchCase::IgnoreCase))
         {
             OnLocalMatch();
@@ -120,8 +121,7 @@ void UAWHUDWidget::NativeConstruct()
                                                          {
                                                              if (UUserWidget *ProgrammingPanel = WeakPanel.Get())
                                                                  if (UButton *ReturnButton = Cast<UButton>(ProgrammingPanel->GetWidgetFromName(TEXT("ProgrammingReturnToPlanningButton"))))
-                                                                     ReturnButton->OnClicked.Broadcast();
-                                                         }),
+                                                                     ReturnButton->OnClicked.Broadcast(); }),
                         0.7f, false);
                 }
             }
@@ -139,7 +139,7 @@ void UAWHUDWidget::NativeConstruct()
         if (FParse::Param(FCommandLine::Get(), TEXT("AutomataCaptureScreenshot")))
         {
             const FString ScreenshotPath = FPaths::ProjectSavedDir() / TEXT("Screenshots") /
-                FString::Printf(TEXT("HUD_%s.png"), *CaptureMode);
+                                           FString::Printf(TEXT("HUD_%s.png"), *CaptureMode);
             FTimerHandle ScreenshotTimer;
             GetWorld()->GetTimerManager().SetTimer(
                 ScreenshotTimer,
@@ -381,7 +381,6 @@ void UAWHUDWidget::PlayUISound(const TCHAR *AssetPath) const
 
 void UAWHUDWidget::OnLocalMatch()
 {
-    PlayUISound(AWUIAssets::SFX_UIConfirm);
     if (UAWGameSubsystem *Sub = GetSubsystem())
     {
         Sub->StartLocalMatch();
@@ -391,7 +390,6 @@ void UAWHUDWidget::OnLocalMatch()
 
 void UAWHUDWidget::OnHostLAN()
 {
-    PlayUISound(AWUIAssets::SFX_UIConfirm);
     if (UAWGameSubsystem *Sub = GetSubsystem())
     {
         Sub->HostSession(TEXT("AutomataWar"));
@@ -401,7 +399,6 @@ void UAWHUDWidget::OnHostLAN()
 
 void UAWHUDWidget::OnFindLAN()
 {
-    PlayUISound(AWUIAssets::SFX_UIConfirm);
     if (UAWGameSubsystem *Sub = GetSubsystem())
     {
         Sub->RefreshSessions();
@@ -443,7 +440,6 @@ void UAWHUDWidget::OnJoinSelectedSession()
 
     if (UAWGameSubsystem *Sub = GetSubsystem())
     {
-        PlayUISound(AWUIAssets::SFX_UIConfirm);
         Sub->JoinSessionByIndex(SessionIndex);
         SetStatus(TEXT("Joining LAN session..."));
     }
@@ -457,7 +453,6 @@ void UAWHUDWidget::OnJoinIP()
         SetStatus(TEXT("Enter an IP address."), true);
         return;
     }
-    PlayUISound(AWUIAssets::SFX_UIConfirm);
     if (UAWGameSubsystem *Sub = GetSubsystem())
     {
         Sub->JoinByIP(IP);
@@ -652,7 +647,6 @@ void UAWHUDWidget::OnReplayPause() { bReplayPlaying = false; }
 
 void UAWHUDWidget::OnReplayStep()
 {
-    PlayUISound(AWUIAssets::SFX_UINavigate);
     if (ReplayController.IsValid() && ReplayController->IsValid())
     {
         ReplayController->StepForward();
@@ -663,7 +657,6 @@ void UAWHUDWidget::OnReplayStep()
 
 void UAWHUDWidget::OnReplayStepBack()
 {
-    PlayUISound(AWUIAssets::SFX_UINavigate);
     if (ReplayController.IsValid() && ReplayController->IsValid())
     {
         ReplayController->StepBackward();

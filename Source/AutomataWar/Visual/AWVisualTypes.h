@@ -25,7 +25,6 @@ namespace AWVisualAssets
     // ─── SFX ─────────────────────────────────────────────────────────────────
     inline const TCHAR *SFX_Fire = TEXT("/Game/Audio/SFX/S_Fire.S_Fire");
     inline const TCHAR *SFX_Impact = TEXT("/Game/Audio/SFX/S_Impact.S_Impact");
-    inline const TCHAR *SFX_Move = TEXT("/Game/Audio/SFX/S_Move.S_Move");
     inline const TCHAR *SFX_Destroy = TEXT("/Game/Audio/SFX/S_Destroy.S_Destroy");
     inline const TCHAR *SFX_MatchStart = TEXT("/Game/Audio/SFX/S_MatchStart.S_MatchStart");
     inline const TCHAR *SFX_MatchEnd = TEXT("/Game/Audio/SFX/S_MatchEnd.S_MatchEnd");

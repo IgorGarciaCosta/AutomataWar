@@ -5,6 +5,7 @@
 #include "AutomataWar/Visual/AWIsometricCamera.h"
 #include "AutomataWar/Visual/AWVisualTypes.h"
 #include "Blueprint/UserWidget.h"
+#include "Engine/GameViewportClient.h"
 #include "EngineUtils.h"
 #include "UObject/ConstructorHelpers.h"
 
@@ -15,6 +16,10 @@ AAWPlayerController::AAWPlayerController()
     HUDWidgetClass = UAWHUDWidget::StaticClass();
     if (HUDWidgetBlueprint.Succeeded())
         HUDWidgetClass = HUDWidgetBlueprint.Class;
+
+    static ConstructorHelpers::FClassFinder<UUserWidget> CursorWidgetBlueprint(TEXT("/Game/UI/WBP_AWCursor"));
+    if (CursorWidgetBlueprint.Succeeded())
+        CursorWidgetClass = CursorWidgetBlueprint.Class;
 }
 
 void AAWPlayerController::BeginPlay()
@@ -23,6 +28,17 @@ void AAWPlayerController::BeginPlay()
 
     if (IsLocalController())
     {
+        if (CursorWidgetClass && GetWorld()->GetGameViewport())
+        {
+            CursorWidget = CreateWidget<UUserWidget>(this, CursorWidgetClass);
+            for (EMouseCursor::Type CursorType : {
+                     EMouseCursor::Default, EMouseCursor::Hand, EMouseCursor::TextEditBeam})
+            {
+                GetWorld()->GetGameViewport()->SetSoftwareCursorWidget(CursorType, CursorWidget);
+            }
+            GetWorld()->GetGameViewport()->SetUseSoftwareCursorWidgets(true);
+        }
+
         AAWIsometricCamera *ArenaCamera = nullptr;
         for (TActorIterator<AAWIsometricCamera> It(GetWorld()); It; ++It)
         {

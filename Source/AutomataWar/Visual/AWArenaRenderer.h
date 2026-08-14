@@ -18,7 +18,6 @@ class UProceduralMeshComponent;
 class UActorComponent;
 class UStaticMeshComponent;
 class UPointLightComponent;
-class UAudioComponent;
 class UNiagaraComponent;
 class AAWTankActor;
 class ATableObstable;
@@ -75,9 +74,6 @@ protected:
     /** Play optional sound at location with soft-path fallback silence. */
     void PlaySFX(const TCHAR *SoftPath, FVector Location);
 
-    void StartMovementSound(int32 RobotIdx);
-    void StopMovementSound(int32 RobotIdx);
-
     /** Convert grid coords to world position. */
     FVector GridToWorld(int32 X, int32 Y) const;
 
@@ -107,6 +103,5 @@ protected:
     UPROPERTY(Transient)
     TMap<int32, TObjectPtr<ATableObstable>> Obstacles;
 
-    TWeakObjectPtr<UAudioComponent> MovementAudio[2];
     bool bHasSnapshot = false;
 };

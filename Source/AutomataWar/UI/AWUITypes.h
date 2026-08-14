@@ -20,10 +20,6 @@ namespace AWUIAssets
     inline const TCHAR *MonoFontPath = TEXT("/Game/UI/Fonts/F_AWMono.F_AWMono");
     /** Engine fallback monospace font. */
     inline const TCHAR *FallbackMonoFontPath = TEXT("/Engine/EngineFonts/RobotoMono.RobotoMono");
-    /** Optional click/confirm SFX. */
-    inline const TCHAR *SFX_UIConfirm = TEXT("/Game/Audio/SFX/S_UIConfirm.S_UIConfirm");
-    /** Optional navigate SFX. */
-    inline const TCHAR *SFX_UINavigate = TEXT("/Game/Audio/SFX/S_UINavigate.S_UINavigate");
     /** Error/rejection SFX. */
     inline const TCHAR *SFX_UIError = TEXT("/Game/Audio/SFX/S_UIError.S_UIError");
 }

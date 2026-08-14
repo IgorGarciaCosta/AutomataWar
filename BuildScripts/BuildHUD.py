@@ -1,7 +1,14 @@
+import os
+import struct
+import tempfile
+import zlib
+
 import unreal
 
 
 HUD_PATH = "/Game/UI/WBP_AWHUD"
+CURSOR_PATH = "/Game/UI/WBP_AWCursor"
+CURSOR_TEXTURE_PATH = "/Game/UI/T_AWCursorPixel"
 SCREEN_DIR = "/Game/UI/Screens"
 CONTROLLER_PATH = "/Game/Blueprints/BP_AWPlayerController"
 LEGACY_CODE_EDITOR_PATH = "/Game/UI/WBP_AWCodeEditor"
@@ -37,6 +44,28 @@ GREEN = unreal.LinearColor(0.34, 0.86, 0.34, 1.0)
 YELLOW = AMBER
 WHITE = unreal.LinearColor(1.0, 1.0, 1.0, 1.0)
 
+BUTTON_SOUND_PATHS = {
+    "navigate": "/Game/Audio/SFX/S_UINavigate",
+    "command": "/Game/Audio/SFX/S_UICommand",
+    "confirm": "/Game/Audio/SFX/S_UIConfirm",
+    "danger": "/Game/Audio/SFX/S_UIDanger",
+    "transport": "/Game/Audio/SFX/S_UITransport",
+    "hover": "/Game/Audio/SFX/S_UIHover",
+}
+COMMAND_BUTTONS = {
+    "ProgrammingMoveButton", "ProgrammingFireButton",
+    "ProgrammingTurnLeftButton", "ProgrammingTurnRightButton"}
+CONFIRM_BUTTONS = {
+    "LocalMatchButton", "HostLanButton", "FindLanButton",
+    "JoinSessionButton", "JoinIpButton", "ProgrammingSubmitButton",
+    "ReplaySaveButton", "ReplayLoadButton", "ReplayImportButton",
+    "NextRoundButton"}
+DANGER_BUTTONS = {"QuitButton", "ProgrammingRemoveActionButton"}
+TRANSPORT_BUTTONS = {
+    "ReplayStartButton", "ReplayBackButton", "ReplayPauseButton",
+    "ReplayPlayButton", "ReplayStepButton", "ReplayQuarterButton",
+    "ReplayNormalButton", "ReplayDoubleButton", "ReplayQuadButton"}
+
 H_FILL = unreal.HorizontalAlignment.H_ALIGN_FILL
 H_LEFT = unreal.HorizontalAlignment.H_ALIGN_LEFT
 H_CENTER = unreal.HorizontalAlignment.H_ALIGN_CENTER
@@ -48,6 +77,91 @@ V_BOTTOM = unreal.VerticalAlignment.V_ALIGN_BOTTOM
 
 bridge = unreal.AWWidgetBlueprintLibrary
 asset_tools = unreal.AssetToolsHelpers.get_asset_tools()
+
+
+def png_chunk(chunk_type, data):
+    return (struct.pack(">I", len(data)) + chunk_type + data +
+            struct.pack(">I", zlib.crc32(chunk_type + data) & 0xffffffff))
+
+
+def import_cursor_texture():
+    logical_width = 15
+    logical_height = 20
+    scale = 2
+    polygon = [
+        (0.0, 0.0), (0.0, 16.0), (4.0, 12.0),
+        (7.0, 19.0), (10.0, 17.0), (7.0, 11.0), (15.0, 11.0)]
+
+    def inside(column, row):
+        x = column + 0.5
+        y = row + 0.5
+        result = False
+        previous = polygon[-1]
+        for current in polygon:
+            if ((current[1] > y) != (previous[1] > y) and
+                    x < (previous[0] - current[0]) *
+                    (y - current[1]) /
+                    (previous[1] - current[1]) + current[0]):
+                result = not result
+            previous = current
+        return result
+
+    shape = {
+        (column, row)
+        for row in range(logical_height)
+        for column in range(logical_width)
+        if inside(column, row)}
+    outline = {
+        (column, row)
+        for column, row in shape
+        if any((column + dx, row + dy) not in shape
+               for dx, dy in ((-1, 0), (1, 0), (0, -1), (0, 1)))}
+
+    width = logical_width * scale
+    height = logical_height * scale
+    rows = []
+    for pixel_y in range(height):
+        row = bytearray([0])
+        for pixel_x in range(width):
+            cell = (pixel_x // scale, pixel_y // scale)
+            if cell in outline:
+                row.extend((46, 255, 107, 255))
+            elif cell in shape:
+                row.extend((0, 0, 0, 255))
+            else:
+                row.extend((0, 0, 0, 0))
+        rows.append(row)
+
+    source_dir = os.path.join(tempfile.gettempdir(), "AutomataWarCursor")
+    os.makedirs(source_dir, exist_ok=True)
+    source_file = os.path.join(source_dir, "T_AWCursorPixel.png")
+    with open(source_file, "wb") as image:
+        image.write(b"\x89PNG\r\n\x1a\n")
+        image.write(png_chunk(
+            b"IHDR", struct.pack(">IIBBBBB", width, height, 8, 6, 0, 0, 0)))
+        image.write(png_chunk(b"IDAT", zlib.compress(b"".join(rows), 9)))
+        image.write(png_chunk(b"IEND", b""))
+
+    task = unreal.AssetImportTask()
+    task.filename = source_file
+    task.destination_path = "/Game/UI"
+    task.destination_name = "T_AWCursorPixel"
+    task.automated = True
+    task.replace_existing = True
+    task.save = True
+    asset_tools.import_asset_tasks([task])
+    texture = unreal.load_asset(CURSOR_TEXTURE_PATH)
+    if not texture:
+        raise RuntimeError("Failed to import pixel cursor texture")
+    texture.set_editor_property("filter", unreal.TextureFilter.TF_NEAREST)
+    texture.set_editor_property(
+        "mip_gen_settings", unreal.TextureMipGenSettings.TMGS_NO_MIPMAPS)
+    unreal.EditorAssetLibrary.save_loaded_asset(
+        texture, only_if_is_dirty=False)
+    return texture
+
+
+cursor_texture = import_cursor_texture()
 if unreal.EditorAssetLibrary.does_asset_exist(LEGACY_CODE_EDITOR_PATH):
     unreal.EditorAssetLibrary.delete_asset(LEGACY_CODE_EDITOR_PATH)
 hud_blueprint = unreal.load_asset(HUD_PATH)
@@ -57,6 +171,24 @@ if not hud_blueprint:
 hud_tree = bridge.get_widget_tree(hud_blueprint)
 if not hud_tree:
     raise RuntimeError("WBP_AWHUD has no WidgetTree")
+
+cursor_blueprint = unreal.load_asset(CURSOR_PATH)
+if not cursor_blueprint:
+    cursor_factory = unreal.WidgetBlueprintFactory()
+    cursor_factory.set_editor_property(
+        "parent_class", unreal.UserWidget.static_class())
+    cursor_blueprint = asset_tools.create_asset(
+        "WBP_AWCursor", "/Game/UI", None, cursor_factory)
+if not cursor_blueprint:
+    raise RuntimeError(f"Failed to create Widget Blueprint: {CURSOR_PATH}")
+
+button_sounds = {}
+for profile, asset_path in BUTTON_SOUND_PATHS.items():
+    sound = unreal.load_asset(asset_path)
+    if not sound:
+        raise RuntimeError(
+            f"Missing {asset_path}; run BuildScripts/ImportUIAudio.py")
+    button_sounds[profile] = sound
 
 screen_blueprints = {}
 for screen_key, (asset_name, native_class_path) in SCREEN_BLUEPRINTS.items():
@@ -166,6 +298,25 @@ def button(name, value, color=PANEL_ALT, tooltip="", compact=False,
     item.set_color_and_opacity(WHITE)
     if tooltip:
         item.set_tool_tip_text(tooltip)
+    profile = "navigate"
+    if name in COMMAND_BUTTONS:
+        profile = "command"
+    elif name in CONFIRM_BUTTONS:
+        profile = "confirm"
+    elif name in DANGER_BUTTONS:
+        profile = "danger"
+    elif name in TRANSPORT_BUTTONS:
+        profile = "transport"
+    pressed_sound = unreal.SlateSound()
+    pressed_sound.set_editor_property(
+        "resource_object", button_sounds[profile])
+    hovered_sound = unreal.SlateSound()
+    hovered_sound.set_editor_property(
+        "resource_object", button_sounds["hover"])
+    style = item.get_editor_property("widget_style")
+    style.set_editor_property("pressed_slate_sound", pressed_sound)
+    style.set_editor_property("hovered_slate_sound", hovered_sound)
+    item.set_editor_property("widget_style", style)
     caption = label(f"{name}Label", value, 15 if compact else 18,
                     TEXT, bold=True)
     slot = item.add_child(caption)
@@ -219,6 +370,56 @@ def screen_header(parent, eyebrow, title, subtitle="", accent=CYAN):
     if subtitle:
         add(parent, label(f"{prefix}Subtitle", subtitle, 16,
                           MUTED, wrap=True), padding=margin(0, 0, 0, 16))
+
+
+blueprint = cursor_blueprint
+tree = bridge.get_widget_tree(cursor_blueprint)
+if not tree:
+    raise RuntimeError("WBP_AWCursor has no WidgetTree")
+cursor_root = bridge.get_root_widget(tree)
+if not cursor_root:
+    bridge.clear_widget_tree(tree)
+    cursor_root = make(unreal.SizeBox, "AWCursorRoot")
+    bridge.set_root_widget(tree, cursor_root)
+cursor_blueprint.modify()
+tree.modify()
+cursor_root.modify()
+cursor_root.set_width_override(30.0)
+cursor_root.set_height_override(40.0)
+cursor_root.set_visibility(unreal.SlateVisibility.HIT_TEST_INVISIBLE)
+
+
+def cursor_widgets(widget, widgets):
+    widgets[widget.get_name()] = widget
+    if hasattr(widget, "get_all_children"):
+        for child in widget.get_all_children():
+            cursor_widgets(child, widgets)
+
+
+cursor_widget_map = {}
+cursor_widgets(cursor_root, cursor_widget_map)
+cursor_image = cursor_widget_map.get("AWCursorHotspotFill")
+if not cursor_image:
+    cursor_root.clear_children()
+    cursor_image = make(unreal.Border, "AWCursorHotspotFill")
+    cursor_root.add_child(cursor_image)
+cursor_image.set_brush_from_texture(cursor_texture)
+cursor_image.set_brush_color(WHITE)
+cursor_image.set_visibility(unreal.SlateVisibility.HIT_TEST_INVISIBLE)
+
+cursor_hotspot_size = cursor_widget_map.get("AWCursorHotspot")
+if cursor_hotspot_size:
+    cursor_hotspot_size.set_width_override(30.0)
+    cursor_hotspot_size.set_height_override(40.0)
+for old_cursor_part in ("AWCursorTopRail", "AWCursorTailRow"):
+    if old_cursor_part in cursor_widget_map:
+        cursor_widget_map[old_cursor_part].set_visibility(
+            unreal.SlateVisibility.COLLAPSED)
+
+cursor_blueprint.modify()
+unreal.BlueprintEditorLibrary.compile_blueprint(cursor_blueprint)
+unreal.EditorAssetLibrary.save_loaded_asset(
+    cursor_blueprint, only_if_is_dirty=False)
 
 
 begin_screen("MainMenu")
@@ -415,7 +616,8 @@ add(programming_screen, programming_nav, padding=margin(0, 0, 0, 10))
 editors_row = make(unreal.HorizontalBox, "EditorsRow")
 add(programming_screen, editors_row, fill=True, weight=1.0)
 
-programming_panel_class = screen_blueprints["ProgrammingPanel"].generated_class()
+programming_panel_class = screen_blueprints["ProgrammingPanel"].generated_class(
+)
 programming_p1 = make(
     programming_panel_class, "ProgrammingP1PanelWidget", True)
 programming_p1.set_editor_property("player_index", 0)
@@ -870,5 +1072,7 @@ if not controller:
 controller_cdo = unreal.get_default_object(controller.generated_class())
 controller_cdo.set_editor_property(
     "HUDWidgetClass", hud_blueprint.generated_class())
+controller_cdo.set_editor_property(
+    "CursorWidgetClass", cursor_blueprint.generated_class())
 unreal.EditorAssetLibrary.save_loaded_asset(controller, only_if_is_dirty=False)
 unreal.log("AUTOMATA_HUD_COMPLETE")

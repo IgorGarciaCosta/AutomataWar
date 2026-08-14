@@ -14,17 +14,17 @@ Automata War is presented as software running inside an AW-80 tactical terminal.
 
 The source of truth is `BuildScripts/BuildHUD.py`; values below are Unreal linear colors.
 
-| Token | Value | Use |
-| --- | --- | --- |
-| Device chassis | `0.055, 0.060, 0.052` | Outer hardware |
-| Device bezel | `0.018, 0.021, 0.018` | Recess around glass |
-| Glass black | `0.002, 0.012, 0.007` | Screen background |
-| Panel | `0.008, 0.028, 0.017` | Work surfaces |
-| Phosphor | `0.180, 1.000, 0.420` | Primary actions and player one |
-| Amber | `1.000, 0.620, 0.160` | Player two and caution |
-| Alarm | `1.000, 0.240, 0.120` | Errors and destructive actions |
-| Text | `0.720, 1.000, 0.780` | High-priority readable copy |
-| Muted | `0.320, 0.520, 0.360` | Metadata and inactive state |
+| Token          | Value                 | Use                            |
+| -------------- | --------------------- | ------------------------------ |
+| Device chassis | `0.055, 0.060, 0.052` | Outer hardware                 |
+| Device bezel   | `0.018, 0.021, 0.018` | Recess around glass            |
+| Glass black    | `0.002, 0.012, 0.007` | Screen background              |
+| Panel          | `0.008, 0.028, 0.017` | Work surfaces                  |
+| Phosphor       | `0.180, 1.000, 0.420` | Primary actions and player one |
+| Amber          | `1.000, 0.620, 0.160` | Player two and caution         |
+| Alarm          | `1.000, 0.240, 0.120` | Errors and destructive actions |
+| Text           | `0.720, 1.000, 0.780` | High-priority readable copy    |
+| Muted          | `0.320, 0.520, 0.360` | Metadata and inactive state    |
 
 ## Type And Layout
 
@@ -39,6 +39,13 @@ The source of truth is `BuildScripts/BuildHUD.py`; values below are Unreal linea
 - `RETURN TO PLANNING` reverses the same transition and withdraws the authoritative submission.
 - The shared glass uses sparse low-opacity scanlines. Avoid heavy barrel distortion, RGB separation, random glitch loops, and strong blur; these are television artifacts that compromise a text terminal's main strength.
 - Brightness states, brief afterglow, reverse video, and status-line changes are preferred future effects.
+
+## Cursor And Input Audio
+
+- The viewport uses `WBP_AWCursor` for default, hand, and text-entry states. It displays a project-generated 30x40 nearest-neighbor arrow built on a 15x20 logical grid, with a phosphor-green outline, opaque black center, and top-left click hotspot.
+- Every button has a quiet `rollover2` hover tick and one of five pressed-sound families: navigation (`click1`), command entry (`click2`), commit/confirm (`click3`), destructive (`click4`), or replay transport (`click5`). Validation failures use the separate `switch26` rejection sound.
+- Button sounds are stored in native `FButtonStyle` data, so mouse, keyboard, and gamepad activation share the same feedback without action-handler duplication.
+- Tank movement is intentionally silent. Position interpolation provides motion feedback without the removed continuous thruster loop competing with combat and interface audio.
 
 ## References
 

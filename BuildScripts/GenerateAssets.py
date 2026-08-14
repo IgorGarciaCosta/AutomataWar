@@ -33,14 +33,19 @@ AUDIO_FILES = {
     "S_Fire": ("scifi", "Audio/laserSmall_001.ogg"),
     "S_Impact": ("scifi", "Audio/impactMetal_002.ogg"),
     "S_Shield": ("scifi", "Audio/forceField_003.ogg"),
-    "S_Move": ("scifi", "Audio/thrusterFire_000.ogg"),
     "S_Destroy": ("scifi", "Audio/explosionCrunch_004.ogg"),
     "S_MatchStart": ("scifi", "Audio/doorOpen_002.ogg"),
     "S_MatchEnd": ("scifi", "Audio/doorClose_002.ogg"),
-    "S_UIConfirm": ("ui", "Audio/click1.ogg"),
-    "S_UINavigate": ("ui", "Audio/rollover2.ogg"),
+    "S_UINavigate": ("ui", "Audio/click1.ogg"),
+    "S_UICommand": ("ui", "Audio/click2.ogg"),
+    "S_UIConfirm": ("ui", "Audio/click3.ogg"),
+    "S_UIDanger": ("ui", "Audio/click4.ogg"),
+    "S_UITransport": ("ui", "Audio/click5.ogg"),
+    "S_UIHover": ("ui", "Audio/rollover2.ogg"),
     "S_UIError": ("ui", "Audio/switch26.ogg"),
 }
+
+REMOVED_AUDIO_ASSETS = ["/Game/Audio/SFX/S_Move"]
 
 NIAGARA_TEMPLATES = {
     "NS_MuzzleFlash": "/Niagara/DefaultAssets/Templates/Systems/DirectionalBurst.DirectionalBurst",
@@ -83,6 +88,10 @@ def prepare_sources():
 
 
 def import_audio(pack_dirs):
+    for asset_path in REMOVED_AUDIO_ASSETS:
+        if unreal.EditorAssetLibrary.does_asset_exist(asset_path):
+            unreal.EditorAssetLibrary.delete_asset(asset_path)
+
     tasks = []
     for asset_name, (pack, relative_path) in AUDIO_FILES.items():
         task = unreal.AssetImportTask()
