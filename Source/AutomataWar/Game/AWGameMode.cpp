@@ -310,6 +310,10 @@ void AAWGameMode::AdvanceToNextRound()
     GS->SubmissionTimeRemaining = -1.f;
     bSlotSubmitted[0] = false;
     bSlotSubmitted[1] = false;
+    AcceptedCommands[0].Reset();
+    AcceptedCommands[1].Reset();
+    CommittedProgramCosts[0] = 0;
+    CommittedProgramCosts[1] = 0;
 
     SetPhase(EAWMatchPhase::Programming);
 }

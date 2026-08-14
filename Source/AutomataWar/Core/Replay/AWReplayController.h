@@ -15,8 +15,8 @@ namespace Automata
     {
     public:
         bool Initialize(const TArray<EAWCommand> &CommandsA, const TArray<EAWCommand> &CommandsB, uint64_t Seed,
-                int32_t InitialActionPointsA = InitialActionPoints,
-                int32_t InitialActionPointsB = InitialActionPoints);
+                        int32_t InitialActionPointsA = InitialActionPoints,
+                        int32_t InitialActionPointsB = InitialActionPoints);
         bool IsValid() const { return bValid_; }
 
         int32_t GetTotalSteps() const { return static_cast<int32_t>(snapshots_.size()); }

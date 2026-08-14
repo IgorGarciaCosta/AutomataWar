@@ -330,12 +330,12 @@ void UAWHUDWidget::OnPhaseChanged(EAWMatchPhase NewPhase)
     case EAWMatchPhase::Programming:
         if (ProgrammingScreenWidget)
         {
-            ProgrammingScreenWidget->ResetSubmissionState();
             if (AAWGameState *GS = GetWorld()->GetGameState<AAWGameState>())
             {
-                ProgrammingScreenWidget->SetPlayerStats(0, Automata::MaxHP, GS->GetActionPoints(0));
-                ProgrammingScreenWidget->SetPlayerStats(1, Automata::MaxHP, GS->GetActionPoints(1));
+                ProgrammingScreenWidget->ResetForNewRound(GS->GetActionPoints(0), GS->GetActionPoints(1));
             }
+            else
+                ProgrammingScreenWidget->ResetSubmissionState();
         }
         ShowScreen(EAWScreen::Programming);
         break;
@@ -346,9 +346,9 @@ void UAWHUDWidget::OnPhaseChanged(EAWMatchPhase NewPhase)
             if (AAWGameState *GS = GetWorld()->GetGameState<AAWGameState>())
             {
                 SimulationScreenWidget->SetPlayerDetails(0, FString::Printf(
-                    TEXT("HP %d  |  AP %d  |  FACING SOUTH"), Automata::MaxHP, GS->GetActionPoints(0)));
+                                                                TEXT("HP %d  |  AP %d  |  FACING SOUTH"), Automata::MaxHP, GS->GetActionPoints(0)));
                 SimulationScreenWidget->SetPlayerDetails(1, FString::Printf(
-                    TEXT("HP %d  |  AP %d  |  FACING NORTH"), Automata::MaxHP, GS->GetActionPoints(1)));
+                                                                TEXT("HP %d  |  AP %d  |  FACING NORTH"), Automata::MaxHP, GS->GetActionPoints(1)));
             }
         }
         PlayUISound(AWVisualAssets::SFX_MatchStart);
@@ -404,7 +404,7 @@ void UAWHUDWidget::OnLocalMatch()
         Sub->StartLocalMatch();
     }
     if (ProgrammingScreenWidget)
-        ProgrammingScreenWidget->ResetForNewMatch(Automata::InitialActionPoints, Automata::InitialActionPoints);
+        ProgrammingScreenWidget->ResetForNewRound(Automata::InitialActionPoints, Automata::InitialActionPoints);
     ShowScreen(EAWScreen::Programming);
 }
 
@@ -566,7 +566,7 @@ void UAWHUDWidget::InitializeReplayFromGameState()
 }
 
 bool UAWHUDWidget::InitializeReplay(const TArray<EAWCommand> &CommandsA, const TArray<EAWCommand> &CommandsB, int64 Seed,
-                                   int32 ActionPointsA, int32 ActionPointsB)
+                                    int32 ActionPointsA, int32 ActionPointsB)
 {
     bReplayPlaying = false;
     ReplayAccumulator = 0.0;

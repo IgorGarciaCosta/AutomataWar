@@ -64,9 +64,9 @@ void AAWAPItemSpawner::InitializeItems(const Automata::SimConfig &Config, const 
         const int32 X = CellIndex % Config.gridWidth;
         const int32 Y = CellIndex / Config.gridWidth;
         const FVector Location = GetActorLocation() + FVector(
-            X * AWVisualConfig::CellSize + AWVisualConfig::CellSize * 0.5f,
-            Y * AWVisualConfig::CellSize + AWVisualConfig::CellSize * 0.5f,
-            ItemHeight);
+                                                          X * AWVisualConfig::CellSize + AWVisualConfig::CellSize * 0.5f,
+                                                          Y * AWVisualConfig::CellSize + AWVisualConfig::CellSize * 0.5f,
+                                                          ItemHeight);
 
         FActorSpawnParameters SpawnParameters;
         SpawnParameters.Owner = this;

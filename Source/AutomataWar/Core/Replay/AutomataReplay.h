@@ -26,10 +26,10 @@ namespace Automata
      *   [4..5]   ReplayVersion (uint16)
      *   [6..13]  RulesetHash (uint64)
      *   [14..21] seed (uint64)
-    *   [22..25] player A initial AP (uint32)
-    *   [26..29] player B initial AP (uint32)
-    *   [30..31] commandsA length (uint16)
-    *   [32..N]  commandsA bytes
+     *   [22..25] player A initial AP (uint32)
+     *   [26..29] player B initial AP (uint32)
+     *   [30..31] commandsA length (uint16)
+     *   [32..N]  commandsA bytes
      *   [N..N+1] commandsB length (uint16)
      *   [N+2..M] commandsB bytes
      *   [M..M+3] CRC-32 of all preceding bytes

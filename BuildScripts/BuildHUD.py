@@ -576,7 +576,7 @@ for name, value, cost in [
     ("Move", "MOVE", 10),
     ("Fire", "FIRE", 20),
     ("TurnLeft", "TURN LEFT", 5),
-    ("TurnRight", "TURN RIGHT", 5)]:
+        ("TurnRight", "TURN RIGHT", 5)]:
     add(programming_command_buttons, command_button(
         f"Programming{name}Button", value, cost),
         padding=margin(0, 0, 0, 8))

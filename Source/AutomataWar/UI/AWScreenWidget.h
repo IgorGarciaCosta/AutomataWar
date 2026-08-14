@@ -139,11 +139,11 @@ public:
     /** Reopen the panel for a new programming phase without clearing commands. */
     void ResetSubmissionState();
 
+    /** Start a new round with an empty queue while preserving the supplied AP balance. */
+    void ResetForNewRound(int32 Health, int32 ActionPoints);
+
     /** Replace the live HP/AP readout for this player. */
     void SetPlayerStats(int32 Health, int32 ActionPoints);
-
-    /** Clear the prior program and restore stats for a fresh match. */
-    void ResetForNewMatch(int32 Health, int32 ActionPoints);
 
 protected:
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AutomataWar|UI")
@@ -231,8 +231,8 @@ public:
     FString GetCommandText(int32 PlayerIndex) const;
     void ResolveSubmission(int32 PlayerIndex, bool bAccepted);
     void ResetSubmissionState();
+    void ResetForNewRound(int32 ActionPoints0, int32 ActionPoints1);
     void SetPlayerStats(int32 PlayerIndex, int32 Health, int32 ActionPoints);
-    void ResetForNewMatch(int32 ActionPoints0, int32 ActionPoints1);
 
 private:
     UFUNCTION()

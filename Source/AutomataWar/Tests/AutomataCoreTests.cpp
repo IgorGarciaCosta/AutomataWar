@@ -114,8 +114,7 @@ bool FActionPointRules::RunTest(const FString &Parameters)
         PickupCount += Cell == Automata::CellType::ActionPointItem ? 1 : 0;
     TestEqual(TEXT("Standard board spawns exactly 12 AP items"), PickupCount, Automata::ActionPointItemCount);
     TestEqual(TEXT("P1 start is never occupied"), Grid[Automata::DefaultGridWidth + 1], Automata::CellType::Empty);
-    TestEqual(TEXT("P2 start is never occupied"), Grid[(Automata::DefaultGridHeight - 2) * Automata::DefaultGridWidth +
-                                                       Automata::DefaultGridWidth - 2], Automata::CellType::Empty);
+    TestEqual(TEXT("P2 start is never occupied"), Grid[(Automata::DefaultGridHeight - 2) * Automata::DefaultGridWidth + Automata::DefaultGridWidth - 2], Automata::CellType::Empty);
     return true;
 }
 

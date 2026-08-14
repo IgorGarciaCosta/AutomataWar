@@ -46,7 +46,7 @@ void AAWArenaRenderer::BeginPlay()
 }
 
 void AAWArenaRenderer::InitializeArena(const Automata::SimConfig &Config, const TArray<Automata::CellType> &Grid,
-                                      const TArray<Automata::SimEvent> &Events)
+                                       const TArray<Automata::SimEvent> &Events)
 {
     BuildFloorGrid(Config.gridWidth, Config.gridHeight);
     SpawnCoverVisuals(Config.gridWidth, Config.gridHeight, Grid);
