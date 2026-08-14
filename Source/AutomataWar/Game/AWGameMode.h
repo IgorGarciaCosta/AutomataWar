@@ -50,6 +50,9 @@ public:
      */
     FAWValidationResult HandleSubmission(int32 Slot, const TArray<EAWCommand> &Commands);
 
+    /** Withdraw a local command slot while the match is still in Programming. */
+    FAWValidationResult WithdrawSubmission(int32 Slot);
+
     /** Force advance to next round (ReplayAutopsy -> Programming). */
     UFUNCTION(BlueprintCallable, Category = "AutomataWar")
     void AdvanceToNextRound();

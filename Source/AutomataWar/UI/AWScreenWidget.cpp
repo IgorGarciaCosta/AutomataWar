@@ -5,6 +5,7 @@
 #include "Components/EditableTextBox.h"
 #include "Components/Slider.h"
 #include "Components/TextBlock.h"
+#include "Components/Widget.h"
 
 #define BIND_SCREEN_BUTTON(Name, Class, Handler)                        \
     if (UButton *Button = Cast<UButton>(GetWidgetFromName(TEXT(Name)))) \
@@ -62,86 +63,235 @@ void UAWMainMenuScreen::OnOpenReplayBrowser() { BroadcastAction(EAWUIAction::Ope
 void UAWMainMenuScreen::OnOpenLanguageReference() { BroadcastAction(EAWUIAction::OpenLanguageReference); }
 void UAWMainMenuScreen::OnQuit() { BroadcastAction(EAWUIAction::Quit); }
 
-void UAWProgrammingScreen::NativeConstruct()
+void UAWProgrammingPanelWidget::NativeConstruct()
 {
     Super::NativeConstruct();
-    BIND_SCREEN_BUTTON("ProgrammingBackButton", UAWProgrammingScreen, OnBack);
-    BIND_SCREEN_BUTTON("SubmitP1Button", UAWProgrammingScreen, OnSubmitP1);
-    BIND_SCREEN_BUTTON("SubmitP2Button", UAWProgrammingScreen, OnSubmitP2);
-    BIND_SCREEN_BUTTON("MoveP1Button", UAWProgrammingScreen, OnMoveP1);
-    BIND_SCREEN_BUTTON("FireP1Button", UAWProgrammingScreen, OnFireP1);
-    BIND_SCREEN_BUTTON("TurnLeftP1Button", UAWProgrammingScreen, OnTurnLeftP1);
-    BIND_SCREEN_BUTTON("TurnRightP1Button", UAWProgrammingScreen, OnTurnRightP1);
-    BIND_SCREEN_BUTTON("RemoveActionP1Button", UAWProgrammingScreen, OnRemoveP1);
-    BIND_SCREEN_BUTTON("MoveP2Button", UAWProgrammingScreen, OnMoveP2);
-    BIND_SCREEN_BUTTON("FireP2Button", UAWProgrammingScreen, OnFireP2);
-    BIND_SCREEN_BUTTON("TurnLeftP2Button", UAWProgrammingScreen, OnTurnLeftP2);
-    BIND_SCREEN_BUTTON("TurnRightP2Button", UAWProgrammingScreen, OnTurnRightP2);
-    BIND_SCREEN_BUTTON("RemoveActionP2Button", UAWProgrammingScreen, OnRemoveP2);
-    RefreshCommands(0);
-    RefreshCommands(1);
+    BIND_SCREEN_BUTTON("ProgrammingMoveButton", UAWProgrammingPanelWidget, OnMove);
+    BIND_SCREEN_BUTTON("ProgrammingFireButton", UAWProgrammingPanelWidget, OnFire);
+    BIND_SCREEN_BUTTON("ProgrammingTurnLeftButton", UAWProgrammingPanelWidget, OnTurnLeft);
+    BIND_SCREEN_BUTTON("ProgrammingTurnRightButton", UAWProgrammingPanelWidget, OnTurnRight);
+    BIND_SCREEN_BUTTON("ProgrammingRemoveActionButton", UAWProgrammingPanelWidget, OnRemove);
+    BIND_SCREEN_BUTTON("ProgrammingSubmitButton", UAWProgrammingPanelWidget, OnSubmit);
+    BIND_SCREEN_BUTTON("ProgrammingReturnToPlanningButton", UAWProgrammingPanelWidget, OnReturnToPlanning);
+    ResetSubmissionState();
+    RefreshCommands();
 }
 
-TArray<EAWCommand> UAWProgrammingScreen::GetCommands(int32 PlayerIndex) const
+void UAWProgrammingPanelWidget::SynchronizeProperties()
 {
-    return Commands[FMath::Clamp(PlayerIndex, 0, 1)];
+    Super::SynchronizeProperties();
+    if (ProgrammingPlayerTitle)
+    {
+        ProgrammingPlayerTitle->SetText(PlayerLabel);
+        ProgrammingPlayerTitle->SetColorAndOpacity(FSlateColor(AccentColor));
+    }
+    if (ProgrammingPlayerSlot)
+        ProgrammingPlayerSlot->SetText(FText::FromString(FString::Printf(TEXT("SLOT %d"), PlayerIndex)));
+    if (ProgrammingCommandsTitle)
+        ProgrammingCommandsTitle->SetColorAndOpacity(FSlateColor(AccentColor));
+    if (ProgrammingSubmitButton)
+        ProgrammingSubmitButton->SetBackgroundColor(AccentColor);
+    if (ProgrammingReturnToPlanningButton)
+        ProgrammingReturnToPlanningButton->SetBackgroundColor(AccentColor);
 }
 
-FString UAWProgrammingScreen::GetCommandText(int32 PlayerIndex) const
+void UAWProgrammingPanelWidget::NativeTick(const FGeometry &MyGeometry, float InDeltaTime)
+{
+    Super::NativeTick(MyGeometry, InDeltaTime);
+    if (PowerTransitionDirection == 0)
+        return;
+
+    PowerTransitionAlpha = FMath::Clamp(
+        PowerTransitionAlpha + PowerTransitionDirection * InDeltaTime / PowerTransitionDuration,
+        0.f, 1.f);
+    ApplyPowerTransition();
+
+    if (PowerTransitionDirection > 0 && PowerTransitionAlpha >= 1.f)
+    {
+        PowerTransitionDirection = 0;
+        ProgrammingPanelContent->SetVisibility(ESlateVisibility::Hidden);
+        ProgrammingShutdownLine->SetVisibility(ESlateVisibility::Collapsed);
+        ProgrammingReturnLayer->SetVisibility(ESlateVisibility::Visible);
+        OnSubmitted.Broadcast(PlayerIndex);
+    }
+    else if (PowerTransitionDirection < 0 && PowerTransitionAlpha <= 0.f)
+    {
+        PowerTransitionDirection = 0;
+        ProgrammingPanelContent->SetIsEnabled(true);
+        ProgrammingShutdownLine->SetVisibility(ESlateVisibility::Collapsed);
+    }
+}
+
+FString UAWProgrammingPanelWidget::GetCommandText() const
 {
     FString Text;
-    for (EAWCommand Command : Commands[FMath::Clamp(PlayerIndex, 0, 1)])
+    for (EAWCommand Command : Commands)
         Text += FString::Printf(TEXT("%s\n"), LexToString(Command));
     return Text;
 }
 
-void UAWProgrammingScreen::AddCommand(int32 PlayerIndex, EAWCommand Command)
+void UAWProgrammingPanelWidget::ResolveSubmission(bool bAccepted)
 {
-    if (Commands[PlayerIndex].Num() < Automata::MaxCommands)
+    bAwaitingSubmissionResult = false;
+    bSubmitted = bAccepted;
+    if (!bAccepted)
+        StartPowerTransition(false);
+}
+
+void UAWProgrammingPanelWidget::ResetSubmissionState()
+{
+    bAwaitingSubmissionResult = false;
+    bSubmitted = false;
+    PowerTransitionAlpha = 0.f;
+    PowerTransitionDirection = 0;
+    ProgrammingPanelContent->SetVisibility(ESlateVisibility::Visible);
+    ProgrammingPanelContent->SetIsEnabled(true);
+    ProgrammingReturnLayer->SetVisibility(ESlateVisibility::Collapsed);
+    ProgrammingShutdownLine->SetVisibility(ESlateVisibility::Collapsed);
+    ApplyPowerTransition();
+}
+
+void UAWProgrammingPanelWidget::AddCommand(EAWCommand Command)
+{
+    if (!bSubmitted && !bAwaitingSubmissionResult && Commands.Num() < Automata::MaxCommands)
     {
-        Commands[PlayerIndex].Add(Command);
-        RefreshCommands(PlayerIndex);
+        Commands.Add(Command);
+        RefreshCommands();
     }
 }
 
-void UAWProgrammingScreen::RemoveLastCommand(int32 PlayerIndex)
-{
-    if (!Commands[PlayerIndex].IsEmpty())
-    {
-        Commands[PlayerIndex].Pop();
-        RefreshCommands(PlayerIndex);
-    }
-}
-
-void UAWProgrammingScreen::RefreshCommands(int32 PlayerIndex)
+void UAWProgrammingPanelWidget::RefreshCommands()
 {
     FString Text;
-    for (int32 Index = 0; Index < Commands[PlayerIndex].Num(); ++Index)
-        Text += FString::Printf(TEXT("%3d | %s\n"), Index + 1, LexToString(Commands[PlayerIndex][Index]));
+    for (int32 Index = 0; Index < Commands.Num(); ++Index)
+        Text += FString::Printf(TEXT("%3d | %s\n"), Index + 1, LexToString(Commands[Index]));
     if (Text.IsEmpty())
         Text = TEXT("NO ACTIONS SELECTED");
 
-    UTextBlock *List = PlayerIndex == 0 ? ProgramP1Text.Get() : ProgramP2Text.Get();
-    UButton *Remove = PlayerIndex == 0 ? RemoveActionP1Button.Get() : RemoveActionP2Button.Get();
-    if (List)
-        List->SetText(FText::FromString(Text));
-    if (Remove)
-        Remove->SetVisibility(Commands[PlayerIndex].IsEmpty() ? ESlateVisibility::Collapsed : ESlateVisibility::Visible);
+    if (ProgrammingProgramText)
+        ProgrammingProgramText->SetText(FText::FromString(Text));
+    if (ProgrammingRemoveActionButton)
+        ProgrammingRemoveActionButton->SetVisibility(Commands.IsEmpty() ? ESlateVisibility::Collapsed : ESlateVisibility::Visible);
+}
+
+void UAWProgrammingPanelWidget::StartPowerTransition(bool bTurningOff)
+{
+    ProgrammingReturnLayer->SetVisibility(ESlateVisibility::Collapsed);
+    ProgrammingPanelContent->SetVisibility(ESlateVisibility::Visible);
+    ProgrammingPanelContent->SetIsEnabled(false);
+    ProgrammingShutdownLine->SetVisibility(ESlateVisibility::HitTestInvisible);
+    PowerTransitionDirection = bTurningOff ? 1 : -1;
+}
+
+void UAWProgrammingPanelWidget::ApplyPowerTransition()
+{
+    const float EasedAlpha = FMath::InterpEaseInOut(0.f, 1.f, PowerTransitionAlpha, 2.f);
+    const float VerticalCollapse = FMath::Clamp(EasedAlpha / 0.68f, 0.f, 1.f);
+    const float HorizontalCollapse = FMath::Clamp((EasedAlpha - 0.68f) / 0.32f, 0.f, 1.f);
+    const FVector2D Scale(
+        FMath::Lerp(1.f, 0.015f, HorizontalCollapse),
+        FMath::Lerp(1.f, 0.025f, VerticalCollapse));
+
+    ProgrammingPanelContent->SetRenderTransformPivot(FVector2D(0.5f, 0.5f));
+    ProgrammingPanelContent->SetRenderScale(Scale);
+    ProgrammingPanelContent->SetRenderOpacity(FMath::Lerp(1.f, 0.16f, HorizontalCollapse));
+    ProgrammingShutdownLine->SetRenderTransformPivot(FVector2D(0.5f, 0.5f));
+    ProgrammingShutdownLine->SetRenderScale(FVector2D(Scale.X, 1.f));
+    ProgrammingShutdownLine->SetRenderOpacity(FMath::Sin(PI * PowerTransitionAlpha));
+}
+
+void UAWProgrammingPanelWidget::OnMove() { AddCommand(EAWCommand::Move); }
+void UAWProgrammingPanelWidget::OnFire() { AddCommand(EAWCommand::Fire); }
+void UAWProgrammingPanelWidget::OnTurnLeft() { AddCommand(EAWCommand::TurnLeft); }
+void UAWProgrammingPanelWidget::OnTurnRight() { AddCommand(EAWCommand::TurnRight); }
+
+void UAWProgrammingPanelWidget::OnRemove()
+{
+    if (!bSubmitted && !bAwaitingSubmissionResult && !Commands.IsEmpty())
+    {
+        Commands.Pop();
+        RefreshCommands();
+    }
+}
+
+void UAWProgrammingPanelWidget::OnSubmit()
+{
+    if (bSubmitted || bAwaitingSubmissionResult || PowerTransitionDirection != 0)
+        return;
+
+    bAwaitingSubmissionResult = true;
+    StartPowerTransition(true);
+}
+
+void UAWProgrammingPanelWidget::OnReturnToPlanning()
+{
+    if (!bSubmitted || PowerTransitionDirection != 0)
+        return;
+
+    bSubmitted = false;
+    OnPlanningReturned.Broadcast(PlayerIndex);
+    StartPowerTransition(false);
+}
+
+void UAWProgrammingScreen::NativeConstruct()
+{
+    Super::NativeConstruct();
+    BIND_SCREEN_BUTTON("ProgrammingBackButton", UAWProgrammingScreen, OnBack);
+    for (UAWProgrammingPanelWidget *Panel : {ProgrammingP1PanelWidget.Get(), ProgrammingP2PanelWidget.Get()})
+    {
+        if (!Panel)
+            continue;
+        Panel->OnSubmitted.RemoveAll(this);
+        Panel->OnSubmitted.AddUObject(this, &UAWProgrammingScreen::OnPanelSubmitted);
+        Panel->OnPlanningReturned.RemoveAll(this);
+        Panel->OnPlanningReturned.AddUObject(this, &UAWProgrammingScreen::OnPanelReturned);
+    }
+}
+
+UAWProgrammingPanelWidget *UAWProgrammingScreen::GetPanel(int32 PlayerIndex) const
+{
+    return PlayerIndex == 0 ? ProgrammingP1PanelWidget.Get() : ProgrammingP2PanelWidget.Get();
+}
+
+TArray<EAWCommand> UAWProgrammingScreen::GetCommands(int32 PlayerIndex) const
+{
+    if (const UAWProgrammingPanelWidget *Panel = GetPanel(FMath::Clamp(PlayerIndex, 0, 1)))
+        return Panel->GetCommands();
+    return {};
+}
+
+FString UAWProgrammingScreen::GetCommandText(int32 PlayerIndex) const
+{
+    if (const UAWProgrammingPanelWidget *Panel = GetPanel(FMath::Clamp(PlayerIndex, 0, 1)))
+        return Panel->GetCommandText();
+    return {};
+}
+
+void UAWProgrammingScreen::ResolveSubmission(int32 PlayerIndex, bool bAccepted)
+{
+    if (UAWProgrammingPanelWidget *Panel = GetPanel(FMath::Clamp(PlayerIndex, 0, 1)))
+        Panel->ResolveSubmission(bAccepted);
+}
+
+void UAWProgrammingScreen::ResetSubmissionState()
+{
+    if (ProgrammingP1PanelWidget)
+        ProgrammingP1PanelWidget->ResetSubmissionState();
+    if (ProgrammingP2PanelWidget)
+        ProgrammingP2PanelWidget->ResetSubmissionState();
 }
 
 void UAWProgrammingScreen::OnBack() { BroadcastAction(EAWUIAction::BackToMainMenu); }
-void UAWProgrammingScreen::OnSubmitP1() { BroadcastAction(EAWUIAction::SubmitP1); }
-void UAWProgrammingScreen::OnSubmitP2() { BroadcastAction(EAWUIAction::SubmitP2); }
-void UAWProgrammingScreen::OnMoveP1() { AddCommand(0, EAWCommand::Move); }
-void UAWProgrammingScreen::OnFireP1() { AddCommand(0, EAWCommand::Fire); }
-void UAWProgrammingScreen::OnTurnLeftP1() { AddCommand(0, EAWCommand::TurnLeft); }
-void UAWProgrammingScreen::OnTurnRightP1() { AddCommand(0, EAWCommand::TurnRight); }
-void UAWProgrammingScreen::OnRemoveP1() { RemoveLastCommand(0); }
-void UAWProgrammingScreen::OnMoveP2() { AddCommand(1, EAWCommand::Move); }
-void UAWProgrammingScreen::OnFireP2() { AddCommand(1, EAWCommand::Fire); }
-void UAWProgrammingScreen::OnTurnLeftP2() { AddCommand(1, EAWCommand::TurnLeft); }
-void UAWProgrammingScreen::OnTurnRightP2() { AddCommand(1, EAWCommand::TurnRight); }
-void UAWProgrammingScreen::OnRemoveP2() { RemoveLastCommand(1); }
+
+void UAWProgrammingScreen::OnPanelSubmitted(int32 PlayerIndex)
+{
+    BroadcastAction(PlayerIndex == 0 ? EAWUIAction::SubmitP1 : EAWUIAction::SubmitP2);
+}
+
+void UAWProgrammingScreen::OnPanelReturned(int32 PlayerIndex)
+{
+    BroadcastAction(PlayerIndex == 0 ? EAWUIAction::ReturnToPlanningP1 : EAWUIAction::ReturnToPlanningP2);
+}
 
 void UAWSimulationDockWidget::SynchronizeProperties()
 {

@@ -57,6 +57,27 @@ FAWValidationResult UAWGameSubsystem::SubmitLocalCommands(int32 Slot, const TArr
     return GM->HandleSubmission(Slot, Commands);
 }
 
+FAWValidationResult UAWGameSubsystem::WithdrawLocalCommands(int32 Slot)
+{
+    UWorld *World = GetGameInstance()->GetWorld();
+    if (!World)
+    {
+        FAWValidationResult R;
+        R.ErrorMessage = TEXT("No active world.");
+        return R;
+    }
+
+    AAWGameMode *GM = World->GetAuthGameMode<AAWGameMode>();
+    if (!GM)
+    {
+        FAWValidationResult R;
+        R.ErrorMessage = TEXT("No GameMode (not server).");
+        return R;
+    }
+
+    return GM->WithdrawSubmission(Slot);
+}
+
 void UAWGameSubsystem::NextRound()
 {
     UWorld *World = GetGameInstance()->GetWorld();

@@ -17,14 +17,17 @@ Commands execute once in order. A tank with a shorter queue waits while the othe
 
 ## Programming Screen
 
-Each player panel contains:
+Both slots reuse `WBP_AWProgrammingPanel`. Each panel contains:
 
 - A scrollable action queue on the left.
 - A scrollable **Available Commands** rail on the right.
 - A red **Remove Action** button above the queue when at least one action exists.
-- A **Submit** button that locks the queue for the round.
+- A **Submit** button that collapses the panel like a CRT powering off.
+- A **Return to Planning** button that withdraws the submission and reverses the transition without clearing the queue.
 
 Free-form text entry is not available. See [Docs/LANGUAGE.md](Docs/LANGUAGE.md) for the complete command semantics.
+
+Every screen is presented inside the shared AW-80 phosphor-terminal shell. See [Docs/VISUAL_STYLE.md](Docs/VISUAL_STYLE.md) for its palette, typography, motion, accessibility limits, and references.
 
 ## Replays
 

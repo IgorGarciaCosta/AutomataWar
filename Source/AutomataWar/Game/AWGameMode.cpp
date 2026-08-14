@@ -149,6 +149,33 @@ FAWValidationResult AAWGameMode::HandleSubmission(int32 Slot, const TArray<EAWCo
     return Result;
 }
 
+FAWValidationResult AAWGameMode::WithdrawSubmission(int32 Slot)
+{
+    FAWValidationResult Result;
+    AAWGameState *GS = GetGameState<AAWGameState>();
+    if (!GS || GS->Phase != EAWMatchPhase::Programming)
+    {
+        Result.ErrorMessage = TEXT("Programs can only be reopened during Programming phase.");
+        return Result;
+    }
+    if (Slot < 0 || Slot > 1)
+    {
+        Result.ErrorMessage = TEXT("Invalid command slot.");
+        return Result;
+    }
+
+    bSlotSubmitted[Slot] = false;
+    AcceptedCommands[Slot].Reset();
+    if (!bSlotSubmitted[0] && !bSlotSubmitted[1])
+    {
+        GetWorld()->GetTimerManager().ClearTimer(SubmissionTimerHandle);
+        GS->SubmissionTimeRemaining = -1.f;
+    }
+
+    Result.bSuccess = true;
+    return Result;
+}
+
 void AAWGameMode::OnBothSubmitted()
 {
     GetWorld()->GetTimerManager().ClearTimer(SubmissionTimerHandle);

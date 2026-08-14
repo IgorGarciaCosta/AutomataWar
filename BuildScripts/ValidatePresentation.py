@@ -8,6 +8,8 @@ TANK_BLUEPRINT_PATH = "/Game/Blueprints/BP_TankActor"
 TANK_CLASS_PATH = "/Game/Blueprints/BP_TankActor.BP_TankActor_C"
 SIMULATION_DOCK_PATH = "/Game/UI/Screens/WBP_AWSimulationDock"
 SIMULATION_DOCK_CLASS_PATH = "/Game/UI/Screens/WBP_AWSimulationDock.WBP_AWSimulationDock_C"
+PROGRAMMING_PANEL_PATH = "/Game/UI/Screens/WBP_AWProgrammingPanel"
+PROGRAMMING_PANEL_CLASS_PATH = "/Game/UI/Screens/WBP_AWProgrammingPanel.WBP_AWProgrammingPanel_C"
 
 SCREEN_ASSETS = [
     ("MainMenuScreenWidget", "/Game/UI/Screens/WBP_AWMainMenuScreen", {
@@ -16,22 +18,19 @@ SCREEN_ASSETS = [
         "JoinSessionButton", "JoinIpButton", "ReplayBrowserButton",
         "LanguageReferenceButton", "QuitButton"}),
     ("ProgrammingScreenWidget", "/Game/UI/Screens/WBP_AWProgrammingScreen", {
-        "ProgrammingBackdrop", "EditorP1", "EditorP2", "ProgrammingBackButton",
-        "SubmitP1Button", "SubmitP2Button", "AggressorP1Button",
-        "AggressorP2Button", "CamperP1Button", "CamperP2Button",
-        "KiterP1Button", "KiterP2Button", "TrainingP1Button", "TrainingP2Button"}),
+        "ProgrammingBackdrop", "ProgrammingScreen", "ProgrammingBackButton",
+        "EditorsRow", "ProgrammingP1PanelWidget", "ProgrammingP2PanelWidget"}),
     ("SimulationScreenWidget", "/Game/UI/Screens/WBP_AWSimulationScreen", {
         "SimulationScreen", "SimulationBanner", "SimulationP1DockWidget",
         "SimulationP2DockWidget", "SimulationArenaViewport"}),
     ("ReplayAutopsyScreenWidget", "/Game/UI/Screens/WBP_AWReplayAutopsyScreen", {
-        "ReplayAutopsyBackdrop", "ReplayTickText", "ReplaySpeedText",
-        "ReplayOutcomeText", "ReplaySourceAText", "ReplaySourceBText",
-        "ReplayRegistersP1", "ReplayRegistersP2", "ReplayEventLog",
+        "ReplayAutopsyBackdrop", "ReplaySpeedText", "ReplayEventLog",
         "ReplayScrubSlider", "ReplayArenaViewport", "ReplayArenaViewportSpace",
-        "ReplayEventsDock", "ReplayStartButton", "ReplayBackButton",
+        "ReplayEventsDock", "ReplayP1DockWidget", "ReplayP2DockWidget",
+        "ReplayStartButton", "ReplayBackButton",
         "ReplayPauseButton", "ReplayPlayButton", "ReplayStepButton",
-        "ReplayStepP1Button", "ReplayStepP2Button", "ReplayQuarterButton",
-        "ReplayNormalButton", "ReplayDoubleButton", "ReplayQuadButton",
+        "ReplayQuarterButton", "ReplayNormalButton", "ReplayDoubleButton",
+        "ReplayQuadButton",
         "ReplayBackToMenuButton", "NextRoundButton"}),
     ("ReplayBrowserScreenWidget", "/Game/UI/Screens/WBP_AWReplayBrowserScreen", {
         "ReplayBrowserBackdrop", "ReplayComboBox", "ImportField", "ExportField",
@@ -42,7 +41,10 @@ SCREEN_ASSETS = [
         "LanguageReferenceBackdrop", "LanguageReferenceText", "LanguageBackButton"}),
 ]
 HUD_WIDGETS = {
-    "HUDCanvas", "HUDBackground", "ScreenSwitcher", "StatusText",
+    "HUDCanvas", "HUDBackground", "ResponsiveScale", "DesignSize",
+    "DeviceLayout", "DeviceHeaderFrame", "DeviceHeader", "DeviceModel",
+    "DeviceTelemetry", "DeviceMiddle", "CRTLayers", "CRTGlassTint",
+    "CRTScanlines", "ScreenSwitcher", "StatusBar", "StatusText",
     *(entry[0] for entry in SCREEN_ASSETS)
 }
 
@@ -70,13 +72,48 @@ if missing:
     raise RuntimeError(f"Missing required HUD widgets: {missing}")
 
 hud_background = hud_widgets["HUDBackground"]
-if hud_background.get_editor_property("brush_color").a > 0.15:
+if hud_background.get_editor_property("brush_color").a > 0.01:
     raise RuntimeError("HUDBackground must remain transparent over the arena")
+
+glass_alpha = hud_widgets["CRTGlassTint"].get_editor_property("brush_color").a
+if glass_alpha <= 0.0 or glass_alpha > 0.25:
+    raise RuntimeError("CRT glass tint must be visible without hiding the arena")
+
+missing_scanlines = [
+    name for name in (f"CRTScanline{index}" for index in range(64))
+    if name not in hud_widgets]
+if missing_scanlines:
+    raise RuntimeError(f"CRT scanline field is incomplete: {missing_scanlines}")
 
 switcher = hud_widgets["ScreenSwitcher"]
 if switcher.get_num_widgets() != 6:
     raise RuntimeError(
         f"ScreenSwitcher has {switcher.get_num_widgets()} screens instead of 6")
+
+programming_panel = unreal.load_asset(PROGRAMMING_PANEL_PATH)
+if not programming_panel:
+    raise RuntimeError(
+        f"Missing reusable programming panel: {PROGRAMMING_PANEL_PATH}")
+unreal.BlueprintEditorLibrary.compile_blueprint(programming_panel)
+programming_panel_tree = unreal.AWWidgetBlueprintLibrary.get_widget_tree(
+    programming_panel)
+programming_panel_root = unreal.AWWidgetBlueprintLibrary.get_root_widget(
+    programming_panel_tree)
+programming_panel_widgets = {}
+collect_widgets(programming_panel_root, programming_panel_widgets)
+required_programming_panel_widgets = {
+    "ProgrammingPanelRoot", "ProgrammingPanelContent",
+    "ProgrammingReturnLayer", "ProgrammingShutdownLine",
+    "ProgrammingPlayerTitle", "ProgrammingPlayerSlot",
+    "ProgrammingCommandsTitle", "ProgrammingProgramText",
+    "ProgrammingRemoveActionButton", "ProgrammingMoveButton",
+    "ProgrammingFireButton", "ProgrammingTurnLeftButton",
+    "ProgrammingTurnRightButton", "ProgrammingSubmitButton",
+    "ProgrammingReturnToPlanningButton"}
+missing = sorted(required_programming_panel_widgets -
+                 set(programming_panel_widgets))
+if missing:
+    raise RuntimeError(f"{PROGRAMMING_PANEL_PATH} is missing widgets: {missing}")
 
 simulation_dock = unreal.load_asset(SIMULATION_DOCK_PATH)
 if not simulation_dock:
@@ -90,7 +127,9 @@ simulation_dock_root = unreal.AWWidgetBlueprintLibrary.get_root_widget(
 simulation_dock_widgets = {}
 collect_widgets(simulation_dock_root, simulation_dock_widgets)
 required_dock_widgets = {
-    "SimulationDock", "SimulationDockTitle", "SimulationDockSourceBox"}
+    "SimulationDock", "SimulationDockTitle", "SimulationDockCommandsText",
+    "SimulationDockDetails", "SimulationDockVerticalScroll",
+    "SimulationDockHorizontalScroll"}
 missing = sorted(required_dock_widgets - set(simulation_dock_widgets))
 if missing:
     raise RuntimeError(f"{SIMULATION_DOCK_PATH} is missing widgets: {missing}")
@@ -121,14 +160,18 @@ for name in ["SimulationP1DockWidget", "SimulationP2DockWidget"]:
     if screen_widgets[name].get_class().get_path_name() != SIMULATION_DOCK_CLASS_PATH:
         raise RuntimeError(f"{name} must use the reusable simulation dock WBP")
 
-source_box = simulation_dock_widgets["SimulationDockSourceBox"]
-if source_box.get_class().get_name() != "MultiLineEditableTextBox":
-    raise RuntimeError("Simulation source must use a two-axis text viewport")
-if not source_box.get_editor_property("is_read_only"):
-    raise RuntimeError("Simulation source must remain read-only")
-if source_box.get_editor_property("auto_wrap_text"):
-    raise RuntimeError(
-        "Simulation source wrapping would disable horizontal scrolling")
+for name, expected_index in [
+        ("ProgrammingP1PanelWidget", 0),
+        ("ProgrammingP2PanelWidget", 1)]:
+    panel_widget = screen_widgets[name]
+    if panel_widget.get_class().get_path_name() != PROGRAMMING_PANEL_CLASS_PATH:
+        raise RuntimeError(f"{name} must use the reusable programming panel WBP")
+    if panel_widget.get_editor_property("player_index") != expected_index:
+        raise RuntimeError(f"{name} has the wrong player index")
+
+if simulation_dock_widgets["SimulationDockCommandsText"].get_class().get_name() != "TextBlock":
+    raise RuntimeError("Simulation command output must remain a read-only TextBlock")
+screen_widgets.update(programming_panel_widgets)
 screen_widgets.update(simulation_dock_widgets)
 
 internal_widgets = set(screen_widgets) - HUD_WIDGETS

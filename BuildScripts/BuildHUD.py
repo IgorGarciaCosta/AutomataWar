@@ -7,6 +7,7 @@ CONTROLLER_PATH = "/Game/Blueprints/BP_AWPlayerController"
 LEGACY_CODE_EDITOR_PATH = "/Game/UI/WBP_AWCodeEditor"
 SCREEN_BLUEPRINTS = {
     "MainMenu": ("WBP_AWMainMenuScreen", "/Script/AutomataWar.AWMainMenuScreen"),
+    "ProgrammingPanel": ("WBP_AWProgrammingPanel", "/Script/AutomataWar.AWProgrammingPanelWidget"),
     "Programming": ("WBP_AWProgrammingScreen", "/Script/AutomataWar.AWProgrammingScreen"),
     "SimulationDock": ("WBP_AWSimulationDock", "/Script/AutomataWar.AWSimulationDockWidget"),
     "Simulation": ("WBP_AWSimulationScreen", "/Script/AutomataWar.AWSimulationScreen"),
@@ -16,16 +17,24 @@ SCREEN_BLUEPRINTS = {
 }
 
 TRANSPARENT = unreal.LinearColor(0.0, 0.0, 0.0, 0.0)
-BACKGROUND = unreal.LinearColor(0.012, 0.016, 0.022, 1.0)
-PANEL = unreal.LinearColor(0.035, 0.045, 0.058, 1.0)
-PANEL_ALT = unreal.LinearColor(0.055, 0.065, 0.078, 1.0)
-GAMEPLAY_PANEL = unreal.LinearColor(0.025, 0.035, 0.048, 1.0)
-TEXT = unreal.LinearColor(0.91, 0.93, 0.96, 1.0)
-MUTED = unreal.LinearColor(0.52, 0.58, 0.64, 1.0)
-CYAN = unreal.LinearColor(0.0, 0.78, 0.9, 1.0)
-CORAL = unreal.LinearColor(0.96, 0.27, 0.22, 1.0)
-GREEN = unreal.LinearColor(0.18, 0.72, 0.42, 1.0)
-YELLOW = unreal.LinearColor(0.95, 0.68, 0.18, 1.0)
+DEVICE_CHASSIS = unreal.LinearColor(0.055, 0.06, 0.052, 1.0)
+DEVICE_BEZEL = unreal.LinearColor(0.018, 0.021, 0.018, 1.0)
+BACKGROUND = unreal.LinearColor(0.002, 0.012, 0.007, 1.0)
+PANEL = unreal.LinearColor(0.008, 0.028, 0.017, 1.0)
+PANEL_ALT = unreal.LinearColor(0.018, 0.052, 0.032, 1.0)
+GAMEPLAY_PANEL = unreal.LinearColor(0.004, 0.021, 0.012, 1.0)
+TEXT = unreal.LinearColor(0.72, 1.0, 0.78, 1.0)
+MUTED = unreal.LinearColor(0.32, 0.52, 0.36, 1.0)
+PHOSPHOR = unreal.LinearColor(0.18, 1.0, 0.42, 1.0)
+AMBER = unreal.LinearColor(1.0, 0.62, 0.16, 1.0)
+ALARM = unreal.LinearColor(1.0, 0.24, 0.12, 1.0)
+FRAME_LINE = unreal.LinearColor(0.08, 0.34, 0.17, 1.0)
+GLASS_TINT = unreal.LinearColor(0.0, 0.025, 0.008, 0.18)
+SCANLINE = unreal.LinearColor(0.05, 0.2, 0.1, 0.08)
+CYAN = PHOSPHOR
+CORAL = ALARM
+GREEN = unreal.LinearColor(0.34, 0.86, 0.34, 1.0)
+YELLOW = AMBER
 WHITE = unreal.LinearColor(1.0, 1.0, 1.0, 1.0)
 
 H_FILL = unreal.HorizontalAlignment.H_ALIGN_FILL
@@ -143,8 +152,7 @@ def label(name, value, size=18, color=TEXT, bold=False, mono=False,
     font.size = size
     font.letter_spacing = 0
     font.typeface_font_name = "Bold" if bold else "Regular"
-    if mono:
-        font.force_monospaced = True
+    font.force_monospaced = True
     item.set_font(font)
     if justify is not None:
         item.set_editor_property("justification", justify)
@@ -178,11 +186,15 @@ def input_box(name, hint, variable=True, read_only=False):
 
 def panel(name, color=PANEL, padding_value=24.0):
     outer = make(unreal.Border, name)
-    outer.set_brush_color(color)
-    outer.set_padding(margin(padding_value, padding_value,
-                             padding_value, padding_value))
+    outer.set_brush_color(FRAME_LINE)
+    outer.set_padding(margin(1, 1, 1, 1))
+    surface = make(unreal.Border, f"{name}Surface")
+    surface.set_brush_color(color)
+    surface.set_padding(margin(padding_value, padding_value,
+                               padding_value, padding_value))
     body = make(unreal.VerticalBox, f"{name}Body")
-    outer.add_child(body)
+    surface.add_child(body)
+    outer.add_child(surface)
     return outer, body
 
 
@@ -193,7 +205,7 @@ def frame_rail(name, width=0.0, height=0.0):
     if height > 0.0:
         rail_size.set_height_override(height)
     rail = make(unreal.Border, f"{name}Fill")
-    rail.set_brush_color(PANEL_ALT)
+    rail.set_brush_color(FRAME_LINE)
     rail_size.add_child(rail)
     return rail_size
 
@@ -278,6 +290,113 @@ add(menu, button("QuitButton", "QUIT", CORAL, "Exit Automata War", True))
 save_screen("MainMenu")
 
 
+begin_screen("ProgrammingPanel")
+programming_panel_root = make(unreal.Overlay, "ProgrammingPanelRoot")
+bridge.set_root_widget(tree, programming_panel_root)
+programming_panel, programming_panel_body = panel(
+    "ProgrammingPanelContent", PANEL, 18)
+bridge.set_widget_is_variable(programming_panel, True)
+add(programming_panel_root, programming_panel)
+
+programming_panel_header = make(unreal.HorizontalBox, "ProgrammingPanelHeader")
+add(programming_panel_header, label(
+    "ProgrammingPlayerTitle", "PLAYER 1", 22, CYAN,
+    bold=True, variable=True), fill=True)
+add(programming_panel_header, label(
+    "ProgrammingPlayerSlot", "SLOT 0", 13, MUTED,
+    bold=True, variable=True), h=H_RIGHT, v=V_CENTER)
+add(programming_panel_body, programming_panel_header,
+    padding=margin(0, 0, 0, 10))
+
+programming_workspace = make(unreal.HorizontalBox, "ProgrammingWorkspace")
+programming_queue = make(unreal.VerticalBox, "ProgrammingQueue")
+programming_queue_header = make(
+    unreal.HorizontalBox, "ProgrammingQueueHeader")
+add(programming_queue_header, label(
+    "ProgrammingQueueTitle", "ACTION QUEUE", 14, MUTED, bold=True),
+    fill=True, v=V_CENTER)
+programming_remove = button(
+    "ProgrammingRemoveActionButton", "REMOVE ACTION", CORAL,
+    "Remove the last action", True, True)
+programming_remove.set_visibility(unreal.SlateVisibility.COLLAPSED)
+add(programming_queue_header, programming_remove, h=H_RIGHT, v=V_CENTER)
+add(programming_queue, programming_queue_header,
+    padding=margin(0, 0, 0, 8))
+
+programming_queue_frame = make(unreal.Border, "ProgrammingQueueFrame")
+programming_queue_frame.set_brush_color(BACKGROUND)
+programming_queue_frame.set_padding(margin(8, 8, 8, 8))
+programming_queue_scroll = make(unreal.ScrollBox, "ProgrammingQueueScroll")
+programming_queue_scroll.set_always_show_scrollbar(True)
+add(programming_queue_scroll, label(
+    "ProgrammingProgramText", "NO ACTIONS SELECTED", 14, TEXT,
+    mono=True, variable=True), padding=margin(4, 4, 12, 4),
+    h=H_FILL, v=V_TOP)
+programming_queue_frame.add_child(programming_queue_scroll)
+add(programming_queue, programming_queue_frame, fill=True, weight=1.0)
+add(programming_workspace, programming_queue, fill=True,
+    padding=margin(0, 0, 10, 0), weight=1.0)
+
+programming_commands_frame = make(
+    unreal.Border, "ProgrammingCommandsFrame")
+programming_commands_frame.set_brush_color(GAMEPLAY_PANEL)
+programming_commands_frame.set_padding(margin(10, 10, 10, 10))
+programming_commands = make(unreal.VerticalBox, "ProgrammingCommands")
+programming_commands_frame.add_child(programming_commands)
+add(programming_commands, label(
+    "ProgrammingCommandsTitle", "AVAILABLE COMMANDS", 14, CYAN,
+    bold=True, wrap=True, variable=True), padding=margin(0, 0, 0, 8))
+programming_command_scroll = make(
+    unreal.ScrollBox, "ProgrammingCommandsScroll")
+programming_command_buttons = make(
+    unreal.VerticalBox, "ProgrammingCommandButtons")
+for name, value in [
+        ("Move", "MOVE"),
+        ("Fire", "FIRE"),
+        ("TurnLeft", "TURN LEFT"),
+        ("TurnRight", "TURN RIGHT")]:
+    add(programming_command_buttons, button(
+        f"Programming{name}Button", value, PANEL_ALT,
+        f"Add {value.lower()} to the queue", True),
+        padding=margin(0, 0, 0, 8))
+add(programming_command_scroll, programming_command_buttons,
+    h=H_FILL, v=V_TOP)
+add(programming_commands, programming_command_scroll,
+    fill=True, weight=1.0)
+programming_commands_size = make(unreal.SizeBox, "ProgrammingCommandsSize")
+programming_commands_size.set_width_override(190.0)
+programming_commands_size.add_child(programming_commands_frame)
+add(programming_workspace, programming_commands_size)
+add(programming_panel_body, programming_workspace, fill=True, weight=1.0,
+    padding=margin(0, 0, 0, 10))
+add(programming_panel_body, button(
+    "ProgrammingSubmitButton", "SUBMIT", WHITE,
+    "Submit this command queue", True, True), h=H_FILL)
+
+programming_return_layer = make(
+    unreal.Border, "ProgrammingReturnLayer", True)
+programming_return_layer.set_brush_color(GAMEPLAY_PANEL)
+programming_return_layer.set_visibility(unreal.SlateVisibility.COLLAPSED)
+programming_return_layer.set_padding(margin(32, 32, 32, 32))
+programming_return_button = button(
+    "ProgrammingReturnToPlanningButton", "RETURN TO PLANNING", CYAN,
+    "Withdraw this submission and reopen the command queue", False, True)
+add(programming_return_layer, programming_return_button,
+    h=H_CENTER, v=V_CENTER)
+add(programming_panel_root, programming_return_layer)
+
+programming_shutdown_line = make(
+    unreal.SizeBox, "ProgrammingShutdownLine", True)
+programming_shutdown_line.set_height_override(4.0)
+programming_shutdown_line.set_visibility(unreal.SlateVisibility.COLLAPSED)
+programming_shutdown_glow = make(unreal.Border, "ProgrammingShutdownGlow")
+programming_shutdown_glow.set_brush_color(WHITE)
+programming_shutdown_line.add_child(programming_shutdown_glow)
+add(programming_panel_root, programming_shutdown_line,
+    h=H_FILL, v=V_CENTER)
+save_screen("ProgrammingPanel")
+
+
 begin_screen("Programming")
 programming_backdrop = make(unreal.Border, "ProgrammingBackdrop")
 bridge.set_root_widget(tree, programming_backdrop)
@@ -296,82 +415,21 @@ add(programming_screen, programming_nav, padding=margin(0, 0, 0, 10))
 editors_row = make(unreal.HorizontalBox, "EditorsRow")
 add(programming_screen, editors_row, fill=True, weight=1.0)
 
-
-def build_editor_panel(player_index, accent):
-    player_panel, body = panel(f"Player{player_index}Panel", PANEL, 18)
-    header = make(unreal.HorizontalBox, f"Player{player_index}Header")
-    add(header, label(f"Player{player_index}Title", f"PLAYER {player_index}",
-                      22, accent, bold=True), fill=True)
-    add(header, label(f"Player{player_index}Slot", f"SLOT {player_index - 1}",
-                      13, MUTED, bold=True), h=H_RIGHT, v=V_CENTER)
-    add(body, header, padding=margin(0, 0, 0, 10))
-
-    workspace = make(unreal.HorizontalBox, f"Player{player_index}Workspace")
-
-    queue = make(unreal.VerticalBox, f"Player{player_index}Queue")
-    queue_header = make(unreal.HorizontalBox,
-                        f"Player{player_index}QueueHeader")
-    add(queue_header, label(f"Player{player_index}QueueTitle", "ACTION QUEUE",
-                            14, MUTED, bold=True), fill=True, v=V_CENTER)
-    remove = button(f"RemoveActionP{player_index}Button", "REMOVE ACTION",
-                    CORAL, "Remove the last action", True, True)
-    remove.set_visibility(unreal.SlateVisibility.COLLAPSED)
-    add(queue_header, remove, h=H_RIGHT, v=V_CENTER)
-    add(queue, queue_header, padding=margin(0, 0, 0, 8))
-
-    queue_frame = make(unreal.Border, f"Player{player_index}QueueFrame")
-    queue_frame.set_brush_color(BACKGROUND)
-    queue_frame.set_padding(margin(8, 8, 8, 8))
-    queue_scroll = make(unreal.ScrollBox, f"Player{player_index}QueueScroll")
-    queue_scroll.set_always_show_scrollbar(True)
-    queue_text = label(f"ProgramP{player_index}Text",
-                       "NO ACTIONS SELECTED", 14, TEXT,
-                       mono=True, variable=True)
-    add(queue_scroll, queue_text, padding=margin(4, 4, 12, 4),
-        h=H_FILL, v=V_TOP)
-    queue_frame.add_child(queue_scroll)
-    add(queue, queue_frame, fill=True, weight=1.0)
-    add(workspace, queue, fill=True, padding=margin(0, 0, 10, 0), weight=1.0)
-
-    commands_frame = make(unreal.Border, f"Player{player_index}CommandsFrame")
-    commands_frame.set_brush_color(GAMEPLAY_PANEL)
-    commands_frame.set_padding(margin(10, 10, 10, 10))
-    commands = make(unreal.VerticalBox, f"Player{player_index}Commands")
-    commands_frame.add_child(commands)
-    add(commands, label(f"Player{player_index}CommandsTitle",
-                        "AVAILABLE COMMANDS", 14, accent, bold=True,
-                        wrap=True), padding=margin(0, 0, 0, 8))
-    command_scroll = make(unreal.ScrollBox,
-                          f"Player{player_index}CommandsScroll")
-    command_buttons = make(unreal.VerticalBox,
-                           f"Player{player_index}CommandButtons")
-    for name, value in [
-            ("Move", "MOVE"),
-            ("Fire", "FIRE"),
-            ("TurnLeft", "TURN LEFT"),
-            ("TurnRight", "TURN RIGHT")]:
-        add(command_buttons,
-            button(f"{name}P{player_index}Button", value, PANEL_ALT,
-                   f"Add {value.lower()} to the queue", True),
-            padding=margin(0, 0, 0, 8))
-    add(command_scroll, command_buttons, h=H_FILL, v=V_TOP)
-    add(commands, command_scroll, fill=True, weight=1.0)
-    commands_size = make(unreal.SizeBox, f"Player{player_index}CommandsSize")
-    commands_size.set_width_override(190.0)
-    commands_size.add_child(commands_frame)
-    add(workspace, commands_size)
-    add(body, workspace, fill=True, weight=1.0,
-        padding=margin(0, 0, 0, 10))
-
-    add(body, button(f"SubmitP{player_index}Button", "SUBMIT", accent,
-                     f"Submit player {player_index} command queue", True),
-        h=H_FILL)
-    return player_panel
-
-
-add(editors_row, build_editor_panel(1, CYAN), fill=True,
+programming_panel_class = screen_blueprints["ProgrammingPanel"].generated_class()
+programming_p1 = make(
+    programming_panel_class, "ProgrammingP1PanelWidget", True)
+programming_p1.set_editor_property("player_index", 0)
+programming_p1.set_editor_property("player_label", "PLAYER 1")
+programming_p1.set_editor_property("accent_color", CYAN)
+add(editors_row, programming_p1, fill=True,
     padding=margin(0, 0, 8, 0), weight=1.0)
-add(editors_row, build_editor_panel(2, CORAL), fill=True,
+
+programming_p2 = make(
+    programming_panel_class, "ProgrammingP2PanelWidget", True)
+programming_p2.set_editor_property("player_index", 1)
+programming_p2.set_editor_property("player_label", "PLAYER 2")
+programming_p2.set_editor_property("accent_color", AMBER)
+add(editors_row, programming_p2, fill=True,
     padding=margin(8, 0, 0, 0), weight=1.0)
 save_screen("Programming")
 
@@ -466,7 +524,7 @@ simulation_two_dock = make(
     simulation_dock_class, "SimulationP2DockWidget", True)
 simulation_two_dock.set_editor_property(
     "PlayerLabel", "PLAYER 2 COMMANDS")
-simulation_two_dock.set_editor_property("AccentColor", CORAL)
+simulation_two_dock.set_editor_property("AccentColor", AMBER)
 add(simulation_workspace, simulation_two_dock,
     padding=margin(10, 0, 0, 0))
 add(simulation_layout, simulation_workspace, fill=True, weight=1.0,
@@ -557,7 +615,7 @@ add(replay_frame_layout, frame_rail("ReplayFrameBottom", height=6.0))
 add(source_row, replay_arena_frame, fill=True, weight=1.0)
 replay_two_dock = make(simulation_dock_class, "ReplayP2DockWidget", True)
 replay_two_dock.set_editor_property("PlayerLabel", "PLAYER 2 COMMANDS")
-replay_two_dock.set_editor_property("AccentColor", CORAL)
+replay_two_dock.set_editor_property("AccentColor", AMBER)
 add(source_row, replay_two_dock, padding=margin(10, 0, 0, 0))
 add(replay_screen, source_row, fill=True, weight=1.0,
     padding=margin(0, 0, 0, 12))
@@ -696,8 +754,61 @@ design_size.set_width_override(1600.0)
 design_size.set_height_override(900.0)
 scale_box.add_child(design_size)
 
+device_layout = make(unreal.VerticalBox, "DeviceLayout")
+design_size.add_child(device_layout)
+device_header_frame = make(unreal.Border, "DeviceHeaderFrame")
+device_header_frame.set_brush_color(DEVICE_CHASSIS)
+device_header_frame.set_padding(margin(30, 8, 30, 8))
+device_header = make(unreal.HorizontalBox, "DeviceHeader")
+device_header_frame.add_child(device_header)
+add(device_header, label(
+    "DeviceModel", "AUTOMATA SYSTEMS // MODEL AW-80", 13,
+    MUTED, bold=True), fill=True, v=V_CENTER)
+add(device_header, label(
+    "DeviceTelemetry", "PWR:ON  LINK:LOCAL  TERM:80x24", 12,
+    PHOSPHOR, bold=True), h=H_RIGHT, v=V_CENTER)
+add(device_layout, device_header_frame)
+
+device_top_bezel_size = make(unreal.SizeBox, "DeviceTopBezelSize")
+device_top_bezel_size.set_height_override(14.0)
+device_top_bezel = make(unreal.Border, "DeviceTopBezel")
+device_top_bezel.set_brush_color(DEVICE_BEZEL)
+device_top_bezel_size.add_child(device_top_bezel)
+add(device_layout, device_top_bezel_size)
+
+device_middle = make(unreal.HorizontalBox, "DeviceMiddle")
+add(device_layout, device_middle, fill=True, weight=1.0)
+
+for rail_name, rail_width, rail_color in [
+        ("DeviceLeftChassis", 22.0, DEVICE_CHASSIS),
+        ("DeviceLeftBezel", 14.0, DEVICE_BEZEL),
+        ("CRTLeftEdge", 2.0, FRAME_LINE)]:
+    rail_size = make(unreal.SizeBox, f"{rail_name}Size")
+    rail_size.set_width_override(rail_width)
+    rail = make(unreal.Border, rail_name)
+    rail.set_brush_color(rail_color)
+    rail_size.add_child(rail)
+    add(device_middle, rail_size)
+
+crt_layers = make(unreal.Overlay, "CRTLayers")
+add(device_middle, crt_layers, fill=True, weight=1.0)
+glass_tint = make(unreal.Border, "CRTGlassTint")
+glass_tint.set_brush_color(GLASS_TINT)
+glass_tint.set_visibility(unreal.SlateVisibility.HIT_TEST_INVISIBLE)
+add(crt_layers, glass_tint)
 shell = make(unreal.VerticalBox, "HUDShell")
-design_size.add_child(shell)
+add(crt_layers, shell)
+
+for rail_name, rail_width, rail_color in [
+        ("CRTRightEdge", 2.0, FRAME_LINE),
+        ("DeviceRightBezel", 14.0, DEVICE_BEZEL),
+        ("DeviceRightChassis", 22.0, DEVICE_CHASSIS)]:
+    rail_size = make(unreal.SizeBox, f"{rail_name}Size")
+    rail_size.set_width_override(rail_width)
+    rail = make(unreal.Border, rail_name)
+    rail.set_brush_color(rail_color)
+    rail_size.add_child(rail)
+    add(device_middle, rail_size)
 
 screen_switcher = make(unreal.WidgetSwitcher, "ScreenSwitcher", True)
 add(shell, screen_switcher, fill=True, weight=1.0)
@@ -717,7 +828,35 @@ status_border.set_brush_color(GAMEPLAY_PANEL)
 status_border.set_padding(margin(16, 8, 16, 8))
 status_text = label("StatusText", "READY", 14, MUTED, bold=True, variable=True)
 status_border.add_child(status_text)
-add(shell, status_border, padding=margin(0, 10, 0, 0), v=V_BOTTOM)
+add(shell, status_border, v=V_BOTTOM)
+
+scanlines = make(unreal.VerticalBox, "CRTScanlines")
+scanlines.set_visibility(unreal.SlateVisibility.HIT_TEST_INVISIBLE)
+for scanline_index in range(64):
+    scanline_size = make(
+        unreal.SizeBox, f"CRTScanlineSize{scanline_index}")
+    scanline_size.set_height_override(1.0)
+    scanline = make(unreal.Border, f"CRTScanline{scanline_index}")
+    scanline.set_brush_color(SCANLINE)
+    scanline_size.add_child(scanline)
+    add(scanlines, scanline_size)
+    add(scanlines, spacer(
+        f"CRTScanlineGap{scanline_index}", 0.0, 12.0))
+add(crt_layers, scanlines)
+
+device_bottom_bezel_size = make(unreal.SizeBox, "DeviceBottomBezelSize")
+device_bottom_bezel_size.set_height_override(14.0)
+device_bottom_bezel = make(unreal.Border, "DeviceBottomBezel")
+device_bottom_bezel.set_brush_color(DEVICE_BEZEL)
+device_bottom_bezel_size.add_child(device_bottom_bezel)
+add(device_layout, device_bottom_bezel_size)
+
+device_bottom_chassis_size = make(unreal.SizeBox, "DeviceBottomChassisSize")
+device_bottom_chassis_size.set_height_override(18.0)
+device_bottom_chassis = make(unreal.Border, "DeviceBottomChassis")
+device_bottom_chassis.set_brush_color(DEVICE_CHASSIS)
+device_bottom_chassis_size.add_child(device_bottom_chassis)
+add(device_layout, device_bottom_chassis_size)
 
 screen_switcher.set_active_widget_index(0)
 hud_blueprint.modify()

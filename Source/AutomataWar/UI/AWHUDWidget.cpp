@@ -9,6 +9,7 @@
 #include "AutomataWar/Core/Replay/AutomataReplay.h"
 #include "AutomataWar/Visual/AWArenaRenderer.h"
 #include "AutomataWar/Visual/AWVisualTypes.h"
+#include "Components/Button.h"
 #include "Components/TextBlock.h"
 #include "Components/WidgetSwitcher.h"
 #include "Kismet/GameplayStatics.h"
@@ -16,8 +17,11 @@
 #include "GameFramework/GameStateBase.h"
 #include "EngineUtils.h"
 #include "Misc/CommandLine.h"
+#include "Misc/Paths.h"
 #include "Misc/Parse.h"
 #include "Sound/SoundBase.h"
+#include "TimerManager.h"
+#include "UnrealClient.h"
 
 namespace
 {
@@ -89,9 +93,38 @@ void UAWHUDWidget::NativeConstruct()
     FString CaptureMode;
     if (FParse::Value(FCommandLine::Get(), TEXT("AutomataCapture="), CaptureMode))
     {
+        float ScreenshotDelay = 1.f;
         if (CaptureMode.Equals(TEXT("Programming"), ESearchCase::IgnoreCase))
         {
             OnLocalMatch();
+        }
+        else if (CaptureMode.Equals(TEXT("ProgrammingSubmitted"), ESearchCase::IgnoreCase) ||
+                 CaptureMode.Equals(TEXT("ProgrammingReturned"), ESearchCase::IgnoreCase))
+        {
+            OnLocalMatch();
+            if (UUserWidget *Panel = Cast<UUserWidget>(ProgrammingScreenWidget->GetWidgetFromName(TEXT("ProgrammingP1PanelWidget"))))
+            {
+                if (UButton *MoveButton = Cast<UButton>(Panel->GetWidgetFromName(TEXT("ProgrammingMoveButton"))))
+                    MoveButton->OnClicked.Broadcast();
+                if (UButton *SubmitButton = Cast<UButton>(Panel->GetWidgetFromName(TEXT("ProgrammingSubmitButton"))))
+                    SubmitButton->OnClicked.Broadcast();
+
+                if (CaptureMode.Equals(TEXT("ProgrammingReturned"), ESearchCase::IgnoreCase))
+                {
+                    ScreenshotDelay = 1.4f;
+                    TWeakObjectPtr<UUserWidget> WeakPanel = Panel;
+                    FTimerHandle ReturnTimer;
+                    GetWorld()->GetTimerManager().SetTimer(
+                        ReturnTimer,
+                        FTimerDelegate::CreateWeakLambda(this, [WeakPanel]()
+                                                         {
+                                                             if (UUserWidget *ProgrammingPanel = WeakPanel.Get())
+                                                                 if (UButton *ReturnButton = Cast<UButton>(ProgrammingPanel->GetWidgetFromName(TEXT("ProgrammingReturnToPlanningButton"))))
+                                                                     ReturnButton->OnClicked.Broadcast();
+                                                         }),
+                        0.7f, false);
+                }
+            }
         }
         else if (CaptureMode.Equals(TEXT("Replay"), ESearchCase::IgnoreCase))
         {
@@ -101,6 +134,18 @@ void UAWHUDWidget::NativeConstruct()
                 Sub->SubmitLocalCommands(0, {EAWCommand::Move, EAWCommand::Move, EAWCommand::Fire});
                 Sub->SubmitLocalCommands(1, {EAWCommand::TurnRight, EAWCommand::Move, EAWCommand::Fire});
             }
+        }
+
+        if (FParse::Param(FCommandLine::Get(), TEXT("AutomataCaptureScreenshot")))
+        {
+            const FString ScreenshotPath = FPaths::ProjectSavedDir() / TEXT("Screenshots") /
+                FString::Printf(TEXT("HUD_%s.png"), *CaptureMode);
+            FTimerHandle ScreenshotTimer;
+            GetWorld()->GetTimerManager().SetTimer(
+                ScreenshotTimer,
+                FTimerDelegate::CreateLambda([ScreenshotPath]()
+                                             { FScreenshotRequest::RequestScreenshot(ScreenshotPath, true, false); }),
+                ScreenshotDelay, false);
         }
     }
 #endif
@@ -222,6 +267,12 @@ void UAWHUDWidget::OnScreenAction(EAWUIAction Action)
     case EAWUIAction::SubmitP2:
         OnSubmitP2();
         break;
+    case EAWUIAction::ReturnToPlanningP1:
+        OnReturnToPlanningSlot(0);
+        break;
+    case EAWUIAction::ReturnToPlanningP2:
+        OnReturnToPlanningSlot(1);
+        break;
     case EAWUIAction::ReplayStart:
         OnReplayScrubStart();
         break;
@@ -275,6 +326,8 @@ void UAWHUDWidget::OnPhaseChanged(EAWMatchPhase NewPhase)
     switch (NewPhase)
     {
     case EAWMatchPhase::Programming:
+        if (ProgrammingScreenWidget)
+            ProgrammingScreenWidget->ResetSubmissionState();
         ShowScreen(EAWScreen::Programming);
         break;
     case EAWMatchPhase::Simulation:
@@ -435,19 +488,34 @@ void UAWHUDWidget::OnQuit()
 
 void UAWHUDWidget::OnSubmitSlot(int32 SlotIndex)
 {
+    FAWValidationResult Result;
     if (UAWGameSubsystem *Sub = GetSubsystem())
     {
         const TArray<EAWCommand> Commands = ProgrammingScreenWidget ? ProgrammingScreenWidget->GetCommands(SlotIndex) : TArray<EAWCommand>();
+        Result = Sub->SubmitLocalCommands(SlotIndex, Commands);
+    }
+    else
+    {
+        Result.ErrorMessage = TEXT("Game subsystem unavailable.");
+    }
 
-        FAWValidationResult Result = Sub->SubmitLocalCommands(SlotIndex, Commands);
+    if (ProgrammingScreenWidget)
+        ProgrammingScreenWidget->ResolveSubmission(SlotIndex, Result.bSuccess);
+    if (!Result.bSuccess)
+        SetStatus(FString::Printf(TEXT("Slot %d: %s"), SlotIndex, *Result.ErrorMessage), true);
+    else
+        SetStatus(FString::Printf(TEXT("Slot %d submitted."), SlotIndex));
+}
+
+void UAWHUDWidget::OnReturnToPlanningSlot(int32 SlotIndex)
+{
+    if (UAWGameSubsystem *Sub = GetSubsystem())
+    {
+        const FAWValidationResult Result = Sub->WithdrawLocalCommands(SlotIndex);
         if (!Result.bSuccess)
-        {
             SetStatus(FString::Printf(TEXT("Slot %d: %s"), SlotIndex, *Result.ErrorMessage), true);
-        }
         else
-        {
-            SetStatus(FString::Printf(TEXT("Slot %d submitted."), SlotIndex));
-        }
+            SetStatus(FString::Printf(TEXT("Slot %d returned to planning."), SlotIndex));
     }
 }
 

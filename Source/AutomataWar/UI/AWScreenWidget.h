@@ -16,6 +16,7 @@ class UComboBoxString;
 class UEditableTextBox;
 class USlider;
 class UTextBlock;
+class UWidget;
 
 /** Semantic actions emitted by HUD screens and handled by the root HUD. */
 UENUM()
@@ -32,6 +33,8 @@ enum class EAWUIAction : uint8
     BackToMainMenu,
     SubmitP1,
     SubmitP2,
+    ReturnToPlanningP1,
+    ReturnToPlanningP2,
     ReplayStart,
     ReplayBack,
     ReplayPause,
@@ -51,6 +54,7 @@ enum class EAWUIAction : uint8
 
 DECLARE_MULTICAST_DELEGATE_OneParam(FAWUIActionEvent, EAWUIAction);
 DECLARE_MULTICAST_DELEGATE_OneParam(FAWReplayScrubEvent, float);
+DECLARE_MULTICAST_DELEGATE_OneParam(FAWProgrammingPanelEvent, int32);
 
 /** Base class that keeps child screens independent from the root HUD type. */
 UCLASS(Abstract, Blueprintable)
@@ -106,7 +110,107 @@ private:
     TObjectPtr<UComboBoxString> SessionComboBox;
 };
 
-/** Button-built command lists for both combatants. */
+/** Reusable command editor and submission transition for one combatant. */
+UCLASS(Blueprintable)
+class AUTOMATAWAR_API UAWProgrammingPanelWidget : public UUserWidget
+{
+    GENERATED_BODY()
+
+public:
+    virtual void NativeConstruct() override;
+    virtual void NativeTick(const FGeometry &MyGeometry, float InDeltaTime) override;
+    virtual void SynchronizeProperties() override;
+
+    /** Raised after the power-off transition completes. */
+    FAWProgrammingPanelEvent OnSubmitted;
+
+    /** Raised when the submitted program is reopened for editing. */
+    FAWProgrammingPanelEvent OnPlanningReturned;
+
+    /** @return The command queue currently shown by this panel. */
+    const TArray<EAWCommand> &GetCommands() const { return Commands; }
+
+    /** @return The command queue as newline-delimited source text. */
+    FString GetCommandText() const;
+
+    /** Accept or reject the submission after gameplay validation. */
+    void ResolveSubmission(bool bAccepted);
+
+    /** Reopen the panel for a new programming phase without clearing commands. */
+    void ResetSubmissionState();
+
+protected:
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AutomataWar|UI")
+    int32 PlayerIndex = 0;
+
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AutomataWar|UI")
+    FText PlayerLabel = INVTEXT("PLAYER 1");
+
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AutomataWar|UI")
+    FLinearColor AccentColor = FLinearColor(0.18f, 1.f, 0.42f, 1.f);
+
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "AutomataWar|UI", meta = (ClampMin = "0.1"))
+    float PowerTransitionDuration = 0.42f;
+
+private:
+    UFUNCTION()
+    void OnMove();
+    UFUNCTION()
+    void OnFire();
+    UFUNCTION()
+    void OnTurnLeft();
+    UFUNCTION()
+    void OnTurnRight();
+    UFUNCTION()
+    void OnRemove();
+    UFUNCTION()
+    void OnSubmit();
+    UFUNCTION()
+    void OnReturnToPlanning();
+
+    void AddCommand(EAWCommand Command);
+    void RefreshCommands();
+    void StartPowerTransition(bool bTurningOff);
+    void ApplyPowerTransition();
+
+    UPROPERTY(meta = (BindWidget))
+    TObjectPtr<UWidget> ProgrammingPanelContent;
+
+    UPROPERTY(meta = (BindWidget))
+    TObjectPtr<UWidget> ProgrammingReturnLayer;
+
+    UPROPERTY(meta = (BindWidget))
+    TObjectPtr<UWidget> ProgrammingShutdownLine;
+
+    UPROPERTY(meta = (BindWidget))
+    TObjectPtr<UTextBlock> ProgrammingPlayerTitle;
+
+    UPROPERTY(meta = (BindWidget))
+    TObjectPtr<UTextBlock> ProgrammingPlayerSlot;
+
+    UPROPERTY(meta = (BindWidget))
+    TObjectPtr<UTextBlock> ProgrammingCommandsTitle;
+
+    UPROPERTY(meta = (BindWidget))
+    TObjectPtr<UTextBlock> ProgrammingProgramText;
+
+    UPROPERTY(meta = (BindWidget))
+    TObjectPtr<UButton> ProgrammingRemoveActionButton;
+
+    UPROPERTY(meta = (BindWidget))
+    TObjectPtr<UButton> ProgrammingSubmitButton;
+
+    UPROPERTY(meta = (BindWidget))
+    TObjectPtr<UButton> ProgrammingReturnToPlanningButton;
+
+    TArray<EAWCommand> Commands;
+    float PowerTransitionAlpha = 0.f;
+    int8 PowerTransitionDirection = 0;
+    bool bAwaitingSubmissionResult = false;
+    bool bSubmitted = false;
+};
+
+/** Programming screen composed from two reusable combatant panels. */
 UCLASS(Blueprintable)
 class AUTOMATAWAR_API UAWProgrammingScreen : public UAWScreenWidget
 {
@@ -117,52 +221,22 @@ public:
 
     TArray<EAWCommand> GetCommands(int32 PlayerIndex) const;
     FString GetCommandText(int32 PlayerIndex) const;
+    void ResolveSubmission(int32 PlayerIndex, bool bAccepted);
+    void ResetSubmissionState();
 
 private:
     UFUNCTION()
     void OnBack();
     UFUNCTION()
-    void OnSubmitP1();
-    UFUNCTION()
-    void OnSubmitP2();
-    UFUNCTION()
-    void OnMoveP1();
-    UFUNCTION()
-    void OnFireP1();
-    UFUNCTION()
-    void OnTurnLeftP1();
-    UFUNCTION()
-    void OnTurnRightP1();
-    UFUNCTION()
-    void OnRemoveP1();
-    UFUNCTION()
-    void OnMoveP2();
-    UFUNCTION()
-    void OnFireP2();
-    UFUNCTION()
-    void OnTurnLeftP2();
-    UFUNCTION()
-    void OnTurnRightP2();
-    UFUNCTION()
-    void OnRemoveP2();
-
-    void AddCommand(int32 PlayerIndex, EAWCommand Command);
-    void RemoveLastCommand(int32 PlayerIndex);
-    void RefreshCommands(int32 PlayerIndex);
+    void OnPanelSubmitted(int32 PlayerIndex);
+    void OnPanelReturned(int32 PlayerIndex);
+    UAWProgrammingPanelWidget *GetPanel(int32 PlayerIndex) const;
 
     UPROPERTY(meta = (BindWidget))
-    TObjectPtr<UTextBlock> ProgramP1Text;
+    TObjectPtr<UAWProgrammingPanelWidget> ProgrammingP1PanelWidget;
 
     UPROPERTY(meta = (BindWidget))
-    TObjectPtr<UTextBlock> ProgramP2Text;
-
-    UPROPERTY(meta = (BindWidget))
-    TObjectPtr<UButton> RemoveActionP1Button;
-
-    UPROPERTY(meta = (BindWidget))
-    TObjectPtr<UButton> RemoveActionP2Button;
-
-    TArray<EAWCommand> Commands[2];
+    TObjectPtr<UAWProgrammingPanelWidget> ProgrammingP2PanelWidget;
 };
 
 /** Reusable read-only command dock used by simulation and replay. */
@@ -185,7 +259,7 @@ protected:
     FText PlayerLabel = INVTEXT("PLAYER PROGRAM");
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AutomataWar|UI")
-    FLinearColor AccentColor = FLinearColor(0.f, 0.78f, 0.9f, 1.f);
+    FLinearColor AccentColor = FLinearColor(0.18f, 1.f, 0.42f, 1.f);
 
 private:
     UPROPERTY(meta = (BindWidget))

@@ -101,6 +101,7 @@ private:
     void OnQuit();
 
     void OnSubmitSlot(int32 Slot);
+    void OnReturnToPlanningSlot(int32 Slot);
     UFUNCTION()
     void OnSubmitP1();
     UFUNCTION()

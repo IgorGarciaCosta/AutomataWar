@@ -41,6 +41,10 @@ public:
     UFUNCTION(BlueprintCallable, Category = "AutomataWar|Local")
     FAWValidationResult SubmitLocalCommands(int32 Slot, const TArray<EAWCommand> &Commands);
 
+    /** Withdraw a submitted local command slot and return it to planning. */
+    UFUNCTION(BlueprintCallable, Category = "AutomataWar|Local")
+    FAWValidationResult WithdrawLocalCommands(int32 Slot);
+
     /** Advance to next round (local or host). */
     UFUNCTION(BlueprintCallable, Category = "AutomataWar|Match")
     void NextRound();
