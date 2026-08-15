@@ -39,14 +39,28 @@ namespace
             return TEXT("blocked by robot");
         case Automata::EventType::Turn:
             return TEXT("turned");
+        case Automata::EventType::Wait:
+            return TEXT("waited");
+        case Automata::EventType::ShieldCharged:
+            return TEXT("charged shield");
+        case Automata::EventType::AccelerationCharged:
+            return TEXT("primed acceleration");
         case Automata::EventType::Fire:
             return TEXT("fired");
         case Automata::EventType::Hit:
             return TEXT("hit");
+        case Automata::EventType::ShieldAbsorbed:
+            return TEXT("shield absorbed damage");
         case Automata::EventType::ShotBlocked:
             return TEXT("shot blocked");
         case Automata::EventType::ActionPointsCollected:
             return TEXT("collected AP");
+        case Automata::EventType::ExtraAmmoCollected:
+            return TEXT("collected extra ammo");
+        case Automata::EventType::ShieldCollected:
+            return TEXT("collected shield");
+        case Automata::EventType::AcceleratorCollected:
+            return TEXT("collected accelerator");
         default:
             return TEXT("unknown");
         }
@@ -64,7 +78,7 @@ void UAWHUDWidget::NativeConstruct()
     Super::NativeConstruct();
 
     UAWScreenWidget *Screens[] = {
-        MainMenuScreenWidget, ProgrammingScreenWidget, ReplayAutopsyScreenWidget,
+        MainMenuScreenWidget, DifficultyScreenWidget, ProgrammingScreenWidget, ReplayAutopsyScreenWidget,
         ReplayBrowserScreenWidget, LanguageReferenceScreenWidget};
     for (UAWScreenWidget *Screen : Screens)
     {
@@ -101,6 +115,16 @@ void UAWHUDWidget::NativeConstruct()
         {
             OnLocalMatch();
         }
+        else if (CaptureMode.Equals(TEXT("Difficulty"), ESearchCase::IgnoreCase))
+        {
+            OnSinglePlayerNav();
+        }
+        else if (CaptureMode.Equals(TEXT("SinglePlayerReplay"), ESearchCase::IgnoreCase))
+        {
+            OnStartSinglePlayer(EAWAIDifficulty::Hard);
+            if (UAWGameSubsystem *Sub = GetSubsystem())
+                Sub->SubmitLocalCommands(0, {EAWCommand::Wait});
+        }
         else if (CaptureMode.Equals(TEXT("ProgrammingSubmitted"), ESearchCase::IgnoreCase) ||
                  CaptureMode.Equals(TEXT("ProgrammingReturned"), ESearchCase::IgnoreCase))
         {
@@ -133,7 +157,7 @@ void UAWHUDWidget::NativeConstruct()
             OnLocalMatch();
             if (UAWGameSubsystem *Sub = GetSubsystem())
             {
-                Sub->SubmitLocalCommands(0, {EAWCommand::Move, EAWCommand::Move, EAWCommand::Fire});
+                Sub->SubmitLocalCommands(0, {EAWCommand::Fire, EAWCommand::Move, EAWCommand::Fire});
                 Sub->SubmitLocalCommands(1, {EAWCommand::TurnRight, EAWCommand::Move, EAWCommand::Fire});
             }
         }
@@ -148,6 +172,15 @@ void UAWHUDWidget::NativeConstruct()
                 FTimerDelegate::CreateLambda([ScreenshotPath]()
                                              { FScreenshotRequest::RequestScreenshot(ScreenshotPath, true, false); }),
                 ScreenshotDelay, false);
+            if (FParse::Param(FCommandLine::Get(), TEXT("AutomataCaptureExit")))
+            {
+                FTimerHandle ExitTimer;
+                GetWorld()->GetTimerManager().SetTimer(
+                    ExitTimer,
+                    FTimerDelegate::CreateLambda([]()
+                                                 { FPlatformMisc::RequestExit(false); }),
+                    ScreenshotDelay + 0.75f, false);
+            }
         }
     }
 #endif
@@ -156,7 +189,7 @@ void UAWHUDWidget::NativeConstruct()
 void UAWHUDWidget::NativeDestruct()
 {
     UAWScreenWidget *Screens[] = {
-        MainMenuScreenWidget, ProgrammingScreenWidget, ReplayAutopsyScreenWidget,
+        MainMenuScreenWidget, DifficultyScreenWidget, ProgrammingScreenWidget, ReplayAutopsyScreenWidget,
         ReplayBrowserScreenWidget, LanguageReferenceScreenWidget};
     for (UAWScreenWidget *Screen : Screens)
     {
@@ -236,6 +269,18 @@ void UAWHUDWidget::OnScreenAction(EAWUIAction Action)
 {
     switch (Action)
     {
+    case EAWUIAction::SinglePlayer:
+        OnSinglePlayerNav();
+        break;
+    case EAWUIAction::DifficultyEasy:
+        OnStartSinglePlayer(EAWAIDifficulty::Easy);
+        break;
+    case EAWUIAction::DifficultyNormal:
+        OnStartSinglePlayer(EAWAIDifficulty::Normal);
+        break;
+    case EAWUIAction::DifficultyHard:
+        OnStartSinglePlayer(EAWAIDifficulty::Hard);
+        break;
     case EAWUIAction::LocalMatch:
         OnLocalMatch();
         break;
@@ -333,6 +378,7 @@ void UAWHUDWidget::OnPhaseChanged(EAWMatchPhase NewPhase)
             if (AAWGameState *GS = GetWorld()->GetGameState<AAWGameState>())
             {
                 ProgrammingScreenWidget->ResetForNewRound(GS->GetActionPoints(0), GS->GetActionPoints(1));
+                ProgrammingScreenWidget->SetSinglePlayerMode(bSinglePlayer);
             }
             else
                 ProgrammingScreenWidget->ResetSubmissionState();
@@ -399,12 +445,34 @@ void UAWHUDWidget::PlayUISound(const TCHAR *AssetPath) const
 
 void UAWHUDWidget::OnLocalMatch()
 {
+    bSinglePlayer = false;
     if (UAWGameSubsystem *Sub = GetSubsystem())
     {
         Sub->StartLocalMatch();
     }
     if (ProgrammingScreenWidget)
+    {
         ProgrammingScreenWidget->ResetForNewRound(Automata::InitialActionPoints, Automata::InitialActionPoints);
+        ProgrammingScreenWidget->SetSinglePlayerMode(false);
+    }
+    ShowScreen(EAWScreen::Programming);
+}
+
+void UAWHUDWidget::OnSinglePlayerNav()
+{
+    ShowScreen(EAWScreen::Difficulty);
+}
+
+void UAWHUDWidget::OnStartSinglePlayer(EAWAIDifficulty Difficulty)
+{
+    bSinglePlayer = true;
+    if (UAWGameSubsystem *Sub = GetSubsystem())
+        Sub->StartSinglePlayerMatch(Difficulty);
+    if (ProgrammingScreenWidget)
+    {
+        ProgrammingScreenWidget->ResetForNewRound(Automata::InitialActionPoints, Automata::InitialActionPoints);
+        ProgrammingScreenWidget->SetSinglePlayerMode(true);
+    }
     ShowScreen(EAWScreen::Programming);
 }
 
@@ -559,14 +627,16 @@ void UAWHUDWidget::InitializeReplayFromGameState()
         return;
 
     if (!InitializeReplay(GS->RevealedCommands0, GS->RevealedCommands1, GS->SimSeed,
-                          GS->ReplayStartActionPoints0, GS->ReplayStartActionPoints1))
+                          GS->ReplayStartActionPoints0, GS->ReplayStartActionPoints1,
+                          GS->ReplayStartEffects0, GS->ReplayStartEffects1))
     {
         SetStatus(TEXT("Failed to reconstruct simulation for replay."), true);
     }
 }
 
 bool UAWHUDWidget::InitializeReplay(const TArray<EAWCommand> &CommandsA, const TArray<EAWCommand> &CommandsB, int64 Seed,
-                                    int32 ActionPointsA, int32 ActionPointsB)
+                                    int32 ActionPointsA, int32 ActionPointsB,
+                                    const FAWRobotEffects &EffectsA, const FAWRobotEffects &EffectsB)
 {
     bReplayPlaying = false;
     ReplayAccumulator = 0.0;
@@ -574,7 +644,8 @@ bool UAWHUDWidget::InitializeReplay(const TArray<EAWCommand> &CommandsA, const T
     ReplaySpeed = .1f;
 
     ReplayController = MakeUnique<Automata::FAWReplayController>();
-    if (!ReplayController->Initialize(CommandsA, CommandsB, static_cast<uint64_t>(Seed), ActionPointsA, ActionPointsB))
+    if (!ReplayController->Initialize(CommandsA, CommandsB, static_cast<uint64_t>(Seed), ActionPointsA, ActionPointsB,
+                                      EffectsA, EffectsB))
         return false;
 
     if (AAWArenaRenderer *Renderer = FindOrSpawnRenderer())
@@ -767,14 +838,15 @@ void UAWHUDWidget::OnReplayLoad(const FString &Filename)
     FString Error;
     int64 Seed;
     int32 ActionPoints0, ActionPoints1;
-    if (!Sub->LoadReplay(Filename, Commands0, Commands1, Seed, ActionPoints0, ActionPoints1, Error))
+    FAWRobotEffects Effects0, Effects1;
+    if (!Sub->LoadReplay(Filename, Commands0, Commands1, Seed, ActionPoints0, ActionPoints1, Effects0, Effects1, Error))
     {
         if (ReplayBrowserScreenWidget)
             ReplayBrowserScreenWidget->SetStatus(Error);
         return;
     }
 
-    if (!InitializeReplay(Commands0, Commands1, Seed, ActionPoints0, ActionPoints1))
+    if (!InitializeReplay(Commands0, Commands1, Seed, ActionPoints0, ActionPoints1, Effects0, Effects1))
     {
         if (ReplayBrowserScreenWidget)
             ReplayBrowserScreenWidget->SetStatus(TEXT("Failed to resimulate replay."));
@@ -890,6 +962,9 @@ void UAWHUDWidget::PopulateLanguageReference()
         "MOVE        10 AP  |  Move one cell in the direction the tank is facing.\n\n"
         "FIRE        20 AP  |  Fire in a straight line from the tank's cannon.\n\n"
         "TURN LEFT    5 AP  |  Rotate 90 degrees left from the tank's point of view.\n\n"
-        "TURN RIGHT   5 AP  |  Rotate 90 degrees right from the tank's point of view.\n");
+        "TURN RIGHT   5 AP  |  Rotate 90 degrees right from the tank's point of view.\n\n"
+        "WAIT         0 AP  |  Hold position for one command step.\n\n"
+        "CHARGE SHIELD 20 AP  |  Reduce the next incoming hit by 50%.\n\n"
+        "ACCELERATE  30 AP  |  Make the next move cross up to two cells.\n");
     LanguageReferenceScreenWidget->SetReference(Reference);
 }

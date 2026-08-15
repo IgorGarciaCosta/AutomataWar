@@ -5,10 +5,10 @@
 #include "AutomataWar/Core/Sim/AutomataSimulation.h"
 #include "AWAPItemSpawner.generated.h"
 
-class AAWAPItem;
+class AAWItem;
 class USceneComponent;
 
-/** Spawns the replay-visible AP pickups from canonical empty grid cells. */
+/** Spawns all replay-visible pickup actors from canonical item grid cells. */
 UCLASS(Blueprintable)
 class AUTOMATAWAR_API AAWAPItemSpawner : public AActor
 {
@@ -29,7 +29,7 @@ public:
 private:
     struct FItemState
     {
-        TWeakObjectPtr<AAWAPItem> Item;
+        TWeakObjectPtr<AAWItem> Item;
         int32 CollectedStep = MAX_int32;
         int32 RewardValue = 0;
     };
@@ -40,7 +40,16 @@ private:
     TObjectPtr<USceneComponent> SceneRoot;
 
     UPROPERTY(EditDefaultsOnly, Category = "Action Points")
-    TSubclassOf<AAWAPItem> ItemClass;
+    TSubclassOf<AAWItem> ItemClass;
+
+    UPROPERTY(EditDefaultsOnly, Category = "Items")
+    TSubclassOf<AAWItem> ExtraAmmoItemClass;
+
+    UPROPERTY(EditDefaultsOnly, Category = "Items")
+    TSubclassOf<AAWItem> ShieldItemClass;
+
+    UPROPERTY(EditDefaultsOnly, Category = "Items")
+    TSubclassOf<AAWItem> AcceleratorItemClass;
 
     UPROPERTY(EditDefaultsOnly, Category = "Action Points")
     float ItemHeight = 42.f;

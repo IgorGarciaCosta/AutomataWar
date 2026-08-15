@@ -22,6 +22,8 @@ namespace AWVisualAssets
     inline const TCHAR *NS_MuzzleFlash = TEXT("/Game/Art/VFX/NS_MuzzleFlash.NS_MuzzleFlash");
     inline const TCHAR *NS_Impact = TEXT("/Game/Art/VFX/NS_Impact.NS_Impact");
     inline const TCHAR *NS_Destruction = TEXT("/Game/Art/VFX/NS_Destruction.NS_Destruction");
+    inline const TCHAR *NS_ProjectileTrail = TEXT("/Game/Art/VFX/NS_ProjectileTrail.NS_ProjectileTrail");
+    inline const TCHAR *NS_Shield = TEXT("/Game/Art/VFX/NS_Shield.NS_Shield");
     inline const TCHAR *NS_ActionPointPickup = TEXT("/Game/Art/VFX/NS_Impact.NS_Impact");
 
     // ─── SFX ─────────────────────────────────────────────────────────────────
@@ -35,7 +37,7 @@ namespace AWVisualAssets
     /** Total count of material asset paths (for test validation). */
     inline constexpr int32 MaterialAssetCount = 4;
     /** Total count of all soft-path assets. */
-    inline constexpr int32 TotalAssetPathCount = 14;
+    inline constexpr int32 TotalAssetPathCount = 16;
 }
 
 /** Visual config constants. */
@@ -47,6 +49,11 @@ namespace AWVisualConfig
     inline constexpr float RobotZ = 50.f;
     inline constexpr float ProjectileZ = 60.f;
     inline constexpr float InterpSpeed = 8.f;
+    /** World-space projectile speed used only by replay presentation. */
+    inline constexpr float ProjectileSpeed = 650.f;
+    inline constexpr float ProjectileMinDuration = 0.35f;
+    inline constexpr float ProjectileMaxDuration = 1.8f;
+    inline constexpr float ProjectileBeamThickness = 0.035f;
     /** Duration in seconds for transient VFX components before destruction. */
-    inline constexpr float TransientVFXLifespan = 0.3f;
+    inline constexpr float TransientVFXLifespan = 0.6f;
 }

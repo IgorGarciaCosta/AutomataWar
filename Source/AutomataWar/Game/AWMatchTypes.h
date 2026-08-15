@@ -12,6 +12,33 @@
 DECLARE_LOG_CATEGORY_EXTERN(LogAutomataGame, Log, All);
 DECLARE_LOG_CATEGORY_EXTERN(LogAutomataNet, Log, All);
 
+/** Canonical command and pickup effects that may survive into later rounds. */
+USTRUCT(BlueprintType)
+struct FAWRobotEffects
+{
+    GENERATED_BODY()
+
+    /** The next incoming hit is reduced by half. */
+    UPROPERTY(BlueprintReadOnly)
+    bool bShieldCharged = false;
+
+    /** The next move crosses up to two cells. */
+    UPROPERTY(BlueprintReadOnly)
+    bool bAccelerateNextMove = false;
+
+    /** Remaining rounds with bonus projectile damage. */
+    UPROPERTY(BlueprintReadOnly)
+    int32 ExtraAmmoRounds = 0;
+
+    /** Remaining rounds with all incoming damage reduced by half. */
+    UPROPERTY(BlueprintReadOnly)
+    int32 ShieldRounds = 0;
+
+    /** Remaining rounds in which every move crosses up to two cells. */
+    UPROPERTY(BlueprintReadOnly)
+    int32 AcceleratorRounds = 0;
+};
+
 /** One player-selected action, executed relative to the tank's current facing. */
 UENUM(BlueprintType)
 enum class EAWCommand : uint8
@@ -20,6 +47,9 @@ enum class EAWCommand : uint8
     Fire UMETA(DisplayName = "Fire"),
     TurnLeft UMETA(DisplayName = "Turn Left"),
     TurnRight UMETA(DisplayName = "Turn Right"),
+    Wait UMETA(DisplayName = "Wait"),
+    ChargeShield UMETA(DisplayName = "Charge Shield"),
+    Accelerate UMETA(DisplayName = "Accelerate"),
     Count UMETA(Hidden)
 };
 
@@ -35,6 +65,12 @@ inline constexpr int32 GetActionPointCost(EAWCommand Command)
     case EAWCommand::TurnLeft:
     case EAWCommand::TurnRight:
         return Automata::TurnActionPointCost;
+    case EAWCommand::Wait:
+        return Automata::WaitActionPointCost;
+    case EAWCommand::ChargeShield:
+        return Automata::ChargeShieldActionPointCost;
+    case EAWCommand::Accelerate:
+        return Automata::AccelerateActionPointCost;
     default:
         return 0;
     }
@@ -62,6 +98,12 @@ inline const TCHAR *LexToString(EAWCommand Command)
         return TEXT("TURN LEFT");
     case EAWCommand::TurnRight:
         return TEXT("TURN RIGHT");
+    case EAWCommand::Wait:
+        return TEXT("WAIT");
+    case EAWCommand::ChargeShield:
+        return TEXT("CHARGE SHIELD");
+    case EAWCommand::Accelerate:
+        return TEXT("ACCELERATE");
     default:
         return TEXT("INVALID");
     }

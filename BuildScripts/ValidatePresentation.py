@@ -23,9 +23,12 @@ BUTTON_SOUND_PATHS = {
 }
 COMMAND_BUTTONS = {
     "ProgrammingMoveButton", "ProgrammingFireButton",
-    "ProgrammingTurnLeftButton", "ProgrammingTurnRightButton"}
+    "ProgrammingTurnLeftButton", "ProgrammingTurnRightButton",
+    "ProgrammingWaitButton", "ProgrammingChargeShieldButton",
+    "ProgrammingAccelerateButton"}
 CONFIRM_BUTTONS = {
-    "LocalMatchButton", "HostLanButton", "FindLanButton",
+    "SinglePlayerButton", "LocalMatchButton", "HostLanButton", "FindLanButton",
+    "DifficultyEasyButton", "DifficultyNormalButton", "DifficultyHardButton",
     "JoinSessionButton", "JoinIpButton", "ProgrammingSubmitButton",
     "ReplaySaveButton", "ReplayLoadButton", "ReplayImportButton",
     "NextRoundButton"}
@@ -38,9 +41,13 @@ TRANSPORT_BUTTONS = {
 SCREEN_ASSETS = [
     ("MainMenuScreenWidget", "/Game/UI/Screens/WBP_AWMainMenuScreen", {
         "MainMenuScreen", "JoinIPField", "SessionComboBox",
-        "LocalMatchButton", "HostLanButton", "FindLanButton",
+        "SinglePlayerButton", "LocalMatchButton", "HostLanButton", "FindLanButton",
         "JoinSessionButton", "JoinIpButton", "ReplayBrowserButton",
         "LanguageReferenceButton", "QuitButton"}),
+    ("DifficultyScreenWidget", "/Game/UI/Screens/WBP_AWDifficultyScreen", {
+        "DifficultyBackdrop", "DifficultyLayout", "DifficultyPanel",
+        "DifficultyEasyButton", "DifficultyNormalButton",
+        "DifficultyHardButton", "DifficultyBackButton"}),
     ("ProgrammingScreenWidget", "/Game/UI/Screens/WBP_AWProgrammingScreen", {
         "ProgrammingBackdrop", "ProgrammingScreen", "ProgrammingBackButton",
         "EditorsRow", "ProgrammingP1PanelWidget", "ProgrammingP2PanelWidget"}),
@@ -154,9 +161,9 @@ if missing_scanlines:
         f"CRT scanline field is incomplete: {missing_scanlines}")
 
 switcher = hud_widgets["ScreenSwitcher"]
-if switcher.get_num_widgets() != 6:
+if switcher.get_num_widgets() != 7:
     raise RuntimeError(
-        f"ScreenSwitcher has {switcher.get_num_widgets()} screens instead of 6")
+        f"ScreenSwitcher has {switcher.get_num_widgets()} screens instead of 7")
 
 programming_panel = unreal.load_asset(PROGRAMMING_PANEL_PATH)
 if not programming_panel:
@@ -176,7 +183,9 @@ required_programming_panel_widgets = {
     "ProgrammingCommandsTitle", "ProgrammingProgramText",
     "ProgrammingRemoveActionButton", "ProgrammingMoveButton",
     "ProgrammingFireButton", "ProgrammingTurnLeftButton",
-    "ProgrammingTurnRightButton", "ProgrammingSubmitButton",
+    "ProgrammingTurnRightButton", "ProgrammingWaitButton",
+    "ProgrammingChargeShieldButton", "ProgrammingAccelerateButton",
+    "ProgrammingSubmitButton",
     "ProgrammingReturnToPlanningButton"}
 missing = sorted(required_programming_panel_widgets -
                  set(programming_panel_widgets))
@@ -273,7 +282,7 @@ internal_widgets = set(screen_widgets) - HUD_WIDGETS
 if internal_widgets & set(hud_widgets):
     raise RuntimeError("WBP_AWHUD still owns internal screen controls")
 
-for name in ["MainMenuScreen", "ProgrammingBackdrop",
+for name in ["MainMenuScreen", "DifficultyBackdrop", "ProgrammingBackdrop",
              "ReplayBrowserBackdrop", "LanguageReferenceBackdrop"]:
     if screen_widgets[name].get_editor_property("brush_color").a < 0.99:
         raise RuntimeError(
@@ -356,4 +365,4 @@ if len(wall_labels) < 8:
 
 unreal.log(
     f"AUTOMATA_PRESENTATION_VALIDATION_COMPLETE widgets={len(hud_widgets) + len(screen_widgets) + len(cursor_widgets)} "
-    f"screens=6 cursor=1 button_profiles=5 cameras=1 tanks=2 walls={len(wall_labels)}")
+    f"screens=7 cursor=1 button_profiles=5 cameras=1 tanks=2 walls={len(wall_labels)}")

@@ -2,6 +2,30 @@
 
 This log records decisions made where the build brief allowed or required engineering judgment.
 
+## 2026-08-15 - Keep AI isolated by source boundary and reuse authoritative submission
+
+**Decision:** Place `AAWAIController` and its difficulty enum under `Source/AutomataWar/AI`, but keep them in the existing runtime module. Generate deterministic AP-budgeted queues for slot 1 and submit them through `AAWGameMode::HandleSubmission` only after the human submits.
+
+**Alternatives:** Add a second Unreal runtime module; let AI call the simulation directly; duplicate validation in the controller.
+
+**Rationale:** The project remains small and already uses folder boundaries. A second module would add build/dependency plumbing without runtime isolation, while the shared submission path preserves the same AP, command, replay, and authority rules for every player type.
+
+## 2026-08-15 - Make power-up duration canonical and replay-compatible
+
+**Decision:** Store charged actions and timed pickup effects in `FAWRobotEffects`, replicate current and replay-start values, and encode them in replay version 5. Extra ammo adds 10 damage; temporary shields halve damage; pickup effects last two rounds including the collection round; shield effects do not stack beyond 50% reduction.
+
+**Alternatives:** Treat effects as presentation-only; infer them from previous replay files; stack charged and temporary shields; add snapshots to replays.
+
+**Rationale:** Cross-round behavior must be deterministic and reconstructible from compact replay inputs. Explicit state is smaller and clearer than replay snapshots, and non-stacking shields avoid an undocumented 75% reduction edge case.
+
+## 2026-08-15 - Keep projectile timing and active indicators presentational
+
+**Decision:** Resolve shots instantly in Core, then animate a slower bolt, growing beam, and Niagara trail to the recorded endpoint. Trigger impact, shield, and layered fire/smoke destruction feedback on arrival. Build the active-tank circle as a collision-free procedural annulus driven by replay step priority.
+
+**Alternatives:** Slow deterministic simulation for projectile travel; use physics projectiles; use a square decal or HUD marker.
+
+**Rationale:** Presentation timing must not change authoritative outcomes or hashes. Runtime components consume the existing event stream, and a world-space annulus remains legible around either level-authored tank without requiring another binary material asset.
+
 ## 2026-08-13 - Use a software terminal cursor and categorized UI audio
 
 **Decision:** Register a pixel-stepped, green-outline `WBP_AWCursor` as the viewport software cursor for default, hand, and text-entry states. Store hover and pressed audio in each generated `FButtonStyle`, using five variants from the existing Kenney UI Audio CC0 pack. Remove the tank movement loop and its `S_Move` asset.

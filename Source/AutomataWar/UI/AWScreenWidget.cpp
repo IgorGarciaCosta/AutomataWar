@@ -16,6 +16,7 @@
 void UAWMainMenuScreen::NativeConstruct()
 {
     Super::NativeConstruct();
+    BIND_SCREEN_BUTTON("SinglePlayerButton", UAWMainMenuScreen, OnSinglePlayer);
     BIND_SCREEN_BUTTON("LocalMatchButton", UAWMainMenuScreen, OnLocalMatch);
     BIND_SCREEN_BUTTON("HostLanButton", UAWMainMenuScreen, OnHostLAN);
     BIND_SCREEN_BUTTON("FindLanButton", UAWMainMenuScreen, OnFindLAN);
@@ -25,6 +26,8 @@ void UAWMainMenuScreen::NativeConstruct()
     BIND_SCREEN_BUTTON("LanguageReferenceButton", UAWMainMenuScreen, OnOpenLanguageReference);
     BIND_SCREEN_BUTTON("QuitButton", UAWMainMenuScreen, OnQuit);
 }
+
+void UAWMainMenuScreen::OnSinglePlayer() { BroadcastAction(EAWUIAction::SinglePlayer); }
 
 FString UAWMainMenuScreen::GetJoinIPAddress() const
 {
@@ -63,6 +66,20 @@ void UAWMainMenuScreen::OnOpenReplayBrowser() { BroadcastAction(EAWUIAction::Ope
 void UAWMainMenuScreen::OnOpenLanguageReference() { BroadcastAction(EAWUIAction::OpenLanguageReference); }
 void UAWMainMenuScreen::OnQuit() { BroadcastAction(EAWUIAction::Quit); }
 
+void UAWDifficultyScreen::NativeConstruct()
+{
+    Super::NativeConstruct();
+    BIND_SCREEN_BUTTON("DifficultyEasyButton", UAWDifficultyScreen, OnEasy);
+    BIND_SCREEN_BUTTON("DifficultyNormalButton", UAWDifficultyScreen, OnNormal);
+    BIND_SCREEN_BUTTON("DifficultyHardButton", UAWDifficultyScreen, OnHard);
+    BIND_SCREEN_BUTTON("DifficultyBackButton", UAWDifficultyScreen, OnBack);
+}
+
+void UAWDifficultyScreen::OnEasy() { BroadcastAction(EAWUIAction::DifficultyEasy); }
+void UAWDifficultyScreen::OnNormal() { BroadcastAction(EAWUIAction::DifficultyNormal); }
+void UAWDifficultyScreen::OnHard() { BroadcastAction(EAWUIAction::DifficultyHard); }
+void UAWDifficultyScreen::OnBack() { BroadcastAction(EAWUIAction::BackToMainMenu); }
+
 void UAWProgrammingPanelWidget::NativeConstruct()
 {
     Super::NativeConstruct();
@@ -70,6 +87,9 @@ void UAWProgrammingPanelWidget::NativeConstruct()
     BIND_SCREEN_BUTTON("ProgrammingFireButton", UAWProgrammingPanelWidget, OnFire);
     BIND_SCREEN_BUTTON("ProgrammingTurnLeftButton", UAWProgrammingPanelWidget, OnTurnLeft);
     BIND_SCREEN_BUTTON("ProgrammingTurnRightButton", UAWProgrammingPanelWidget, OnTurnRight);
+    BIND_SCREEN_BUTTON("ProgrammingWaitButton", UAWProgrammingPanelWidget, OnWait);
+    BIND_SCREEN_BUTTON("ProgrammingChargeShieldButton", UAWProgrammingPanelWidget, OnChargeShield);
+    BIND_SCREEN_BUTTON("ProgrammingAccelerateButton", UAWProgrammingPanelWidget, OnAccelerate);
     BIND_SCREEN_BUTTON("ProgrammingRemoveActionButton", UAWProgrammingPanelWidget, OnRemove);
     BIND_SCREEN_BUTTON("ProgrammingSubmitButton", UAWProgrammingPanelWidget, OnSubmit);
     BIND_SCREEN_BUTTON("ProgrammingReturnToPlanningButton", UAWProgrammingPanelWidget, OnReturnToPlanning);
@@ -145,7 +165,7 @@ void UAWProgrammingPanelWidget::ResetSubmissionState()
     PowerTransitionAlpha = 0.f;
     PowerTransitionDirection = 0;
     ProgrammingPanelContent->SetVisibility(ESlateVisibility::Visible);
-    ProgrammingPanelContent->SetIsEnabled(true);
+    ProgrammingPanelContent->SetIsEnabled(!bAIControlled);
     ProgrammingReturnLayer->SetVisibility(ESlateVisibility::Collapsed);
     ProgrammingShutdownLine->SetVisibility(ESlateVisibility::Collapsed);
     ApplyPowerTransition();
@@ -159,6 +179,21 @@ void UAWProgrammingPanelWidget::SetPlayerStats(int32 Health, int32 ActionPoints)
     RefreshCommands();
 }
 
+void UAWProgrammingPanelWidget::SetAIControlled(bool bInAIControlled)
+{
+    bAIControlled = bInAIControlled;
+    Commands.Reset();
+    if (ProgrammingPanelContent)
+        ProgrammingPanelContent->SetIsEnabled(!bAIControlled);
+    if (ProgrammingPlayerTitle)
+        ProgrammingPlayerTitle->SetText(bAIControlled ? INVTEXT("AI OPPONENT") : PlayerLabel);
+    if (ProgrammingSubmitButton)
+        ProgrammingSubmitButton->SetVisibility(bAIControlled ? ESlateVisibility::Collapsed : ESlateVisibility::Visible);
+    if (ProgrammingReturnToPlanningButton)
+        ProgrammingReturnToPlanningButton->SetVisibility(bAIControlled ? ESlateVisibility::Collapsed : ESlateVisibility::Visible);
+    RefreshCommands();
+}
+
 void UAWProgrammingPanelWidget::ResetForNewRound(int32 Health, int32 ActionPoints)
 {
     Commands.Reset();
@@ -169,7 +204,7 @@ void UAWProgrammingPanelWidget::ResetForNewRound(int32 Health, int32 ActionPoint
 void UAWProgrammingPanelWidget::AddCommand(EAWCommand Command)
 {
     const int32 Cost = GetActionPointCost(Command);
-    if (!bSubmitted && !bAwaitingSubmissionResult && Commands.Num() < Automata::MaxCommands &&
+    if (!bAIControlled && !bSubmitted && !bAwaitingSubmissionResult && Commands.Num() < Automata::MaxCommands &&
         Cost <= AvailableActionPoints)
     {
         Commands.Add(Command);
@@ -183,13 +218,15 @@ void UAWProgrammingPanelWidget::RefreshCommands()
     FString Text;
     for (int32 Index = 0; Index < Commands.Num(); ++Index)
         Text += FString::Printf(TEXT("%3d | %s\n"), Index + 1, LexToString(Commands[Index]));
-    if (Text.IsEmpty())
+    if (bAIControlled)
+        Text = TEXT("AI QUEUE GENERATED AFTER YOUR SUBMISSION");
+    else if (Text.IsEmpty())
         Text = TEXT("NO ACTIONS SELECTED");
 
     if (ProgrammingProgramText)
         ProgrammingProgramText->SetText(FText::FromString(Text));
     if (ProgrammingRemoveActionButton)
-        ProgrammingRemoveActionButton->SetVisibility(Commands.IsEmpty() ? ESlateVisibility::Collapsed : ESlateVisibility::Visible);
+        ProgrammingRemoveActionButton->SetVisibility(bAIControlled || Commands.IsEmpty() ? ESlateVisibility::Collapsed : ESlateVisibility::Visible);
     if (UTextBlock *Stats = Cast<UTextBlock>(GetWidgetFromName(TEXT("ProgrammingPlayerStats"))))
         Stats->SetText(FText::FromString(FString::Printf(TEXT("HP %d  |  AP %d"), PlayerHealth, AvailableActionPoints)));
 
@@ -198,10 +235,13 @@ void UAWProgrammingPanelWidget::RefreshCommands()
         {TEXT("ProgrammingMoveButton"), EAWCommand::Move},
         {TEXT("ProgrammingFireButton"), EAWCommand::Fire},
         {TEXT("ProgrammingTurnLeftButton"), EAWCommand::TurnLeft},
-        {TEXT("ProgrammingTurnRightButton"), EAWCommand::TurnRight}};
+        {TEXT("ProgrammingTurnRightButton"), EAWCommand::TurnRight},
+        {TEXT("ProgrammingWaitButton"), EAWCommand::Wait},
+        {TEXT("ProgrammingChargeShieldButton"), EAWCommand::ChargeShield},
+        {TEXT("ProgrammingAccelerateButton"), EAWCommand::Accelerate}};
     for (const TPair<const TCHAR *, EAWCommand> &Entry : CommandButtons)
         if (UButton *Button = Cast<UButton>(GetWidgetFromName(Entry.Key)))
-            Button->SetIsEnabled(bHasQueueCapacity && GetActionPointCost(Entry.Value) <= AvailableActionPoints);
+            Button->SetIsEnabled(!bAIControlled && bHasQueueCapacity && GetActionPointCost(Entry.Value) <= AvailableActionPoints);
 }
 
 void UAWProgrammingPanelWidget::StartPowerTransition(bool bTurningOff)
@@ -234,10 +274,13 @@ void UAWProgrammingPanelWidget::OnMove() { AddCommand(EAWCommand::Move); }
 void UAWProgrammingPanelWidget::OnFire() { AddCommand(EAWCommand::Fire); }
 void UAWProgrammingPanelWidget::OnTurnLeft() { AddCommand(EAWCommand::TurnLeft); }
 void UAWProgrammingPanelWidget::OnTurnRight() { AddCommand(EAWCommand::TurnRight); }
+void UAWProgrammingPanelWidget::OnWait() { AddCommand(EAWCommand::Wait); }
+void UAWProgrammingPanelWidget::OnChargeShield() { AddCommand(EAWCommand::ChargeShield); }
+void UAWProgrammingPanelWidget::OnAccelerate() { AddCommand(EAWCommand::Accelerate); }
 
 void UAWProgrammingPanelWidget::OnRemove()
 {
-    if (!bSubmitted && !bAwaitingSubmissionResult && !Commands.IsEmpty())
+    if (!bAIControlled && !bSubmitted && !bAwaitingSubmissionResult && !Commands.IsEmpty())
     {
         AvailableActionPoints += GetActionPointCost(Commands.Last());
         Commands.Pop();
@@ -247,7 +290,7 @@ void UAWProgrammingPanelWidget::OnRemove()
 
 void UAWProgrammingPanelWidget::OnSubmit()
 {
-    if (bSubmitted || bAwaitingSubmissionResult || PowerTransitionDirection != 0)
+    if (bAIControlled || bSubmitted || bAwaitingSubmissionResult || PowerTransitionDirection != 0)
         return;
 
     bAwaitingSubmissionResult = true;
@@ -256,7 +299,7 @@ void UAWProgrammingPanelWidget::OnSubmit()
 
 void UAWProgrammingPanelWidget::OnReturnToPlanning()
 {
-    if (!bSubmitted || PowerTransitionDirection != 0)
+    if (bAIControlled || !bSubmitted || PowerTransitionDirection != 0)
         return;
 
     bSubmitted = false;
@@ -324,6 +367,12 @@ void UAWProgrammingScreen::SetPlayerStats(int32 PlayerIndex, int32 Health, int32
 {
     if (UAWProgrammingPanelWidget *Panel = GetPanel(FMath::Clamp(PlayerIndex, 0, 1)))
         Panel->SetPlayerStats(Health, ActionPoints);
+}
+
+void UAWProgrammingScreen::SetSinglePlayerMode(bool bSinglePlayer)
+{
+    if (ProgrammingP2PanelWidget)
+        ProgrammingP2PanelWidget->SetAIControlled(bSinglePlayer);
 }
 
 void UAWProgrammingScreen::OnBack() { BroadcastAction(EAWUIAction::BackToMainMenu); }

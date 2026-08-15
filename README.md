@@ -6,12 +6,15 @@ Automata War is a small 1v1 tank game made in C++ with Unreal Engine 5.5. Instea
 
 Commands are relative to the tank's current facing:
 
-| Command      | Effect                                                                  |
-| ------------ | ----------------------------------------------------------------------- |
-| `MOVE`       | Move one cell forward. Walls, cover, and the other tank block movement. |
-| `FIRE`       | Fire straight ahead. The first tank or obstacle in the line is hit.     |
-| `TURN LEFT`  | Rotate 90 degrees left from the tank's point of view.                   |
-| `TURN RIGHT` | Rotate 90 degrees right from the tank's point of view.                  |
+| Command         | Effect                                                                  |
+| --------------- | ----------------------------------------------------------------------- |
+| `MOVE`          | Move one cell forward. Walls, cover, and the other tank block movement. |
+| `FIRE`          | Fire straight ahead. The first tank or obstacle in the line is hit.     |
+| `TURN LEFT`     | Rotate 90 degrees left from the tank's point of view.                   |
+| `TURN RIGHT`    | Rotate 90 degrees right from the tank's point of view.                  |
+| `WAIT`          | Hold position for one command step.                                     |
+| `CHARGE SHIELD` | Spend 20 AP to reduce the next incoming hit by 50%.                     |
+| `ACCELERATE`    | Spend 30 AP so the next move crosses up to two cells.                   |
 
 Commands run once, in order. If one tank has a shorter queue, it waits for the other tank to finish. A round ends when both queues are empty or one tank is destroyed.
 
@@ -27,13 +30,24 @@ Both players use the same `WBP_AWProgrammingPanel` layout. It has:
 
 Commands are selected with buttons rather than typed as free-form text.
 
+Single player is selected from the main menu, followed by Easy, Normal, or Hard difficulty. The server-owned `AAWAIController` generates slot 1's queue and submits it through the same validation path as human players.
+
+## Pickups
+
+- AP pickups add 10-20 action points.
+- Extra ammo adds 10 shot damage for two rounds.
+- Temporary shields reduce incoming damage by 50% for two rounds.
+- Accelerators make moves cross up to two cells for two rounds.
+
+Pickup state is canonical and included in replay inputs. Timed effects count the collection round as their first active round.
+
 The UI uses a shared AW-80 phosphor-terminal style, including a software cursor and terminal button sounds. Tank movement is intentionally silent.
 
 ## Replays
 
-A replay stores the two command arrays, a 64-bit seed, format version, ruleset hash, and CRC-32. It does not store snapshots, transforms, animation, or video. Playback simply simulates the command queues again.
+A replay stores the two command arrays, canonical starting effects, a 64-bit seed, format version, ruleset hash, and CRC-32. It does not store snapshots, transforms, animation, or video. Playback simply simulates the command queues again.
 
-With the current limit of 256 commands per player, a replay is under 1 KiB. Replay format version 3 deliberately rejects files from the old compiler-based format.
+With the current limit of 256 commands per player, a replay is under 1 KiB. Replay format version 5 deliberately rejects files whose command or persistent-effect rules are incompatible.
 
 ## Architecture
 
@@ -48,8 +62,9 @@ flowchart LR
     Replay --> Sim
 ```
 
-- `Core/Sim`: Runs the four commands and owns the canonical integer state.
+- `Core/Sim`: Runs the seven commands and owns canonical integer state and pickup effects.
 - `Core/Replay`: Stores command bytes and handles step-by-step replay navigation.
+- `AI/`: Generates deterministic, AP-budgeted single-player command queues.
 - `Game/` and `Net/`: Handle submissions, replication, sessions, replay storage, and desync checks.
 - `UI/` and `Visual/`: Contain the UMG screens and the presentation-only arena actors.
 

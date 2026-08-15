@@ -22,6 +22,10 @@ class UWidget;
 UENUM()
 enum class EAWUIAction : uint8
 {
+    SinglePlayer,
+    DifficultyEasy,
+    DifficultyNormal,
+    DifficultyHard,
     LocalMatch,
     HostLAN,
     FindLAN,
@@ -86,6 +90,9 @@ public:
     void SelectFirstSession();
 
 private:
+    /** Open the dedicated single-player difficulty screen. */
+    UFUNCTION()
+    void OnSinglePlayer();
     UFUNCTION()
     void OnLocalMatch();
     UFUNCTION()
@@ -108,6 +115,31 @@ private:
 
     UPROPERTY(meta = (BindWidget))
     TObjectPtr<UComboBoxString> SessionComboBox;
+};
+
+/** Difficulty selection for a new single-player match. */
+UCLASS(Blueprintable)
+class AUTOMATAWAR_API UAWDifficultyScreen : public UAWScreenWidget
+{
+    GENERATED_BODY()
+
+public:
+    /** Bind difficulty and back buttons from the generated Widget Blueprint. */
+    virtual void NativeConstruct() override;
+
+private:
+    /** Start a single-player match with the shortest AI plan. */
+    UFUNCTION()
+    void OnEasy();
+    /** Start a single-player match with the balanced AI plan. */
+    UFUNCTION()
+    void OnNormal();
+    /** Start a single-player match with the full tactical AI plan. */
+    UFUNCTION()
+    void OnHard();
+    /** Return to the main menu without starting a match. */
+    UFUNCTION()
+    void OnBack();
 };
 
 /** Reusable command editor and submission transition for one combatant. */
@@ -145,6 +177,9 @@ public:
     /** Replace the live HP/AP readout for this player. */
     void SetPlayerStats(int32 Health, int32 ActionPoints);
 
+    /** Toggle read-only presentation for the AI-controlled command slot. */
+    void SetAIControlled(bool bInAIControlled);
+
 protected:
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AutomataWar|UI")
     int32 PlayerIndex = 0;
@@ -167,6 +202,15 @@ private:
     void OnTurnLeft();
     UFUNCTION()
     void OnTurnRight();
+    /** Append a zero-cost idle step to the command queue. */
+    UFUNCTION()
+    void OnWait();
+    /** Append a charged one-hit shield to the command queue. */
+    UFUNCTION()
+    void OnChargeShield();
+    /** Append a command that doubles the next move distance. */
+    UFUNCTION()
+    void OnAccelerate();
     UFUNCTION()
     void OnRemove();
     UFUNCTION()
@@ -214,6 +258,7 @@ private:
     int8 PowerTransitionDirection = 0;
     bool bAwaitingSubmissionResult = false;
     bool bSubmitted = false;
+    bool bAIControlled = false;
     int32 PlayerHealth = Automata::MaxHP;
     int32 AvailableActionPoints = Automata::InitialActionPoints;
 };
@@ -233,6 +278,8 @@ public:
     void ResetSubmissionState();
     void ResetForNewRound(int32 ActionPoints0, int32 ActionPoints1);
     void SetPlayerStats(int32 PlayerIndex, int32 Health, int32 ActionPoints);
+    /** Toggle slot 1 between local-player editing and AI read-only presentation. */
+    void SetSinglePlayerMode(bool bSinglePlayer);
 
 private:
     UFUNCTION()

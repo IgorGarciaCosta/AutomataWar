@@ -14,6 +14,7 @@ CONTROLLER_PATH = "/Game/Blueprints/BP_AWPlayerController"
 LEGACY_CODE_EDITOR_PATH = "/Game/UI/WBP_AWCodeEditor"
 SCREEN_BLUEPRINTS = {
     "MainMenu": ("WBP_AWMainMenuScreen", "/Script/AutomataWar.AWMainMenuScreen"),
+    "Difficulty": ("WBP_AWDifficultyScreen", "/Script/AutomataWar.AWDifficultyScreen"),
     "ProgrammingPanel": ("WBP_AWProgrammingPanel", "/Script/AutomataWar.AWProgrammingPanelWidget"),
     "Programming": ("WBP_AWProgrammingScreen", "/Script/AutomataWar.AWProgrammingScreen"),
     "SimulationDock": ("WBP_AWSimulationDock", "/Script/AutomataWar.AWSimulationDockWidget"),
@@ -54,9 +55,12 @@ BUTTON_SOUND_PATHS = {
 }
 COMMAND_BUTTONS = {
     "ProgrammingMoveButton", "ProgrammingFireButton",
-    "ProgrammingTurnLeftButton", "ProgrammingTurnRightButton"}
+    "ProgrammingTurnLeftButton", "ProgrammingTurnRightButton",
+    "ProgrammingWaitButton", "ProgrammingChargeShieldButton",
+    "ProgrammingAccelerateButton"}
 CONFIRM_BUTTONS = {
-    "LocalMatchButton", "HostLanButton", "FindLanButton",
+    "SinglePlayerButton", "LocalMatchButton", "HostLanButton", "FindLanButton",
+    "DifficultyEasyButton", "DifficultyNormalButton", "DifficultyHardButton",
     "JoinSessionButton", "JoinIpButton", "ProgrammingSubmitButton",
     "ReplaySaveButton", "ReplayLoadButton", "ReplayImportButton",
     "NextRoundButton"}
@@ -333,10 +337,11 @@ def command_button(name, value, cost):
                   f"Add {value.lower()} to the queue ({cost} AP)", True)
     item.clear_children()
     row = make(unreal.HorizontalBox, f"{name}Content")
-    add(row, label(f"{name}Action", value, 12, TEXT, bold=True),
+    action_size = 10 if len(value) > 10 else 12
+    add(row, label(f"{name}Action", value, action_size, TEXT, bold=True),
         fill=True, h=H_LEFT, v=V_CENTER)
     add(row, label(f"{name}Cost", f"{cost} AP", 11, MUTED, bold=True),
-        h=H_RIGHT, v=V_CENTER)
+        padding=margin(12, 0, 0, 0), h=H_RIGHT, v=V_CENTER)
     slot = item.add_child(row)
     slot.set_padding(margin(10, 7, 10, 7))
     slot.set_horizontal_alignment(H_FILL)
@@ -467,7 +472,10 @@ menu_size.add_child(menu_panel)
 add(main_layout, menu_size, padding=margin(0, 10, 0, 10), v=V_CENTER)
 add(menu, label("MainActionsTitle", "COMMAND CONSOLE", 20, TEXT, bold=True),
     padding=margin(0, 0, 0, 14))
-add(menu, button("LocalMatchButton", "START LOCAL MATCH", CYAN,
+add(menu, button("SinglePlayerButton", "SINGLE PLAYER", CYAN,
+                 "Play against the AI opponent"),
+    padding=margin(0, 0, 0, 10))
+add(menu, button("LocalMatchButton", "LOCAL VERSUS", PANEL_ALT,
                  "Configure both command queues on this machine"),
     padding=margin(0, 0, 0, 10))
 
@@ -506,6 +514,33 @@ add(utility_row, button("LanguageReferenceButton", "COMMANDS", PANEL_ALT,
 add(menu, utility_row, padding=margin(0, 0, 0, 10))
 add(menu, button("QuitButton", "QUIT", CORAL, "Exit Automata War", True))
 save_screen("MainMenu")
+
+
+begin_screen("Difficulty")
+difficulty_backdrop = make(unreal.Border, "DifficultyBackdrop")
+bridge.set_root_widget(tree, difficulty_backdrop)
+difficulty_backdrop.set_brush_color(BACKGROUND)
+difficulty_backdrop.set_padding(margin(180, 90, 180, 90))
+difficulty_layout = make(unreal.VerticalBox, "DifficultyLayout")
+difficulty_backdrop.add_child(difficulty_layout)
+screen_header(difficulty_layout, "Single player", "Select Difficulty",
+              "CHOOSE THE AI PLANNING DEPTH.")
+difficulty_panel, difficulty_body = panel("DifficultyPanel", PANEL, 28)
+for name, title, detail, color in [
+        ("Easy", "EASY", "SHORT QUEUES // BASIC MOVEMENT", GREEN),
+        ("Normal", "NORMAL", "BALANCED QUEUES // SHIELD USE", CYAN),
+        ("Hard", "HARD", "DEEP QUEUES // FULL TACTICAL KIT", CORAL)]:
+    row = make(unreal.HorizontalBox, f"Difficulty{name}Row")
+    add(row, label(f"Difficulty{name}Detail", detail, 14, MUTED, bold=True),
+        fill=True, v=V_CENTER)
+    add(row, button(f"Difficulty{name}Button", title, color,
+                    f"Start at {title.lower()} difficulty", True),
+        h=H_RIGHT, v=V_CENTER)
+    add(difficulty_body, row, padding=margin(0, 0, 0, 14))
+add(difficulty_body, button("DifficultyBackButton", "BACK", PANEL_ALT,
+                            "Return to main menu", True), h=H_LEFT)
+add(difficulty_layout, difficulty_panel, fill=True, weight=1.0)
+save_screen("Difficulty")
 
 
 begin_screen("ProgrammingPanel")
@@ -576,7 +611,10 @@ for name, value, cost in [
     ("Move", "MOVE", 10),
     ("Fire", "FIRE", 20),
     ("TurnLeft", "TURN LEFT", 5),
-        ("TurnRight", "TURN RIGHT", 5)]:
+    ("TurnRight", "TURN RIGHT", 5),
+    ("Wait", "WAIT", 0),
+    ("ChargeShield", "CHARGE SHIELD", 20),
+        ("Accelerate", "ACCELERATE", 30)]:
     add(programming_command_buttons, command_button(
         f"Programming{name}Button", value, cost),
         padding=margin(0, 0, 0, 8))
@@ -585,7 +623,7 @@ add(programming_command_scroll, programming_command_buttons,
 add(programming_commands, programming_command_scroll,
     fill=True, weight=1.0)
 programming_commands_size = make(unreal.SizeBox, "ProgrammingCommandsSize")
-programming_commands_size.set_width_override(250.0)
+programming_commands_size.set_width_override(290.0)
 programming_commands_size.add_child(programming_commands_frame)
 add(programming_workspace, programming_commands_size)
 add(programming_panel_body, programming_workspace, fill=True, weight=1.0,
@@ -1036,6 +1074,7 @@ screen_switcher = make(unreal.WidgetSwitcher, "ScreenSwitcher", True)
 add(shell, screen_switcher, fill=True, weight=1.0)
 for screen_key, widget_name in [
         ("MainMenu", "MainMenuScreenWidget"),
+    ("Difficulty", "DifficultyScreenWidget"),
         ("Programming", "ProgrammingScreenWidget"),
         ("Simulation", "SimulationScreenWidget"),
         ("ReplayAutopsy", "ReplayAutopsyScreenWidget"),

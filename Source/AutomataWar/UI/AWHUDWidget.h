@@ -13,6 +13,7 @@
 
 class UAWGameSubsystem;
 class AAWArenaRenderer;
+class UAWDifficultyScreen;
 class UAWLanguageReferenceScreen;
 class UAWMainMenuScreen;
 class UAWProgrammingScreen;
@@ -21,13 +22,15 @@ class UAWReplayBrowserScreen;
 class UAWSimulationScreen;
 class UTextBlock;
 class UWidgetSwitcher;
+enum class EAWAIDifficulty : uint8;
 enum class EAWUIAction : uint8;
 
-/** Six stable screen indices owned by the HUD Widget Blueprint switcher. */
+/** Seven stable screen indices owned by the HUD Widget Blueprint switcher. */
 UENUM(BlueprintType)
 enum class EAWScreen : uint8
 {
     MainMenu,
+    Difficulty,
     Programming,
     Simulation,
     ReplayAutopsy,
@@ -81,6 +84,11 @@ private:
     UFUNCTION()
     void OnSessionsRefreshed();
 
+    /** Open single-player difficulty selection without changing match state. */
+    UFUNCTION()
+    void OnSinglePlayerNav();
+    /** Reset the arena and start slot 1 under the selected AI planner. */
+    void OnStartSinglePlayer(EAWAIDifficulty Difficulty);
     UFUNCTION()
     void OnLocalMatch();
     UFUNCTION()
@@ -133,7 +141,8 @@ private:
     void InitializeReplayFromGameState();
     bool InitializeReplay(const TArray<EAWCommand> &CommandsA, const TArray<EAWCommand> &CommandsB, int64 Seed,
                           int32 ActionPointsA = Automata::InitialActionPoints,
-                          int32 ActionPointsB = Automata::InitialActionPoints);
+                          int32 ActionPointsB = Automata::InitialActionPoints,
+                          const FAWRobotEffects &EffectsA = {}, const FAWRobotEffects &EffectsB = {});
     void UpdateReplayUI();
     void UpdateArenaFromReplay();
 
@@ -170,6 +179,9 @@ private:
     TObjectPtr<UAWMainMenuScreen> MainMenuScreenWidget;
 
     UPROPERTY(meta = (BindWidget))
+    TObjectPtr<UAWDifficultyScreen> DifficultyScreenWidget;
+
+    UPROPERTY(meta = (BindWidget))
     TObjectPtr<UAWProgrammingScreen> ProgrammingScreenWidget;
 
     UPROPERTY(meta = (BindWidget))
@@ -191,4 +203,5 @@ private:
     bool bReplayPlaying = false;
     double ReplayAccumulator = 0.0;
     int32 LastProcessedReplayEventStep = INDEX_NONE;
+    bool bSinglePlayer = false;
 };

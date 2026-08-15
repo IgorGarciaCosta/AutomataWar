@@ -20,7 +20,10 @@ namespace Automata
         Empty,
         Wall,
         Cover,
-        ActionPointItem
+        ActionPointItem,
+        ExtraAmmoItem,
+        ShieldItem,
+        AcceleratorItem
     };
 
     /** Complete canonical state for one tank. */
@@ -33,6 +36,7 @@ namespace Automata
         int32_t actionPoints = InitialActionPoints;
         int32_t currentCommand = -1;
         int32_t nextCommand = 0;
+        FAWRobotEffects effects;
     };
 
     /** Replay-visible effects emitted while commands execute. */
@@ -43,10 +47,17 @@ namespace Automata
         MoveBlockedCover,
         MoveBlockedRobot,
         Turn,
+        Wait,
+        ShieldCharged,
+        AccelerationCharged,
         Fire,
         Hit,
+        ShieldAbsorbed,
         ShotBlocked,
-        ActionPointsCollected
+        ActionPointsCollected,
+        ExtraAmmoCollected,
+        ShieldCollected,
+        AcceleratorCollected
     };
 
     /** Compact event record used by replay, VFX, and audio. */
@@ -83,6 +94,7 @@ namespace Automata
         int32_t stepsExecuted = 0;
         std::array<int32_t, 2> finalHP = {};
         std::array<int32_t, 2> finalActionPoints = {};
+        std::array<FAWRobotEffects, 2> finalEffects;
     };
 
     /** Explicit deterministic inputs controlling arena generation. */
@@ -92,6 +104,7 @@ namespace Automata
         int32_t gridHeight = DefaultGridHeight;
         uint64_t seed = 12345;
         std::array<int32_t, 2> initialActionPoints = {InitialActionPoints, InitialActionPoints};
+        std::array<FAWRobotEffects, 2> initialEffects;
     };
 
     /** Runs each finite command list once, with no parser, VM, or tick cap. */
@@ -119,8 +132,12 @@ namespace Automata
         };
 
         void InitGrid(int32_t Width, int32_t Height, Xorshift64 &Rng);
-        void SpawnRobots(int32_t Width, int32_t Height, const std::array<int32_t, 2> &StartingActionPoints);
+        void SpawnRobots(int32_t Width, int32_t Height, const SimConfig &Config);
         void ExecuteCommand(int32_t RobotIndex, EAWCommand Command, int32_t Step);
+        /** Move one or two cells, stopping at the first blocker and collecting each crossed item. */
+        void Move(int32_t RobotIndex, int32_t Step);
+        /** Apply the canonical pickup in a reached cell and emit its replay event. */
+        void CollectItem(int32_t RobotIndex, size_t CellIndex, int32_t Step);
         void Fire(int32_t RobotIndex, int32_t Step);
         bool InBounds(int32_t X, int32_t Y) const;
         CellType CellAt(int32_t X, int32_t Y) const;

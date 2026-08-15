@@ -36,6 +36,18 @@ void UAWGameSubsystem::StartLocalMatch()
     OnError.Broadcast(TEXT("Local match requires the Automata War arena."));
 }
 
+void UAWGameSubsystem::StartSinglePlayerMatch(EAWAIDifficulty Difficulty)
+{
+    UWorld *World = GetGameInstance() ? GetGameInstance()->GetWorld() : nullptr;
+    if (AAWGameMode *GM = World ? World->GetAuthGameMode<AAWGameMode>() : nullptr)
+    {
+        GM->BeginSinglePlayerMatch(Difficulty);
+        return;
+    }
+
+    OnError.Broadcast(TEXT("Single-player match requires the Automata War arena."));
+}
+
 FAWValidationResult UAWGameSubsystem::SubmitLocalCommands(int32 Slot, const TArray<EAWCommand> &Commands)
 {
     UWorld *World = GetGameInstance()->GetWorld();
@@ -317,6 +329,8 @@ bool UAWGameSubsystem::SaveReplay(const FString &Filename)
     Data.seed = static_cast<uint64>(GS->SimSeed);
     Data.initialActionPointsA = GS->ReplayStartActionPoints0;
     Data.initialActionPointsB = GS->ReplayStartActionPoints1;
+    Data.initialEffectsA = GS->ReplayStartEffects0;
+    Data.initialEffectsB = GS->ReplayStartEffects1;
     Data.commandsA = GS->RevealedCommands0;
     Data.commandsB = GS->RevealedCommands1;
 
@@ -324,7 +338,8 @@ bool UAWGameSubsystem::SaveReplay(const FString &Filename)
 }
 
 bool UAWGameSubsystem::LoadReplay(const FString &Filename, TArray<EAWCommand> &OutCommands0, TArray<EAWCommand> &OutCommands1,
-                                  int64 &OutSeed, int32 &OutActionPoints0, int32 &OutActionPoints1, FString &OutError)
+                                  int64 &OutSeed, int32 &OutActionPoints0, int32 &OutActionPoints1,
+                                  FAWRobotEffects &OutEffects0, FAWRobotEffects &OutEffects1, FString &OutError)
 {
     Automata::ReplayData Data;
     if (!FAWReplayService::Load(Filename, Data, OutError))
@@ -337,6 +352,8 @@ bool UAWGameSubsystem::LoadReplay(const FString &Filename, TArray<EAWCommand> &O
     OutSeed = static_cast<int64>(Data.seed);
     OutActionPoints0 = Data.initialActionPointsA;
     OutActionPoints1 = Data.initialActionPointsB;
+    OutEffects0 = Data.initialEffectsA;
+    OutEffects1 = Data.initialEffectsB;
     return true;
 }
 

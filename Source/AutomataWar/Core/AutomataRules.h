@@ -21,9 +21,17 @@ namespace Automata
     inline constexpr int32_t MoveActionPointCost = 10;
     inline constexpr int32_t FireActionPointCost = 20;
     inline constexpr int32_t TurnActionPointCost = 5;
+    inline constexpr int32_t WaitActionPointCost = 0;
+    inline constexpr int32_t ChargeShieldActionPointCost = 20;
+    inline constexpr int32_t AccelerateActionPointCost = 30;
     inline constexpr int32_t ActionPointItemCount = 12;
     inline constexpr int32_t ActionPointItemMinValue = 10;
     inline constexpr int32_t ActionPointItemMaxValue = 20;
+    inline constexpr int32_t ExtraAmmoItemCount = 2;
+    inline constexpr int32_t ShieldItemCount = 2;
+    inline constexpr int32_t AcceleratorItemCount = 2;
+    inline constexpr int32_t ExtraAmmoDamageBonus = 10;
+    inline constexpr int32_t PowerUpDurationRounds = 2;
 
     /** Cardinal facing values ordered clockwise. */
     enum class Dir : uint8_t
@@ -38,7 +46,7 @@ namespace Automata
     inline constexpr std::array<int32_t, 4> DirDY = {-1, 0, 1, 0};
 
     /** Compact replay format storing one byte per command. */
-    inline constexpr uint16_t ReplayVersion = 4;
+    inline constexpr uint16_t ReplayVersion = 5;
 
     /** Changes whenever command semantics or balance changes. */
     inline constexpr uint64_t RulesetHash = []() constexpr -> uint64_t
@@ -62,9 +70,17 @@ namespace Automata
         Mix(MoveActionPointCost);
         Mix(FireActionPointCost);
         Mix(TurnActionPointCost);
+        Mix(WaitActionPointCost);
+        Mix(ChargeShieldActionPointCost);
+        Mix(AccelerateActionPointCost);
         Mix(ActionPointItemCount);
         Mix(ActionPointItemMinValue);
         Mix(ActionPointItemMaxValue);
+        Mix(ExtraAmmoItemCount);
+        Mix(ShieldItemCount);
+        Mix(AcceleratorItemCount);
+        Mix(ExtraAmmoDamageBonus);
+        Mix(PowerUpDurationRounds);
         return Hash;
     }();
 

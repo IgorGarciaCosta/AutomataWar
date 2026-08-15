@@ -74,8 +74,28 @@ public:
     UPROPERTY(Replicated, BlueprintReadOnly, Category = "Match|Action Points")
     int32 ReplayStartActionPoints1 = Automata::InitialActionPoints;
 
+    /** Persistent effects currently available to each command slot. */
+    UPROPERTY(Replicated, BlueprintReadOnly, Category = "Match|Effects")
+    FAWRobotEffects Effects0;
+
+    UPROPERTY(Replicated, BlueprintReadOnly, Category = "Match|Effects")
+    FAWRobotEffects Effects1;
+
+    /** Effects at simulation start, retained so replay reconstruction is exact. */
+    UPROPERTY(Replicated, BlueprintReadOnly, Category = "Match|Effects")
+    FAWRobotEffects ReplayStartEffects0;
+
+    UPROPERTY(Replicated, BlueprintReadOnly, Category = "Match|Effects")
+    FAWRobotEffects ReplayStartEffects1;
+
+    /** Return the non-negative AP balance for a command slot. */
     int32 GetActionPoints(int32 Slot) const { return Slot == 0 ? ActionPoints0 : ActionPoints1; }
+    /** Replace a command slot's AP balance, clamped to zero. */
     void SetActionPoints(int32 Slot, int32 Value);
+    /** Return the persistent effects owned by a command slot. */
+    const FAWRobotEffects &GetEffects(int32 Slot) const { return Slot == 0 ? Effects0 : Effects1; }
+    /** Replace the persistent effects owned by a valid command slot. */
+    void SetEffects(int32 Slot, const FAWRobotEffects &Effects);
 
     /** Delegate broadcast on phase change. */
     DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnPhaseChanged, EAWMatchPhase, NewPhase);

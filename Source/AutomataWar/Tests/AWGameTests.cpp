@@ -9,6 +9,7 @@
 #include "Misc/AutomationTest.h"
 #include "AutomataWar/Core/AutomataRules.h"
 #include "AutomataWar/Core/Replay/AutomataReplay.h"
+#include "AutomataWar/AI/AWAIController.h"
 #include "AutomataWar/Game/AWReplayService.h"
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FReplayFilenameSafety, "AutomataWar.Game.Replay.FilenameSafety",
@@ -42,6 +43,28 @@ bool FCommandLabels::RunTest(const FString &Parameters)
     TestEqual(TEXT("Fire label"), FString(LexToString(EAWCommand::Fire)), FString(TEXT("FIRE")));
     TestEqual(TEXT("Left label"), FString(LexToString(EAWCommand::TurnLeft)), FString(TEXT("TURN LEFT")));
     TestEqual(TEXT("Right label"), FString(LexToString(EAWCommand::TurnRight)), FString(TEXT("TURN RIGHT")));
+    TestEqual(TEXT("Wait label"), FString(LexToString(EAWCommand::Wait)), FString(TEXT("WAIT")));
+    TestEqual(TEXT("Shield label"), FString(LexToString(EAWCommand::ChargeShield)), FString(TEXT("CHARGE SHIELD")));
+    TestEqual(TEXT("Accelerate label"), FString(LexToString(EAWCommand::Accelerate)), FString(TEXT("ACCELERATE")));
+    return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FAICommandQueues, "AutomataWar.Game.AI.CommandQueues",
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FAICommandQueues::RunTest(const FString &Parameters)
+{
+    const TArray<EAWCommand> Easy = AAWAIController::GenerateCommandQueue(EAWAIDifficulty::Easy, 100, 7);
+    const TArray<EAWCommand> Normal = AAWAIController::GenerateCommandQueue(EAWAIDifficulty::Normal, 100, 7);
+    const TArray<EAWCommand> Hard = AAWAIController::GenerateCommandQueue(EAWAIDifficulty::Hard, 100, 7);
+
+    TestTrue(TEXT("Every difficulty produces commands"), !Easy.IsEmpty() && !Normal.IsEmpty() && !Hard.IsEmpty());
+    TestTrue(TEXT("Difficulty increases planning depth"), Easy.Num() < Normal.Num() && Normal.Num() < Hard.Num());
+    TestTrue(TEXT("Easy queue respects AP"), GetProgramActionPointCost(Easy) <= 100);
+    TestTrue(TEXT("Normal queue respects AP"), GetProgramActionPointCost(Normal) <= 100);
+    TestTrue(TEXT("Hard queue respects AP"), GetProgramActionPointCost(Hard) <= 100);
+    TestEqual(TEXT("Zero AP still yields a valid wait"),
+              AAWAIController::GenerateCommandQueue(EAWAIDifficulty::Hard, 0, 7)[0], EAWCommand::Wait);
     return true;
 }
 

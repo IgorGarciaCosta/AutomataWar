@@ -10,6 +10,7 @@
 #include "AWTankActor.generated.h"
 
 class UMaterialInstanceDynamic;
+class UProceduralMeshComponent;
 class USceneComponent;
 class USkeletalMesh;
 class USkeletalMeshComponent;
@@ -40,6 +41,9 @@ public:
     /** Restore the transform authored in the arena map. */
     void ResetVisual();
 
+    /** Show or hide the replay-driven active-turn circle below this tank. */
+    void SetActiveIndicator(bool bActive);
+
     /** Return the simulation robot slot represented by this actor. */
     int32 GetRobotIndex() const { return RobotIndex; }
 
@@ -57,6 +61,10 @@ protected:
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tank")
     TObjectPtr<USkeletalMeshComponent> CannonMesh;
+
+    /** Procedural annulus used to identify the currently active tank. */
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Tank")
+    TObjectPtr<UProceduralMeshComponent> ActiveIndicator;
 
     /** Simulation slot represented by this level instance. */
     UPROPERTY(EditInstanceOnly, BlueprintReadOnly, Category = "Tank", meta = (ClampMin = "0", ClampMax = "1"))
@@ -81,10 +89,17 @@ protected:
     FLinearColor PlayerColor = FLinearColor(0.f, 0.8f, 1.f);
 
 private:
+    /** Build a flat annulus once; visibility and pulse are updated at runtime. */
+    void BuildActiveIndicator();
+
+    /** Apply level-authored meshes and relative transforms. */
     void ApplyVisualConfiguration();
 
     UPROPERTY(Transient)
     TObjectPtr<UMaterialInstanceDynamic> DynamicMaterial;
+
+    UPROPERTY(Transient)
+    TObjectPtr<UMaterialInstanceDynamic> IndicatorMaterial;
 
     FTransform AuthoredTransform;
     FVector TargetLocation = FVector::ZeroVector;

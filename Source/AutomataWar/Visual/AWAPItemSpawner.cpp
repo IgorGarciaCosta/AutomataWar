@@ -1,5 +1,6 @@
 #include "AWAPItemSpawner.h"
 #include "AWAPItem.h"
+#include "AWItem.h"
 #include "AWVisualTypes.h"
 #include "Components/SceneComponent.h"
 #include "Engine/World.h"
@@ -11,6 +12,9 @@ AAWAPItemSpawner::AAWAPItemSpawner()
     SceneRoot = CreateDefaultSubobject<USceneComponent>(TEXT("Root"));
     SetRootComponent(SceneRoot);
     ItemClass = AAWAPItem::StaticClass();
+    ExtraAmmoItemClass = AAWExtraAmmoItem::StaticClass();
+    ShieldItemClass = AAWShieldItem::StaticClass();
+    AcceleratorItemClass = AAWAcceleratorItem::StaticClass();
 }
 
 void AAWAPItemSpawner::BeginPlay()
@@ -53,13 +57,32 @@ void AAWAPItemSpawner::InitializeItems(const Automata::SimConfig &Config, const 
 
     TMap<int32, TPair<int32, int32>> Collections;
     for (const Automata::SimEvent &Event : Events)
-        if (Event.type == Automata::EventType::ActionPointsCollected)
+        if (Event.type == Automata::EventType::ActionPointsCollected ||
+            Event.type == Automata::EventType::ExtraAmmoCollected ||
+            Event.type == Automata::EventType::ShieldCollected ||
+            Event.type == Automata::EventType::AcceleratorCollected)
             Collections.Add(Event.paramA, {Event.step, Event.paramB});
 
     for (int32 CellIndex = 0; CellIndex < Grid.Num(); ++CellIndex)
     {
-        if (Grid[CellIndex] != Automata::CellType::ActionPointItem)
+        TSubclassOf<AAWItem> SpawnClass;
+        switch (Grid[CellIndex])
+        {
+        case Automata::CellType::ActionPointItem:
+            SpawnClass = ItemClass;
+            break;
+        case Automata::CellType::ExtraAmmoItem:
+            SpawnClass = ExtraAmmoItemClass;
+            break;
+        case Automata::CellType::ShieldItem:
+            SpawnClass = ShieldItemClass;
+            break;
+        case Automata::CellType::AcceleratorItem:
+            SpawnClass = AcceleratorItemClass;
+            break;
+        default:
             continue;
+        }
 
         const int32 X = CellIndex % Config.gridWidth;
         const int32 Y = CellIndex / Config.gridWidth;
@@ -71,7 +94,7 @@ void AAWAPItemSpawner::InitializeItems(const Automata::SimConfig &Config, const 
         FActorSpawnParameters SpawnParameters;
         SpawnParameters.Owner = this;
         SpawnParameters.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
-        AAWAPItem *Item = GetWorld()->SpawnActor<AAWAPItem>(ItemClass, Location, FRotator::ZeroRotator, SpawnParameters);
+        AAWItem *Item = GetWorld()->SpawnActor<AAWItem>(SpawnClass, Location, FRotator::ZeroRotator, SpawnParameters);
         if (!Item)
             continue;
 
@@ -94,7 +117,7 @@ void AAWAPItemSpawner::SetReplayStep(int32 Step)
     const bool bMovingForward = LastReplayStep == INDEX_NONE || Step >= LastReplayStep;
     for (TPair<int32, FItemState> &Entry : Items)
     {
-        if (AAWAPItem *Item = Entry.Value.Item.Get())
+        if (AAWItem *Item = Entry.Value.Item.Get())
         {
             const bool bShouldBeCollected = Entry.Value.CollectedStep <= Step;
             const bool bPlayEffects = bMovingForward && bShouldBeCollected && !Item->IsCollected();
@@ -107,7 +130,7 @@ void AAWAPItemSpawner::SetReplayStep(int32 Step)
 void AAWAPItemSpawner::DestroyItems()
 {
     for (const TPair<int32, FItemState> &Entry : Items)
-        if (AAWAPItem *Item = Entry.Value.Item.Get())
+        if (AAWItem *Item = Entry.Value.Item.Get())
             Item->Destroy();
     Items.Reset();
     LastReplayStep = INDEX_NONE;

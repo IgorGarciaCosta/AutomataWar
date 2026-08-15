@@ -59,6 +59,27 @@ namespace Automata
             return v;
         }
 
+        /** Encode effect flags and bounded round counters into four bytes. */
+        void WriteEffects(std::vector<uint8_t> &out, const FAWRobotEffects &Effects)
+        {
+            out.push_back((Effects.bShieldCharged ? 1 : 0) | (Effects.bAccelerateNextMove ? 2 : 0));
+            out.push_back(static_cast<uint8_t>(FMath::Clamp(Effects.ExtraAmmoRounds, 0, 255)));
+            out.push_back(static_cast<uint8_t>(FMath::Clamp(Effects.ShieldRounds, 0, 255)));
+            out.push_back(static_cast<uint8_t>(FMath::Clamp(Effects.AcceleratorRounds, 0, 255)));
+        }
+
+        /** Decode the four-byte persistent-effect block from a validated replay buffer. */
+        FAWRobotEffects ReadEffects(const uint8_t *p)
+        {
+            FAWRobotEffects Effects;
+            Effects.bShieldCharged = (p[0] & 1) != 0;
+            Effects.bAccelerateNextMove = (p[0] & 2) != 0;
+            Effects.ExtraAmmoRounds = p[1];
+            Effects.ShieldRounds = p[2];
+            Effects.AcceleratorRounds = p[3];
+            return Effects;
+        }
+
         static constexpr char B64Chars[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 
         int B64Decode(char c)
@@ -95,6 +116,8 @@ namespace Automata
         WriteU64(out, data.seed);
         WriteU32(out, static_cast<uint32_t>(FMath::Max(0, data.initialActionPointsA)));
         WriteU32(out, static_cast<uint32_t>(FMath::Max(0, data.initialActionPointsB)));
+        WriteEffects(out, data.initialEffectsA);
+        WriteEffects(out, data.initialEffectsB);
 
         // Commands A.
         uint16_t lenA = static_cast<uint16_t>(FMath::Min<int32>(data.commandsA.Num(), MaxCommands));
@@ -120,7 +143,7 @@ namespace Automata
     ReplayDecodeResult DecodeReplay(const std::vector<uint8_t> &bytes)
     {
         ReplayDecodeResult result;
-        const size_t minSize = 4 + 2 + 8 + 8 + 4 + 4 + 2 + 2 + 4; // 38 bytes minimum
+        const size_t minSize = 4 + 2 + 8 + 8 + 4 + 4 + 4 + 4 + 2 + 2 + 4; // 46 bytes minimum
 
         if (bytes.size() < minSize)
         {
@@ -160,6 +183,10 @@ namespace Automata
         result.data.initialActionPointsA = static_cast<int32_t>(ReadU32(p));
         p += 4;
         result.data.initialActionPointsB = static_cast<int32_t>(ReadU32(p));
+        p += 4;
+        result.data.initialEffectsA = ReadEffects(p);
+        p += 4;
+        result.data.initialEffectsB = ReadEffects(p);
         p += 4;
 
         // Commands A.

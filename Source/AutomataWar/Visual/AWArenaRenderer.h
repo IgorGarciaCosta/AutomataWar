@@ -38,6 +38,8 @@ public:
 
     /** Build initial visual state after the actor enters the world. */
     virtual void BeginPlay() override;
+    /** Advance presentation-only projectile bolts and their growing shot traces. */
+    virtual void Tick(float DeltaTime) override;
     /** Initialize the grid and cover visuals from a sim config. */
     void InitializeArena(const Automata::SimConfig &Config, const TArray<Automata::CellType> &Grid,
                          const TArray<Automata::SimEvent> &Events);
@@ -66,6 +68,16 @@ protected:
 
     /** Trigger destruction VFX at position. */
     void TriggerDestruction(FVector WorldPos);
+
+    /** Trigger the project shield Niagara system around a tank. */
+    void TriggerShield(int32 RobotIdx);
+
+    /** Begin a visible projectile whose gameplay result has already been resolved. */
+    void SpawnProjectile(FVector Start, FVector End, int32 TargetRobot,
+                         bool bShielded, bool bDestroyedTarget);
+
+    /** Resize and orient a beam component between two world-space points. */
+    void UpdateProjectileBeam(UStaticMeshComponent *Beam, const FVector &Start, const FVector &End);
 
     /** Spawn a point-light fallback and remove it after its visual lifetime. */
     void SpawnTransientLight(FVector WorldPos, float Intensity, float Radius, FColor Color, float Lifespan);
@@ -112,4 +124,21 @@ protected:
     TMap<int32, TObjectPtr<ATableObstable>> Obstacles;
 
     bool bHasSnapshot = false;
+
+    /** Runtime-only state for one in-flight replay projectile. */
+    struct FProjectileVisual
+    {
+        TWeakObjectPtr<UStaticMeshComponent> Bolt;
+        TWeakObjectPtr<UStaticMeshComponent> Beam;
+        TWeakObjectPtr<UNiagaraComponent> Trail;
+        FVector Start = FVector::ZeroVector;
+        FVector End = FVector::ZeroVector;
+        float Elapsed = 0.f;
+        float Duration = 0.f;
+        int32 TargetRobot = INDEX_NONE;
+        bool bShielded = false;
+        bool bDestroyedTarget = false;
+    };
+
+    TArray<FProjectileVisual> Projectiles;
 };

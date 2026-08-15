@@ -90,6 +90,9 @@ bool FActionPointRules::RunTest(const FString &Parameters)
     TestEqual(TEXT("Move costs 10 AP"), GetActionPointCost(EAWCommand::Move), 10);
     TestEqual(TEXT("Fire costs 20 AP"), GetActionPointCost(EAWCommand::Fire), 20);
     TestEqual(TEXT("Turns cost 5 AP"), GetActionPointCost(EAWCommand::TurnLeft), 5);
+    TestEqual(TEXT("Wait costs no AP"), GetActionPointCost(EAWCommand::Wait), 0);
+    TestEqual(TEXT("Charge shield costs 20 AP"), GetActionPointCost(EAWCommand::ChargeShield), 20);
+    TestEqual(TEXT("Accelerate costs 30 AP"), GetActionPointCost(EAWCommand::Accelerate), 30);
 
     Automata::SimConfig Config;
     Config.gridWidth = 4;
@@ -109,12 +112,56 @@ bool FActionPointRules::RunTest(const FString &Parameters)
     Automata::Simulation StandardBoard;
     StandardBoard.RunMatch({EAWCommand::Move}, {EAWCommand::Move});
     int32 PickupCount = 0;
+    int32 ExtraAmmoCount = 0;
+    int32 ShieldCount = 0;
+    int32 AcceleratorCount = 0;
     const std::vector<Automata::CellType> &Grid = StandardBoard.GetGrid();
     for (Automata::CellType Cell : Grid)
+    {
         PickupCount += Cell == Automata::CellType::ActionPointItem ? 1 : 0;
+        ExtraAmmoCount += Cell == Automata::CellType::ExtraAmmoItem ? 1 : 0;
+        ShieldCount += Cell == Automata::CellType::ShieldItem ? 1 : 0;
+        AcceleratorCount += Cell == Automata::CellType::AcceleratorItem ? 1 : 0;
+    }
     TestEqual(TEXT("Standard board spawns exactly 12 AP items"), PickupCount, Automata::ActionPointItemCount);
+    TestEqual(TEXT("Standard board spawns extra ammo"), ExtraAmmoCount, Automata::ExtraAmmoItemCount);
+    TestEqual(TEXT("Standard board spawns temporary shields"), ShieldCount, Automata::ShieldItemCount);
+    TestEqual(TEXT("Standard board spawns accelerators"), AcceleratorCount, Automata::AcceleratorItemCount);
     TestEqual(TEXT("P1 start is never occupied"), Grid[Automata::DefaultGridWidth + 1], Automata::CellType::Empty);
     TestEqual(TEXT("P2 start is never occupied"), Grid[(Automata::DefaultGridHeight - 2) * Automata::DefaultGridWidth + Automata::DefaultGridWidth - 2], Automata::CellType::Empty);
+    return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCommandEffects, "AutomataWar.Core.Commands.Effects",
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FCommandEffects::RunTest(const FString &Parameters)
+{
+    Automata::SimConfig Config;
+    Config.gridWidth = 5;
+    Config.gridHeight = 5;
+
+    Automata::Simulation Accelerated;
+    Accelerated.RunMatch({EAWCommand::Accelerate, EAWCommand::Move}, {EAWCommand::Wait, EAWCommand::Wait}, Config);
+    TestEqual(TEXT("Accelerate makes the next move cross two cells"), Accelerated.GetSnapshots().back().robots[0].y, 3);
+    TestFalse(TEXT("Accelerate is consumed by that move"), Accelerated.GetSnapshots().back().robots[0].effects.bAccelerateNextMove);
+
+    Config.gridWidth = 3;
+    Config.gridHeight = 4;
+    Automata::Simulation Shielded;
+    const Automata::MatchResult ShieldedResult = Shielded.RunMatch(
+        {EAWCommand::ChargeShield}, {EAWCommand::Fire}, Config);
+    TestEqual(TEXT("Charged shield halves the next hit"), ShieldedResult.finalHP[0],
+              Automata::MaxHP - Automata::ProjectileDamage / 2);
+    TestFalse(TEXT("Charged shield is consumed by damage"), ShieldedResult.finalEffects[0].bShieldCharged);
+
+    Config.initialEffects[0].ExtraAmmoRounds = 1;
+    Automata::Simulation ExtraAmmo;
+    const Automata::MatchResult ExtraAmmoResult = ExtraAmmo.RunMatch(
+        {EAWCommand::Fire}, {EAWCommand::Wait}, Config);
+    TestEqual(TEXT("Extra ammo increases shot damage"), ExtraAmmoResult.finalHP[1],
+              Automata::MaxHP - Automata::ProjectileDamage - Automata::ExtraAmmoDamageBonus);
+    TestEqual(TEXT("Timed power-up expires after its remaining round"), ExtraAmmoResult.finalEffects[0].ExtraAmmoRounds, 0);
     return true;
 }
 
@@ -127,6 +174,10 @@ bool FCommandReplayRoundTrip::RunTest(const FString &Parameters)
     Data.seed = 42;
     Data.initialActionPointsA = 37;
     Data.initialActionPointsB = 81;
+    Data.initialEffectsA.bShieldCharged = true;
+    Data.initialEffectsA.ExtraAmmoRounds = 2;
+    Data.initialEffectsB.bAccelerateNextMove = true;
+    Data.initialEffectsB.AcceleratorRounds = 1;
     Data.commandsA = {EAWCommand::Move, EAWCommand::Fire};
     Data.commandsB = {EAWCommand::TurnLeft, EAWCommand::TurnRight};
 
@@ -136,6 +187,10 @@ bool FCommandReplayRoundTrip::RunTest(const FString &Parameters)
     TestEqual(TEXT("Seed survives"), Decoded.data.seed, Data.seed);
     TestEqual(TEXT("P1 initial AP survives"), Decoded.data.initialActionPointsA, Data.initialActionPointsA);
     TestEqual(TEXT("P2 initial AP survives"), Decoded.data.initialActionPointsB, Data.initialActionPointsB);
+    TestTrue(TEXT("P1 charged shield survives"), Decoded.data.initialEffectsA.bShieldCharged);
+    TestEqual(TEXT("P1 extra ammo duration survives"), Decoded.data.initialEffectsA.ExtraAmmoRounds, 2);
+    TestTrue(TEXT("P2 charged acceleration survives"), Decoded.data.initialEffectsB.bAccelerateNextMove);
+    TestEqual(TEXT("P2 accelerator duration survives"), Decoded.data.initialEffectsB.AcceleratorRounds, 1);
     TestTrue(TEXT("P1 commands survive"), Decoded.data.commandsA == Data.commandsA);
     TestTrue(TEXT("P2 commands survive"), Decoded.data.commandsB == Data.commandsB);
     return true;
@@ -150,7 +205,7 @@ bool FCommandReplayRejectsInvalidAction::RunTest(const FString &Parameters)
     Data.commandsA = {EAWCommand::Move};
     Data.commandsB = {EAWCommand::Fire};
     std::vector<uint8_t> Encoded = Automata::EncodeReplay(Data);
-    Encoded[32] = 255;
+    Encoded[40] = 255;
 
     const Automata::ReplayDecodeResult Decoded = Automata::DecodeReplay(Encoded);
     TestEqual(TEXT("Invalid enum byte is rejected"), Decoded.error, Automata::ReplayError::InvalidCommands);

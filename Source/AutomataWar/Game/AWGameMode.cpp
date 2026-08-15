@@ -66,6 +66,12 @@ void AAWGameMode::Logout(AController *Exiting)
 void AAWGameMode::BeginLocalMatch()
 {
     bLocalMatch = true;
+    bSinglePlayerMatch = false;
+    if (AIController)
+    {
+        AIController->Destroy();
+        AIController = nullptr;
+    }
     GetWorld()->GetTimerManager().ClearTimer(SubmissionTimerHandle);
 
     AcceptedCommands[0] = {EAWCommand::Move};
@@ -88,9 +94,21 @@ void AAWGameMode::BeginLocalMatch()
         GS->SetActionPoints(1, Automata::InitialActionPoints);
         GS->ReplayStartActionPoints0 = Automata::InitialActionPoints;
         GS->ReplayStartActionPoints1 = Automata::InitialActionPoints;
+        GS->SetEffects(0, {});
+        GS->SetEffects(1, {});
+        GS->ReplayStartEffects0 = {};
+        GS->ReplayStartEffects1 = {};
     }
 
     SetPhase(EAWMatchPhase::Programming);
+}
+
+void AAWGameMode::BeginSinglePlayerMatch(EAWAIDifficulty Difficulty)
+{
+    BeginLocalMatch();
+    bSinglePlayerMatch = true;
+    AIDifficulty = Difficulty;
+    EnsureAIController();
 }
 
 FAWValidationResult AAWGameMode::HandleSubmission(int32 Slot, const TArray<EAWCommand> &Commands)
@@ -147,6 +165,20 @@ FAWValidationResult AAWGameMode::HandleSubmission(int32 Slot, const TArray<EAWCo
 
     UE_LOG(LogAutomataGame, Log, TEXT("Slot %d submitted (%d actions)."), Slot, Commands.Num());
 
+    if (bSinglePlayerMatch && Slot == 0 && !bSlotSubmitted[1])
+    {
+        const FAWValidationResult AIResult = SubmitAICommands();
+        if (!AIResult.bSuccess)
+        {
+            UE_LOG(LogAutomataGame, Error, TEXT("AI submission failed: %s"), *AIResult.ErrorMessage);
+            return AIResult;
+        }
+
+        FAWValidationResult Result;
+        Result.bSuccess = true;
+        return Result;
+    }
+
     // Check if both submitted
     if (bSlotSubmitted[0] && bSlotSubmitted[1])
     {
@@ -167,6 +199,33 @@ FAWValidationResult AAWGameMode::HandleSubmission(int32 Slot, const TArray<EAWCo
     FAWValidationResult Result;
     Result.bSuccess = true;
     return Result;
+}
+
+void AAWGameMode::EnsureAIController()
+{
+    if (AIController || !GetWorld())
+        return;
+
+    FActorSpawnParameters SpawnParameters;
+    SpawnParameters.Owner = this;
+    SpawnParameters.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+    AIController = GetWorld()->SpawnActor<AAWAIController>(AAWAIController::StaticClass(), SpawnParameters);
+}
+
+FAWValidationResult AAWGameMode::SubmitAICommands()
+{
+    EnsureAIController();
+    AAWGameState *GS = GetGameState<AAWGameState>();
+    if (!AIController || !GS)
+    {
+        FAWValidationResult Result;
+        Result.ErrorMessage = TEXT("AI controller unavailable.");
+        return Result;
+    }
+
+    const int32 Seed = HashCombineFast(static_cast<uint32>(GS->RoundNumber), static_cast<uint32>(AIDifficulty));
+    const TArray<EAWCommand> Commands = AIController->GenerateCommandQueue(AIDifficulty, GS->GetActionPoints(1), Seed);
+    return HandleSubmission(1, Commands);
 }
 
 FAWValidationResult AAWGameMode::WithdrawSubmission(int32 Slot)
@@ -248,8 +307,11 @@ void AAWGameMode::RunSimulation()
     if (GS)
     {
         Config.initialActionPoints = {GS->GetActionPoints(0), GS->GetActionPoints(1)};
+        Config.initialEffects = {GS->GetEffects(0), GS->GetEffects(1)};
         GS->ReplayStartActionPoints0 = Config.initialActionPoints[0];
         GS->ReplayStartActionPoints1 = Config.initialActionPoints[1];
+        GS->ReplayStartEffects0 = Config.initialEffects[0];
+        GS->ReplayStartEffects1 = Config.initialEffects[1];
     }
 
     Automata::Simulation Sim;
@@ -268,6 +330,8 @@ void AAWGameMode::RunSimulation()
         GS->Outcome.HP1 = Result.finalHP[1];
         GS->SetActionPoints(0, Result.finalActionPoints[0]);
         GS->SetActionPoints(1, Result.finalActionPoints[1]);
+        GS->SetEffects(0, Result.finalEffects[0]);
+        GS->SetEffects(1, Result.finalEffects[1]);
         switch (Result.outcome)
         {
         case Automata::MatchOutcome::Robot0Wins:

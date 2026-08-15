@@ -10,12 +10,12 @@
 #include "AutomataWar/Core/Replay/AWReplayController.h"
 #include "AutomataWar/UI/AWHUDWidget.h"
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCommandCount, "AutomataWar.UI.Commands.CountIsFour",
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCommandCount, "AutomataWar.UI.Commands.CountIsSeven",
                                  EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 
 bool FCommandCount::RunTest(const FString &Parameters)
 {
-    TestEqual(TEXT("Exactly four selectable commands"), static_cast<int32>(EAWCommand::Count), 4);
+    TestEqual(TEXT("Exactly seven selectable commands"), static_cast<int32>(EAWCommand::Count), 7);
     return true;
 }
 
@@ -40,12 +40,12 @@ bool FReplayControllerSteps::RunTest(const FString &Parameters)
     return true;
 }
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FHUDScreenCount, "AutomataWar.UI.HUD.ScreenCountIs6",
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FHUDScreenCount, "AutomataWar.UI.HUD.ScreenCountIs7",
                                  EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 
 bool FHUDScreenCount::RunTest(const FString &Parameters)
 {
-    TestEqual(TEXT("EAWScreen count"), static_cast<int32>(EAWScreen::LanguageReference) + 1, 6);
+    TestEqual(TEXT("EAWScreen count"), static_cast<int32>(EAWScreen::LanguageReference) + 1, 7);
     return true;
 }
 
