@@ -104,7 +104,7 @@ namespace Automata
     std::vector<uint8_t> EncodeReplay(const ReplayData &data)
     {
         std::vector<uint8_t> out;
-        out.reserve(32 + data.commandsA.Num() + data.commandsB.Num());
+        out.reserve(41 + data.commandsA.Num() + data.commandsB.Num());
 
         // Magic.
         out.push_back('A');
@@ -118,6 +118,7 @@ namespace Automata
         WriteU32(out, static_cast<uint32_t>(FMath::Max(0, data.initialActionPointsB)));
         WriteEffects(out, data.initialEffectsA);
         WriteEffects(out, data.initialEffectsB);
+        out.push_back(static_cast<uint8_t>(data.startingRobot == 1 ? 1 : 0));
 
         // Commands A.
         uint16_t lenA = static_cast<uint16_t>(FMath::Min<int32>(data.commandsA.Num(), MaxCommands));
@@ -143,7 +144,7 @@ namespace Automata
     ReplayDecodeResult DecodeReplay(const std::vector<uint8_t> &bytes)
     {
         ReplayDecodeResult result;
-        const size_t minSize = 4 + 2 + 8 + 8 + 4 + 4 + 4 + 4 + 2 + 2 + 4; // 46 bytes minimum
+        const size_t minSize = 4 + 2 + 8 + 8 + 4 + 4 + 4 + 4 + 1 + 2 + 2 + 4; // 47 bytes minimum
 
         if (bytes.size() < minSize)
         {
@@ -188,6 +189,12 @@ namespace Automata
         p += 4;
         result.data.initialEffectsB = ReadEffects(p);
         p += 4;
+        result.data.startingRobot = *p++;
+        if (result.data.startingRobot > 1)
+        {
+            result.error = ReplayError::InvalidStartingRobot;
+            return result;
+        }
 
         // Commands A.
         size_t remaining = bytes.size() - static_cast<size_t>(p - bytes.data());

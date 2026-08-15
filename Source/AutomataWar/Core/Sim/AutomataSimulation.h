@@ -70,7 +70,7 @@ namespace Automata
         int32_t paramB = 0;
     };
 
-    /** Presentation snapshot captured after one pair of commands. */
+    /** Presentation snapshot captured after exactly one tank command. */
     struct StepSnapshot
     {
         int32_t step = 0;
@@ -103,11 +103,13 @@ namespace Automata
         int32_t gridWidth = DefaultGridWidth;
         int32_t gridHeight = DefaultGridHeight;
         uint64_t seed = 12345;
+        /** Tank slot whose complete command queue executes first. */
+        int32_t startingRobot = 0;
         std::array<int32_t, 2> initialActionPoints = {InitialActionPoints, InitialActionPoints};
         std::array<FAWRobotEffects, 2> initialEffects;
     };
 
-    /** Runs each finite command list once, with no parser, VM, or tick cap. */
+    /** Runs the starter's complete queue, then the opponent's complete queue. */
     class Simulation
     {
     public:

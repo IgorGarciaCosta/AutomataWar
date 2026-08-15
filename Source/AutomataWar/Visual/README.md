@@ -24,4 +24,4 @@ C++ presentation-only visuals for Automata War. Reads simulation snapshots; neve
 - Interpolation uses frame delta purely for visual smoothness
 - Projectile gameplay resolves instantly in Core; presentation animates a slower bolt, Niagara trail, and growing beam before impact feedback
 - `NS_Destruction` supplies the fire/smoke body, layered with impact sparks and short-lived orange lights
-- The active-tank annulus is procedural, collision-free, and selected from replay step priority
+- The active-tank annulus is procedural, collision-free, and follows the snapshot's sole active command

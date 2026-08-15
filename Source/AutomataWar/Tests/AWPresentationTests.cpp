@@ -31,7 +31,7 @@ bool FReplayControllerSteps::RunTest(const FString &Parameters)
     Automata::FAWReplayController Controller;
     TestTrue(TEXT("Controller initializes"), Controller.Initialize(CommandsA, CommandsB, 12345));
     TestEqual(TEXT("Starts at first step"), Controller.GetCurrentStep(), 0);
-    TestEqual(TEXT("Longer list determines step count"), Controller.GetTotalSteps(), 4);
+    TestEqual(TEXT("Every queued command receives a replay step"), Controller.GetTotalSteps(), 6);
     Controller.StepForward();
     TestEqual(TEXT("Steps forward"), Controller.GetCurrentStep(), 1);
     Controller.SeekToStep(3);

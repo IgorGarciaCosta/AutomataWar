@@ -2,6 +2,14 @@
 
 This log records decisions made where the build brief allowed or required engineering judgment.
 
+## 2026-08-15 - Resolve complete-queue turns with AP-based round initiative
+
+**Decision:** Treat one turn as one tank's complete command queue. Execute every command from the explicit round starter before executing every command from the opponent; retain one simulation snapshot per command for presentation and replay inspection. Round 1 selects the starter randomly on the server. Later rounds compare the AP balances carried from the previous round before programming costs are deducted; the higher balance starts, and equal AP uses a fresh random tie-break. Store the selected slot in replicated state and replay version 7.
+
+**Alternatives:** Resolve one command from both tanks in every snapshot; alternate one command at a time between tanks; calculate initiative after command costs are paid.
+
+**Rationale:** The queue is the player's complete programmed turn, so initiative determines which full plan resolves first. Per-command snapshots keep movement and VFX readable. Selecting before programming prevents players from changing initiative by deliberately spending AP, while explicit replication and replay storage preserve deterministic reconstruction.
+
 ## 2026-08-15 - Keep AI isolated by source boundary and reuse authoritative submission
 
 **Decision:** Place `AAWAIController` and its difficulty enum under `Source/AutomataWar/AI`, but keep them in the existing runtime module. Generate deterministic AP-budgeted queues for slot 1 and submit them through `AAWGameMode::HandleSubmission` only after the human submits.

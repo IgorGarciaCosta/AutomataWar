@@ -299,34 +299,37 @@ namespace Automata
         snapshots_.clear();
 
         const TConstArrayView<EAWCommand> Commands[2] = {CommandsA, CommandsB};
-        const int32_t StepCount = FMath::Max(CommandsA.Num(), CommandsB.Num());
+        const int32_t StepCount = CommandsA.Num() + CommandsB.Num();
         events_.reserve(static_cast<size_t>(StepCount * 4));
         snapshots_.reserve(static_cast<size_t>(StepCount));
+        const int32_t StartingRobot = Config.startingRobot == 1 ? 1 : 0;
+        int32_t Step = 0;
 
-        for (int32_t Step = 0; Step < StepCount; ++Step)
+        for (int32_t Turn = 0; Turn < 2; ++Turn)
         {
-            robots_[0].currentCommand = -1;
-            robots_[1].currentCommand = -1;
-            const int32_t FirstRobot = Step % 2;
+            const int32_t RobotIndex = Turn == 0 ? StartingRobot : 1 - StartingRobot;
+            RobotState &Robot = robots_[RobotIndex];
+            if (Robot.hp <= 0)
+                break;
 
-            for (int32_t Pass = 0; Pass < 2; ++Pass)
+            while (Robot.nextCommand < Commands[RobotIndex].Num())
             {
-                const int32_t RobotIndex = Pass == 0 ? FirstRobot : 1 - FirstRobot;
-                RobotState &Robot = robots_[RobotIndex];
-                if (Robot.hp <= 0 || Robot.nextCommand >= Commands[RobotIndex].Num())
-                    continue;
-
+                robots_[0].currentCommand = -1;
+                robots_[1].currentCommand = -1;
                 Robot.currentCommand = Robot.nextCommand;
                 ExecuteCommand(RobotIndex, Commands[RobotIndex][Robot.nextCommand], Step);
                 ++Robot.nextCommand;
-            }
 
-            StepSnapshot Snapshot;
-            Snapshot.step = Step;
-            Snapshot.robots = robots_;
-            Snapshot.obstacleHealth = obstacleHealth_;
-            Snapshot.stateHash = ComputeHash();
-            snapshots_.push_back(MoveTemp(Snapshot));
+                StepSnapshot Snapshot;
+                Snapshot.step = Step++;
+                Snapshot.robots = robots_;
+                Snapshot.obstacleHealth = obstacleHealth_;
+                Snapshot.stateHash = ComputeHash();
+                snapshots_.push_back(MoveTemp(Snapshot));
+
+                if (robots_[0].hp <= 0 || robots_[1].hp <= 0)
+                    break;
+            }
 
             if (robots_[0].hp <= 0 || robots_[1].hp <= 0)
                 break;

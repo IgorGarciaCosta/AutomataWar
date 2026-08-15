@@ -16,7 +16,15 @@ Commands are relative to the tank's current facing:
 | `CHARGE SHIELD` | Spend 20 AP to reduce the next incoming hit by 50%.                     |
 | `ACCELERATE`    | Spend 30 AP so the next move crosses up to two cells.                   |
 
-Commands run once, in order. If one tank has a shorter queue, it waits for the other tank to finish. A round ends when both queues are empty or one tank is destroyed.
+Commands run once, in order, with exactly one tank acting per replay step. The round starter executes its entire queue without yielding; then the other tank executes its entire queue. The round ends when both turns finish or one tank is destroyed.
+
+## Turn Initiative
+
+- Round 1 chooses the starting tank randomly on the server.
+- Later rounds start with the player who owned more AP before programming began.
+- Equal AP uses a new server-side random tie-break.
+- The selected starter is replicated and stored in replay files.
+- A turn means one tank's complete command queue; a round contains both turns.
 
 ## Programming Screen
 
@@ -45,9 +53,9 @@ The UI uses a shared AW-80 phosphor-terminal style, including a software cursor 
 
 ## Replays
 
-A replay stores the two command arrays, canonical starting effects, a 64-bit seed, format version, ruleset hash, and CRC-32. It does not store snapshots, transforms, animation, or video. Playback simply simulates the command queues again.
+A replay stores the two command arrays, round starter, canonical starting effects, a 64-bit seed, format version, ruleset hash, and CRC-32. It does not store snapshots, transforms, animation, or video. Playback simply simulates the command queues again.
 
-With the current limit of 256 commands per player, a replay is under 1 KiB. Replay format version 5 deliberately rejects files whose command or persistent-effect rules are incompatible.
+With the current limit of 256 commands per player, a replay is under 1 KiB. Replay format version 7 deliberately rejects files whose turn, command, or persistent-effect rules are incompatible.
 
 ## Architecture
 
@@ -74,7 +82,7 @@ Local and network play both go through `AAWGameMode::HandleSubmission()`. The se
 
 - Canonical positions, directions, HP, cover health, and command indices are integers.
 - Arena randomness uses one explicitly seeded xorshift generator.
-- Resolution priority alternates by command step.
+- Exactly one tank acts per step; the starter's full queue runs before the opponent's full queue.
 - Rendering interpolation never writes back to simulation state.
 - A canonical hash includes grid, cover, tanks, and command positions.
 

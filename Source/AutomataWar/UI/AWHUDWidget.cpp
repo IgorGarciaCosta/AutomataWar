@@ -628,7 +628,7 @@ void UAWHUDWidget::InitializeReplayFromGameState()
 
     if (!InitializeReplay(GS->RevealedCommands0, GS->RevealedCommands1, GS->SimSeed,
                           GS->ReplayStartActionPoints0, GS->ReplayStartActionPoints1,
-                          GS->ReplayStartEffects0, GS->ReplayStartEffects1))
+                          GS->ReplayStartEffects0, GS->ReplayStartEffects1, GS->RoundStartingSlot))
     {
         SetStatus(TEXT("Failed to reconstruct simulation for replay."), true);
     }
@@ -636,7 +636,8 @@ void UAWHUDWidget::InitializeReplayFromGameState()
 
 bool UAWHUDWidget::InitializeReplay(const TArray<EAWCommand> &CommandsA, const TArray<EAWCommand> &CommandsB, int64 Seed,
                                     int32 ActionPointsA, int32 ActionPointsB,
-                                    const FAWRobotEffects &EffectsA, const FAWRobotEffects &EffectsB)
+                                    const FAWRobotEffects &EffectsA, const FAWRobotEffects &EffectsB,
+                                    int32 StartingSlot)
 {
     bReplayPlaying = false;
     ReplayAccumulator = 0.0;
@@ -645,7 +646,7 @@ bool UAWHUDWidget::InitializeReplay(const TArray<EAWCommand> &CommandsA, const T
 
     ReplayController = MakeUnique<Automata::FAWReplayController>();
     if (!ReplayController->Initialize(CommandsA, CommandsB, static_cast<uint64_t>(Seed), ActionPointsA, ActionPointsB,
-                                      EffectsA, EffectsB))
+                                      EffectsA, EffectsB, StartingSlot))
         return false;
 
     if (AAWArenaRenderer *Renderer = FindOrSpawnRenderer())
@@ -837,16 +838,18 @@ void UAWHUDWidget::OnReplayLoad(const FString &Filename)
     TArray<EAWCommand> Commands0, Commands1;
     FString Error;
     int64 Seed;
-    int32 ActionPoints0, ActionPoints1;
+    int32 StartingSlot, ActionPoints0, ActionPoints1;
     FAWRobotEffects Effects0, Effects1;
-    if (!Sub->LoadReplay(Filename, Commands0, Commands1, Seed, ActionPoints0, ActionPoints1, Effects0, Effects1, Error))
+    if (!Sub->LoadReplay(Filename, Commands0, Commands1, Seed, StartingSlot,
+                         ActionPoints0, ActionPoints1, Effects0, Effects1, Error))
     {
         if (ReplayBrowserScreenWidget)
             ReplayBrowserScreenWidget->SetStatus(Error);
         return;
     }
 
-    if (!InitializeReplay(Commands0, Commands1, Seed, ActionPoints0, ActionPoints1, Effects0, Effects1))
+    if (!InitializeReplay(Commands0, Commands1, Seed, ActionPoints0, ActionPoints1,
+                          Effects0, Effects1, StartingSlot))
     {
         if (ReplayBrowserScreenWidget)
             ReplayBrowserScreenWidget->SetStatus(TEXT("Failed to resimulate replay."));

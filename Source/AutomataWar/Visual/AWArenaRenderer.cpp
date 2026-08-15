@@ -104,13 +104,12 @@ void AAWArenaRenderer::SetSnapshot(const Automata::StepSnapshot &Snapshot)
         PlayerOneTank->SetTargetTransform(GridToWorld(Snapshot.robots[0].x, Snapshot.robots[0].y), DirToRotation(Snapshot.robots[0].facing));
     if (PlayerTwoTank)
         PlayerTwoTank->SetTargetTransform(GridToWorld(Snapshot.robots[1].x, Snapshot.robots[1].y), DirToRotation(Snapshot.robots[1].facing));
-    int32 ActiveRobot = Snapshot.step % 2;
-    if (Snapshot.robots[ActiveRobot].currentCommand == INDEX_NONE)
-        ActiveRobot = 1 - ActiveRobot;
+    const int32 ActiveRobot = Snapshot.robots[0].currentCommand != INDEX_NONE ? 0 : Snapshot.robots[1].currentCommand != INDEX_NONE ? 1
+                                                                                                                                    : INDEX_NONE;
     if (PlayerOneTank)
-        PlayerOneTank->SetActiveIndicator(ActiveRobot == 0 && Snapshot.robots[0].currentCommand != INDEX_NONE);
+        PlayerOneTank->SetActiveIndicator(ActiveRobot == 0);
     if (PlayerTwoTank)
-        PlayerTwoTank->SetActiveIndicator(ActiveRobot == 1 && Snapshot.robots[1].currentCommand != INDEX_NONE);
+        PlayerTwoTank->SetActiveIndicator(ActiveRobot == 1);
     if (ActionPointItemSpawner)
         ActionPointItemSpawner->SetReplayStep(Snapshot.step);
 }

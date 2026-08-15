@@ -20,11 +20,48 @@ bool FCommandsRunOnce::RunTest(const FString &Parameters)
     const TArray<EAWCommand> CommandsB = {EAWCommand::TurnRight};
     const Automata::MatchResult Result = Simulation.RunMatch(CommandsA, CommandsB);
 
-    TestEqual(TEXT("Round length follows the longer list"), Result.stepsExecuted, 3);
-    TestEqual(TEXT("One snapshot per command step"), static_cast<int32>(Simulation.GetSnapshots().size()), 3);
+    TestEqual(TEXT("Round length includes both command lists"), Result.stepsExecuted, 4);
+    TestEqual(TEXT("One snapshot per tank command"), static_cast<int32>(Simulation.GetSnapshots().size()), 4);
+    for (const Automata::StepSnapshot &Snapshot : Simulation.GetSnapshots())
+    {
+        const int32 ActiveTankCount = (Snapshot.robots[0].currentCommand >= 0 ? 1 : 0) +
+                                      (Snapshot.robots[1].currentCommand >= 0 ? 1 : 0);
+        TestEqual(TEXT("Exactly one tank acts in each snapshot"), ActiveTankCount, 1);
+    }
+    TestEqual(TEXT("Starter runs command 1 first"), Simulation.GetSnapshots()[0].robots[0].currentCommand, 0);
+    TestEqual(TEXT("Starter runs command 2 without yielding"), Simulation.GetSnapshots()[1].robots[0].currentCommand, 1);
+    TestEqual(TEXT("Starter finishes its queue before yielding"), Simulation.GetSnapshots()[2].robots[0].currentCommand, 2);
+    TestEqual(TEXT("Opponent runs only after the starter queue ends"), Simulation.GetSnapshots()[3].robots[1].currentCommand, 0);
     const Automata::StepSnapshot &Final = Simulation.GetSnapshots().back();
     TestEqual(TEXT("P1 consumes every command once"), Final.robots[0].nextCommand, 3);
     TestEqual(TEXT("P2 does not wrap its short list"), Final.robots[1].nextCommand, 1);
+    return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FTurnInitiative, "AutomataWar.Core.Turns.Initiative",
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FTurnInitiative::RunTest(const FString &Parameters)
+{
+    TestEqual(TEXT("Round one uses the random slot even when AP differs"),
+              ChooseRoundStartingSlot(1, 200, 10, 1), 1);
+    TestEqual(TEXT("Later round starts with higher P1 AP"),
+              ChooseRoundStartingSlot(2, 80, 20, 1), 0);
+    TestEqual(TEXT("Later round starts with higher P2 AP"),
+              ChooseRoundStartingSlot(3, 10, 40, 0), 1);
+    TestEqual(TEXT("Equal AP uses the supplied random tie-break"),
+              ChooseRoundStartingSlot(4, 30, 30, 1), 1);
+
+    Automata::SimConfig Config;
+    Config.startingRobot = 1;
+    Automata::Simulation Simulation;
+    Simulation.RunMatch({EAWCommand::Wait, EAWCommand::Wait},
+                        {EAWCommand::Wait, EAWCommand::Wait}, Config);
+    const std::vector<Automata::StepSnapshot> &Snapshots = Simulation.GetSnapshots();
+    TestEqual(TEXT("Selected starter acts first"), Snapshots[0].robots[1].currentCommand, 0);
+    TestEqual(TEXT("Starter finishes its queue before yielding"), Snapshots[1].robots[1].currentCommand, 1);
+    TestEqual(TEXT("Other tank starts after the starter finishes"), Snapshots[2].robots[0].currentCommand, 0);
+    TestEqual(TEXT("Other tank then finishes its queue"), Snapshots[3].robots[0].currentCommand, 1);
     return true;
 }
 
@@ -172,6 +209,7 @@ bool FCommandReplayRoundTrip::RunTest(const FString &Parameters)
 {
     Automata::ReplayData Data;
     Data.seed = 42;
+    Data.startingRobot = 1;
     Data.initialActionPointsA = 37;
     Data.initialActionPointsB = 81;
     Data.initialEffectsA.bShieldCharged = true;
@@ -185,6 +223,7 @@ bool FCommandReplayRoundTrip::RunTest(const FString &Parameters)
     const Automata::ReplayDecodeResult Decoded = Automata::DecodeReplay(Encoded);
     TestTrue(TEXT("Replay decodes"), Decoded.Ok());
     TestEqual(TEXT("Seed survives"), Decoded.data.seed, Data.seed);
+    TestEqual(TEXT("Starting robot survives"), Decoded.data.startingRobot, 1);
     TestEqual(TEXT("P1 initial AP survives"), Decoded.data.initialActionPointsA, Data.initialActionPointsA);
     TestEqual(TEXT("P2 initial AP survives"), Decoded.data.initialActionPointsB, Data.initialActionPointsB);
     TestTrue(TEXT("P1 charged shield survives"), Decoded.data.initialEffectsA.bShieldCharged);
@@ -205,10 +244,26 @@ bool FCommandReplayRejectsInvalidAction::RunTest(const FString &Parameters)
     Data.commandsA = {EAWCommand::Move};
     Data.commandsB = {EAWCommand::Fire};
     std::vector<uint8_t> Encoded = Automata::EncodeReplay(Data);
-    Encoded[40] = 255;
+    Encoded[41] = 255;
 
     const Automata::ReplayDecodeResult Decoded = Automata::DecodeReplay(Encoded);
     TestEqual(TEXT("Invalid enum byte is rejected"), Decoded.error, Automata::ReplayError::InvalidCommands);
+    return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCommandReplayRejectsInvalidStarter, "AutomataWar.Core.Replay.RejectsInvalidStarter",
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FCommandReplayRejectsInvalidStarter::RunTest(const FString &Parameters)
+{
+    Automata::ReplayData Data;
+    Data.commandsA = {EAWCommand::Wait};
+    Data.commandsB = {EAWCommand::Wait};
+    std::vector<uint8_t> Encoded = Automata::EncodeReplay(Data);
+    Encoded[38] = 2;
+
+    const Automata::ReplayDecodeResult Decoded = Automata::DecodeReplay(Encoded);
+    TestEqual(TEXT("Invalid starting slot is rejected"), Decoded.error, Automata::ReplayError::InvalidStartingRobot);
     return true;
 }
 

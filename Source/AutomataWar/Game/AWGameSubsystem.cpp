@@ -327,6 +327,7 @@ bool UAWGameSubsystem::SaveReplay(const FString &Filename)
 
     Automata::ReplayData Data;
     Data.seed = static_cast<uint64>(GS->SimSeed);
+    Data.startingRobot = GS->RoundStartingSlot;
     Data.initialActionPointsA = GS->ReplayStartActionPoints0;
     Data.initialActionPointsB = GS->ReplayStartActionPoints1;
     Data.initialEffectsA = GS->ReplayStartEffects0;
@@ -338,7 +339,7 @@ bool UAWGameSubsystem::SaveReplay(const FString &Filename)
 }
 
 bool UAWGameSubsystem::LoadReplay(const FString &Filename, TArray<EAWCommand> &OutCommands0, TArray<EAWCommand> &OutCommands1,
-                                  int64 &OutSeed, int32 &OutActionPoints0, int32 &OutActionPoints1,
+                                  int64 &OutSeed, int32 &OutStartingSlot, int32 &OutActionPoints0, int32 &OutActionPoints1,
                                   FAWRobotEffects &OutEffects0, FAWRobotEffects &OutEffects1, FString &OutError)
 {
     Automata::ReplayData Data;
@@ -350,6 +351,7 @@ bool UAWGameSubsystem::LoadReplay(const FString &Filename, TArray<EAWCommand> &O
     OutCommands0 = MoveTemp(Data.commandsA);
     OutCommands1 = MoveTemp(Data.commandsB);
     OutSeed = static_cast<int64>(Data.seed);
+    OutStartingSlot = Data.startingRobot;
     OutActionPoints0 = Data.initialActionPointsA;
     OutActionPoints1 = Data.initialActionPointsB;
     OutEffects0 = Data.initialEffectsA;

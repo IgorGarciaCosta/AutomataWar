@@ -11,6 +11,7 @@ void AAWGameState::GetLifetimeReplicatedProps(TArray<FLifetimeProperty> &OutLife
     Super::GetLifetimeReplicatedProps(OutLifetimeProps);
     DOREPLIFETIME(AAWGameState, Phase);
     DOREPLIFETIME(AAWGameState, RoundNumber);
+    DOREPLIFETIME(AAWGameState, RoundStartingSlot);
     DOREPLIFETIME(AAWGameState, SubmissionTimeRemaining);
     DOREPLIFETIME(AAWGameState, RevealedCommands0);
     DOREPLIFETIME(AAWGameState, RevealedCommands1);

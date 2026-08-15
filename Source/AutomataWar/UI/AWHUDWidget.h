@@ -142,7 +142,8 @@ private:
     bool InitializeReplay(const TArray<EAWCommand> &CommandsA, const TArray<EAWCommand> &CommandsB, int64 Seed,
                           int32 ActionPointsA = Automata::InitialActionPoints,
                           int32 ActionPointsB = Automata::InitialActionPoints,
-                          const FAWRobotEffects &EffectsA = {}, const FAWRobotEffects &EffectsB = {});
+                          const FAWRobotEffects &EffectsA = {}, const FAWRobotEffects &EffectsB = {},
+                          int32 StartingSlot = 0);
     void UpdateReplayUI();
     void UpdateArenaFromReplay();
 

@@ -6,12 +6,14 @@ namespace Automata
 
     bool FAWReplayController::Initialize(const TArray<EAWCommand> &CommandsA, const TArray<EAWCommand> &CommandsB, uint64_t Seed,
                                          int32_t InitialActionPointsA, int32_t InitialActionPointsB,
-                                         const FAWRobotEffects &InitialEffectsA, const FAWRobotEffects &InitialEffectsB)
+                                         const FAWRobotEffects &InitialEffectsA, const FAWRobotEffects &InitialEffectsB,
+                                         int32_t StartingRobot)
     {
         bValid_ = false;
         commandsA_ = CommandsA;
         commandsB_ = CommandsB;
         config_.seed = Seed;
+        config_.startingRobot = StartingRobot == 1 ? 1 : 0;
         config_.initialActionPoints = {InitialActionPointsA, InitialActionPointsB};
         config_.initialEffects = {InitialEffectsA, InitialEffectsB};
 

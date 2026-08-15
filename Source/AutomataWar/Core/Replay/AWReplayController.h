@@ -19,7 +19,8 @@ namespace Automata
                         int32_t InitialActionPointsA = InitialActionPoints,
                         int32_t InitialActionPointsB = InitialActionPoints,
                         const FAWRobotEffects &InitialEffectsA = {},
-                        const FAWRobotEffects &InitialEffectsB = {});
+                        const FAWRobotEffects &InitialEffectsB = {},
+                        int32_t StartingRobot = 0);
         bool IsValid() const { return bValid_; }
 
         int32_t GetTotalSteps() const { return static_cast<int32_t>(snapshots_.size()); }

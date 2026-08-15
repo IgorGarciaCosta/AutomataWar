@@ -32,6 +32,7 @@ namespace Automata
     inline constexpr int32_t AcceleratorItemCount = 2;
     inline constexpr int32_t ExtraAmmoDamageBonus = 10;
     inline constexpr int32_t PowerUpDurationRounds = 2;
+    inline constexpr int32_t TurnModelVersion = 3;
 
     /** Cardinal facing values ordered clockwise. */
     enum class Dir : uint8_t
@@ -46,7 +47,7 @@ namespace Automata
     inline constexpr std::array<int32_t, 4> DirDY = {-1, 0, 1, 0};
 
     /** Compact replay format storing one byte per command. */
-    inline constexpr uint16_t ReplayVersion = 5;
+    inline constexpr uint16_t ReplayVersion = 7;
 
     /** Changes whenever command semantics or balance changes. */
     inline constexpr uint64_t RulesetHash = []() constexpr -> uint64_t
@@ -81,6 +82,7 @@ namespace Automata
         Mix(AcceleratorItemCount);
         Mix(ExtraAmmoDamageBonus);
         Mix(PowerUpDurationRounds);
+        Mix(TurnModelVersion);
         return Hash;
     }();
 

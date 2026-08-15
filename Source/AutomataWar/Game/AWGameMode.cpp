@@ -92,6 +92,8 @@ void AAWGameMode::BeginLocalMatch()
         GS->Outcome = FAWMatchOutcome();
         GS->SetActionPoints(0, Automata::InitialActionPoints);
         GS->SetActionPoints(1, Automata::InitialActionPoints);
+        GS->RoundStartingSlot = ChooseRoundStartingSlot(
+            GS->RoundNumber, GS->GetActionPoints(0), GS->GetActionPoints(1), FMath::RandRange(0, 1));
         GS->ReplayStartActionPoints0 = Automata::InitialActionPoints;
         GS->ReplayStartActionPoints1 = Automata::InitialActionPoints;
         GS->SetEffects(0, {});
@@ -306,12 +308,20 @@ void AAWGameMode::RunSimulation()
     AAWGameState *GS = GetGameState<AAWGameState>();
     if (GS)
     {
+        if (GS->RoundStartingSlot < 0 || GS->RoundStartingSlot > 1)
+        {
+            GS->RoundStartingSlot = ChooseRoundStartingSlot(
+                GS->RoundNumber, GS->GetActionPoints(0), GS->GetActionPoints(1), FMath::RandRange(0, 1));
+        }
+        Config.startingRobot = GS->RoundStartingSlot;
         Config.initialActionPoints = {GS->GetActionPoints(0), GS->GetActionPoints(1)};
         Config.initialEffects = {GS->GetEffects(0), GS->GetEffects(1)};
         GS->ReplayStartActionPoints0 = Config.initialActionPoints[0];
         GS->ReplayStartActionPoints1 = Config.initialActionPoints[1];
         GS->ReplayStartEffects0 = Config.initialEffects[0];
         GS->ReplayStartEffects1 = Config.initialEffects[1];
+        UE_LOG(LogAutomataGame, Log, TEXT("Round %d starts with slot %d."),
+               GS->RoundNumber, GS->RoundStartingSlot);
     }
 
     Automata::Simulation Sim;
@@ -369,6 +379,8 @@ void AAWGameMode::AdvanceToNextRound()
         return;
 
     GS->RoundNumber++;
+    GS->RoundStartingSlot = ChooseRoundStartingSlot(
+        GS->RoundNumber, GS->GetActionPoints(0), GS->GetActionPoints(1), FMath::RandRange(0, 1));
     GS->RevealedCommands0.Reset();
     GS->RevealedCommands1.Reset();
     GS->SubmissionTimeRemaining = -1.f;

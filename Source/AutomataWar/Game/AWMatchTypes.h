@@ -109,6 +109,20 @@ inline const TCHAR *LexToString(EAWCommand Command)
     }
 }
 
+/**
+ * Choose initiative before programming begins.
+ * Round one is random; later rounds favor the higher AP balance and use the
+ * supplied random slot only when both balances are equal.
+ */
+inline constexpr int32 ChooseRoundStartingSlot(int32 RoundNumber, int32 ActionPoints0,
+                                               int32 ActionPoints1, int32 RandomSlot)
+{
+    const int32 TieBreakSlot = RandomSlot == 1 ? 1 : 0;
+    if (RoundNumber <= 1 || ActionPoints0 == ActionPoints1)
+        return TieBreakSlot;
+    return ActionPoints0 > ActionPoints1 ? 0 : 1;
+}
+
 /** Replicated match phase enum representing the state machine. */
 UENUM(BlueprintType)
 enum class EAWMatchPhase : uint8

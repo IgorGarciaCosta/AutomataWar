@@ -36,6 +36,10 @@ public:
     UPROPERTY(Replicated, BlueprintReadOnly, Category = "Match")
     int32 RoundNumber = 1;
 
+    /** Tank slot whose complete command queue executes first this round. */
+    UPROPERTY(Replicated, BlueprintReadOnly, Category = "Match")
+    int32 RoundStartingSlot = INDEX_NONE;
+
     /** Submission time remaining (seconds). -1 = no timer (standalone). */
     UPROPERTY(Replicated, BlueprintReadOnly, Category = "Match")
     float SubmissionTimeRemaining = -1.f;

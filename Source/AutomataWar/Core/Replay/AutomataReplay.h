@@ -4,7 +4,7 @@
  * @file AutomataReplay.h
  * @brief Compact binary replay codec for Automata War matches.
  *
- * A replay contains both command lists, seed, version, and ruleset hash.
+ * A replay contains both command lists, their round starter, seed, version, and ruleset hash.
  * No simulation snapshots are stored; the match is re-simulated from the replay.
  * Supports base64 import/export.
  */
@@ -30,8 +30,9 @@ namespace Automata
      *   [26..29] player B initial AP (uint32)
      *   [30..33] player A initial effects (flags + three duration bytes)
      *   [34..37] player B initial effects (flags + three duration bytes)
-     *   [38..39] commandsA length (uint16)
-     *   [40..N]  commandsA bytes
+     *   [38]     starting robot slot (uint8)
+     *   [39..40] commandsA length (uint16)
+     *   [41..N]  commandsA bytes
      *   [N..N+1] commandsB length (uint16)
      *   [N+2..M] commandsB bytes
      *   [M..M+3] CRC-32 of all preceding bytes
@@ -43,6 +44,7 @@ namespace Automata
         uint64_t seed = 0;
         int32_t initialActionPointsA = InitialActionPoints;
         int32_t initialActionPointsB = InitialActionPoints;
+        int32_t startingRobot = 0;
         FAWRobotEffects initialEffectsA;
         FAWRobotEffects initialEffectsB;
         TArray<EAWCommand> commandsA;
@@ -58,6 +60,7 @@ namespace Automata
         RulesetMismatch,
         Truncated,
         ChecksumFailed,
+        InvalidStartingRobot,
         InvalidCommands,
         Base64Invalid
     };
