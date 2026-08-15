@@ -1,10 +1,10 @@
 # Automata War
 
-Automata War is a deterministic 1-versus-1 tank game built in C++ for Unreal Engine 5.5. Players build an action queue with buttons, submit it, and watch both tanks execute their queues.
+Automata War is a small 1v1 tank game made in C++ with Unreal Engine 5.5. Instead of controlling a tank in real time, each player queues up a few commands, submits them, and watches the turn play out.
 
 ## Commands
 
-Each command is relative to the tank's current facing:
+Commands are relative to the tank's current facing:
 
 | Command      | Effect                                                                  |
 | ------------ | ----------------------------------------------------------------------- |
@@ -13,28 +13,27 @@ Each command is relative to the tank's current facing:
 | `TURN LEFT`  | Rotate 90 degrees left from the tank's point of view.                   |
 | `TURN RIGHT` | Rotate 90 degrees right from the tank's point of view.                  |
 
-Commands execute once in order. A tank with a shorter queue waits while the other finishes. The round ends when both queues are exhausted or a tank is destroyed. There is no parser, bytecode, virtual machine, program loop, or match tick cap.
+Commands run once, in order. If one tank has a shorter queue, it waits for the other tank to finish. A round ends when both queues are empty or one tank is destroyed.
 
 ## Programming Screen
 
-Both slots reuse `WBP_AWProgrammingPanel`. Each panel contains:
+Both players use the same `WBP_AWProgrammingPanel` layout. It has:
 
 - A scrollable action queue on the left.
 - A scrollable **Available Commands** rail on the right.
 - A red **Remove Action** button above the queue when at least one action exists.
 - A **Submit** button that collapses the panel like a CRT powering off.
-- A **Return to Planning** button that withdraws the submission and reverses the transition without clearing the queue.
+- A **Return to Planning** button that cancels a submission without clearing the queue.
 
-Free-form text entry is not available. See [Docs/LANGUAGE.md](Docs/LANGUAGE.md) for the complete command semantics.
+Commands are selected with buttons rather than typed as free-form text.
 
-Every screen is presented inside the shared AW-80 phosphor-terminal shell. See [Docs/VISUAL_STYLE.md](Docs/VISUAL_STYLE.md) for its palette, typography, motion, accessibility limits, and references.
-The game viewport also uses a matching software cursor and categorized terminal button sounds; tank movement is intentionally silent.
+The UI uses a shared AW-80 phosphor-terminal style, including a software cursor and terminal button sounds. Tank movement is intentionally silent.
 
 ## Replays
 
-A replay stores two command arrays, a 64-bit seed, format version, ruleset hash, and CRC-32. It stores no snapshots, transforms, animation, or video. Playback re-simulates the finite command queues locally.
+A replay stores the two command arrays, a 64-bit seed, format version, ruleset hash, and CRC-32. It does not store snapshots, transforms, animation, or video. Playback simply simulates the command queues again.
 
-The maximum replay is below 1 KiB with the current 256-command-per-player limit. Replay format version 3 intentionally rejects compiler-era replay files.
+With the current limit of 256 commands per player, a replay is under 1 KiB. Replay format version 3 deliberately rejects files from the old compiler-based format.
 
 ## Architecture
 
@@ -49,12 +48,12 @@ flowchart LR
     Replay --> Sim
 ```
 
-- `Core/Sim`: Executes the four commands directly and owns canonical integer state.
-- `Core/Replay`: Stores command bytes and provides step-based navigation.
-- `Game/` and `Net/`: Authoritative submission, replication, sessions, replay storage, and desync checks.
-- `UI/` and `Visual/`: Button-driven UMG screens and presentation-only arena actors.
+- `Core/Sim`: Runs the four commands and owns the canonical integer state.
+- `Core/Replay`: Stores command bytes and handles step-by-step replay navigation.
+- `Game/` and `Net/`: Handle submissions, replication, sessions, replay storage, and desync checks.
+- `UI/` and `Visual/`: Contain the UMG screens and the presentation-only arena actors.
 
-Local and network play both use `AAWGameMode::HandleSubmission()`. The server validates non-empty bounded enum arrays, runs the same simulation, and replicates accepted commands, seed, outcome, and final hash.
+Local and network play both go through `AAWGameMode::HandleSubmission()`. The server validates the commands, runs the simulation, and replicates the accepted commands, seed, outcome, and final hash.
 
 ## Determinism
 
@@ -66,7 +65,7 @@ Local and network play both use `AAWGameMode::HandleSubmission()`. The server va
 
 ## Build
 
-Verified with Unreal Engine 5.5.4, changelist 40574608.
+The project is currently set up for Unreal Engine 5.5.4, changelist 40574608.
 
 ```powershell
 $UE55 = "C:\Program Files\Epic Games\UE_5.5"
@@ -74,7 +73,7 @@ $Project = "$PWD\AutomataWar.uproject"
 & "$UE55\Engine\Build\BatchFiles\Build.bat" AutomataWarEditor Win64 DebugGame $Project -WaitMutex
 ```
 
-Regenerate the HUD assets after changing `BuildScripts/BuildHUD.py`:
+After changing `BuildScripts/BuildHUD.py`, regenerate the HUD assets with:
 
 ```powershell
 & "$UE55\Engine\Binaries\Win64\UnrealEditor-Win64-DebugGame-Cmd.exe" $Project `
@@ -89,8 +88,8 @@ Regenerate the HUD assets after changing `BuildScripts/BuildHUD.py`:
   -TestExit="Automation Test Queue Empty" -unattended -nop4 -nosplash -nullrhi
 ```
 
-The focused suite covers finite execution, no queue wrapping, tank-relative turns, deterministic hashes, replay round trips, invalid replay commands, maximum payload size, labels, and replay navigation.
+The test suite covers command execution, tank-relative turns, deterministic hashes, replay round trips, invalid replay commands, payload limits, labels, and replay navigation.
 
 ## Credits
 
-Third-party assets and licenses are listed in [Docs/CREDITS.md](Docs/CREDITS.md). See [DECISIONS.md](DECISIONS.md) for architectural history.
+Third-party assets and their licenses are listed in the project documentation. Architectural decisions are recorded alongside the source.
