@@ -12,6 +12,22 @@ SIMULATION_DOCK_PATH = "/Game/UI/Screens/WBP_AWSimulationDock"
 SIMULATION_DOCK_CLASS_PATH = "/Game/UI/Screens/WBP_AWSimulationDock.WBP_AWSimulationDock_C"
 PROGRAMMING_PANEL_PATH = "/Game/UI/Screens/WBP_AWProgrammingPanel"
 PROGRAMMING_PANEL_CLASS_PATH = "/Game/UI/Screens/WBP_AWProgrammingPanel.WBP_AWProgrammingPanel_C"
+ITEM_BLUEPRINTS = {
+    "/Game/Blueprints/Items/BP_ActionPointItem": "/Script/AutomataWar.AWAPItem",
+    "/Game/Blueprints/Items/BP_ExtraAmmoItem": "/Script/AutomataWar.AWExtraAmmoItem",
+    "/Game/Blueprints/Items/BP_ShieldItem": "/Script/AutomataWar.AWShieldItem",
+    "/Game/Blueprints/Items/BP_AcceleratorItem": "/Script/AutomataWar.AWAcceleratorItem",
+}
+VFX_DEPENDENCIES = {
+    "/Game/Art/VFX/NS_MuzzleFlash": (
+        "/Game/Art/VFX/Materials/M_VFX_Muzzle_Kenney",
+        "/Game/Art/VFX/Textures/T_VFX_Muzzle_Kenney",
+    ),
+    "/Game/Art/VFX/NS_Impact": (
+        "/Game/Art/VFX/Materials/M_VFX_Impact_Kenney",
+        "/Game/Art/VFX/Textures/T_VFX_Impact_Kenney",
+    ),
+}
 
 BUTTON_SOUND_PATHS = {
     "navigate": "/Game/Audio/SFX/S_UINavigate.S_UINavigate",
@@ -53,11 +69,12 @@ SCREEN_ASSETS = [
         "EditorsRow", "ProgrammingP1PanelWidget", "ProgrammingP2PanelWidget"}),
     ("SimulationScreenWidget", "/Game/UI/Screens/WBP_AWSimulationScreen", {
         "SimulationScreen", "SimulationBanner", "SimulationP1DockWidget",
-        "SimulationP2DockWidget", "SimulationArenaViewport"}),
+        "SimulationP2DockWidget", "SimulationArenaSquare",
+        "SimulationArenaViewport", "SimulationArenaFeed"}),
     ("ReplayAutopsyScreenWidget", "/Game/UI/Screens/WBP_AWReplayAutopsyScreen", {
-        "ReplayAutopsyBackdrop", "ReplaySpeedText", "ReplayEventLog",
-        "ReplayScrubSlider", "ReplayArenaViewport", "ReplayArenaViewportSpace",
-        "ReplayEventsDock", "ReplayP1DockWidget", "ReplayP2DockWidget",
+        "ReplayAutopsyBackdrop", "ReplayTransportBody", "ReplaySpeedText",
+        "ReplayArenaSquare", "ReplayArenaViewport", "ReplayArenaFeed",
+        "ReplayP1DockWidget", "ReplayP2DockWidget",
         "ReplayStartButton", "ReplayBackButton",
         "ReplayPauseButton", "ReplayPlayButton", "ReplayStepButton",
         "ReplayQuarterButton", "ReplayNormalButton", "ReplayDoubleButton",
@@ -103,6 +120,15 @@ def sound_path(button, property_name):
     return resource.get_path_name() if resource else ""
 
 
+def has_ancestor(widget, ancestor_name):
+    parent = widget.get_parent()
+    while parent:
+        if parent.get_name() == ancestor_name:
+            return True
+        parent = parent.get_parent()
+    return False
+
+
 cursor = unreal.load_asset(CURSOR_PATH)
 if not cursor:
     raise RuntimeError(f"Missing custom software cursor: {CURSOR_PATH}")
@@ -145,8 +171,10 @@ if missing:
     raise RuntimeError(f"Missing required HUD widgets: {missing}")
 
 hud_background = hud_widgets["HUDBackground"]
-if hud_background.get_editor_property("brush_color").a > 0.01:
-    raise RuntimeError("HUDBackground must remain transparent over the arena")
+hud_background_alpha = hud_background.get_editor_property("brush_color").a
+if hud_background_alpha < 0.99:
+    raise RuntimeError(
+        f"HUDBackground must hide the world outside the arena feed; alpha={hud_background_alpha}")
 
 glass_alpha = hud_widgets["CRTGlassTint"].get_editor_property("brush_color").a
 if glass_alpha <= 0.0 or glass_alpha > 0.25:
@@ -283,18 +311,29 @@ if internal_widgets & set(hud_widgets):
     raise RuntimeError("WBP_AWHUD still owns internal screen controls")
 
 for name in ["MainMenuScreen", "DifficultyBackdrop", "ProgrammingBackdrop",
+             "SimulationScreen", "ReplayAutopsyBackdrop",
              "ReplayBrowserBackdrop", "LanguageReferenceBackdrop"]:
     if screen_widgets[name].get_editor_property("brush_color").a < 0.99:
         raise RuntimeError(
             f"{name} must hide the arena with an opaque background")
 
-for name in ["SimulationArenaViewport", "ReplayArenaViewport"]:
-    if screen_widgets[name].get_editor_property("brush_color").a > 0.01:
+for name in ["SimulationArenaFeed", "ReplayArenaFeed"]:
+    if screen_widgets[name].get_class().get_name() != "Image":
         raise RuntimeError(
-            f"{name} must remain transparent for the arena view")
+            f"{name} must be an Image fed by the arena render target")
 
-if screen_widgets["ReplayEventsDock"].get_editor_property("height_override") != 112.0:
-    raise RuntimeError("ReplayEventsDock must keep a fixed height")
+for name in ["SimulationArenaSquare", "ReplayArenaSquare"]:
+    square = screen_widgets[name]
+    if square.get_editor_property("width_override") != 560.0 or \
+            square.get_editor_property("height_override") != 560.0:
+        raise RuntimeError(f"{name} must remain a fixed square")
+
+for removed_name in ["ReplayScrubSlider", "ReplayEventsDock", "ReplayEventLog"]:
+    if removed_name in screen_widgets:
+        raise RuntimeError(f"Obsolete replay widget remains: {removed_name}")
+
+if not has_ancestor(screen_widgets["NextRoundButton"], "ReplayTransportBody"):
+    raise RuntimeError("NextRoundButton must live inside ReplayTransportBody")
 
 unreal.BlueprintEditorLibrary.compile_blueprint(hud)
 
@@ -304,6 +343,40 @@ if not tank_blueprint:
 unreal.BlueprintEditorLibrary.compile_blueprint(tank_blueprint)
 if tank_blueprint.generated_class().get_path_name() != TANK_CLASS_PATH:
     raise RuntimeError("BP_TankActor generated class is invalid")
+
+for asset_path, parent_path in ITEM_BLUEPRINTS.items():
+    item_blueprint = unreal.load_asset(asset_path)
+    parent_class = unreal.load_class(None, parent_path)
+    if not item_blueprint or not parent_class:
+        raise RuntimeError(f"Missing item Blueprint or parent: {asset_path}")
+    unreal.BlueprintEditorLibrary.compile_blueprint(item_blueprint)
+    native_parent = unreal.EditorAssetLibrary.find_asset_data(
+        asset_path).get_tag_value("NativeParentClass")
+    if parent_path not in str(native_parent):
+        raise RuntimeError(f"{asset_path} has the wrong native parent")
+    item_cdo = unreal.get_default_object(item_blueprint.generated_class())
+    components = {
+        component.get_name(): component
+        for component in item_cdo.get_components_by_class(unreal.ActorComponent)
+    }
+    for component_name in ["Root", "ItemMesh", "PickupTrigger", "ItemLight"]:
+        component = components.get(component_name)
+        if not component or not component.get_editor_property("editable_when_inherited"):
+            raise RuntimeError(
+                f"{asset_path} component is not editable: {component_name}")
+
+for system_path, (material_path, texture_path) in VFX_DEPENDENCIES.items():
+    for asset_path in [system_path, material_path, texture_path]:
+        if not unreal.EditorAssetLibrary.does_asset_exist(asset_path):
+            raise RuntimeError(f"Missing stylized VFX asset: {asset_path}")
+    material_referencers = unreal.EditorAssetLibrary.find_package_referencers_for_asset(
+        material_path, False)
+    texture_referencers = unreal.EditorAssetLibrary.find_package_referencers_for_asset(
+        texture_path, False)
+    if system_path not in material_referencers:
+        raise RuntimeError(f"{system_path} does not use {material_path}")
+    if material_path not in texture_referencers:
+        raise RuntimeError(f"{material_path} does not use {texture_path}")
 
 controller = unreal.load_asset(CONTROLLER_PATH)
 controller_cdo = unreal.get_default_object(controller.generated_class())
@@ -336,6 +409,12 @@ if len(camera_components) != 1:
     raise RuntimeError("Arena camera must have exactly one CameraComponent")
 if camera_components[0].get_editor_property("projection_mode") != unreal.CameraProjectionMode.ORTHOGRAPHIC:
     raise RuntimeError("Arena camera must use orthographic projection")
+capture_components = camera_actor.get_components_by_class(
+    unreal.SceneCaptureComponent2D)
+if len(capture_components) != 1:
+    raise RuntimeError("Arena camera must have exactly one scene capture")
+if capture_components[0].get_editor_property("projection_type") != unreal.CameraProjectionMode.ORTHOGRAPHIC:
+    raise RuntimeError("Arena scene capture must use orthographic projection")
 
 for tank, expected_index in [(tank_one, 0), (tank_two, 1)]:
     if tank.get_class().get_path_name() != TANK_CLASS_PATH:
@@ -365,4 +444,4 @@ if len(wall_labels) < 8:
 
 unreal.log(
     f"AUTOMATA_PRESENTATION_VALIDATION_COMPLETE widgets={len(hud_widgets) + len(screen_widgets) + len(cursor_widgets)} "
-    f"screens=7 cursor=1 button_profiles=5 cameras=1 tanks=2 walls={len(wall_labels)}")
+    f"screens=7 cursor=1 button_profiles=5 cameras=1 captures=1 items=4 vfx=2 tanks=2 walls={len(wall_labels)}")

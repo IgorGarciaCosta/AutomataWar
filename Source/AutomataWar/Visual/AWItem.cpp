@@ -19,6 +19,7 @@ AAWItem::AAWItem()
     SceneRoot = CreateDefaultSubobject<USceneComponent>(TEXT("Root"));
     SetRootComponent(SceneRoot);
     SceneRoot->SetMobility(EComponentMobility::Movable);
+    SceneRoot->bEditableWhenInherited = true;
 
     ItemMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("ItemMesh"));
     ItemMesh->SetupAttachment(SceneRoot);
@@ -26,16 +27,19 @@ AAWItem::AAWItem()
     ItemMesh->SetStaticMesh(LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Cylinder.Cylinder")));
     ItemMesh->SetRelativeRotation(FRotator(90.f, 0.f, 0.f));
     ItemMesh->SetRelativeScale3D(FVector(0.34f, 0.34f, 0.07f));
+    ItemMesh->bEditableWhenInherited = true;
 
     PickupTrigger = CreateDefaultSubobject<USphereComponent>(TEXT("PickupTrigger"));
     PickupTrigger->SetupAttachment(SceneRoot);
     PickupTrigger->InitSphereRadius(42.f);
     PickupTrigger->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+    PickupTrigger->bEditableWhenInherited = true;
 
     ItemLight = CreateDefaultSubobject<UPointLightComponent>(TEXT("ItemLight"));
     ItemLight->SetupAttachment(SceneRoot);
     ItemLight->SetIntensity(1800.f);
     ItemLight->SetAttenuationRadius(150.f);
+    ItemLight->bEditableWhenInherited = true;
 
     PickupEffectPath = AWVisualAssets::NS_ActionPointPickup;
 }

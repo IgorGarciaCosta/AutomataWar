@@ -14,6 +14,7 @@ public class AutomataWarEditor : ModuleRules
             "UnrealEd",
             "UMG",
             "UMGEditor",
+            "Niagara",
             "AutomataWar"
         });
     }

@@ -13,6 +13,8 @@
 #include "AWIsometricCamera.generated.h"
 
 class UCameraComponent;
+class USceneCaptureComponent2D;
+class UTextureRenderTarget2D;
 
 /**
  * @brief Orthographic camera providing a direct top-down view of the arena.
@@ -29,10 +31,23 @@ public:
     /** Get the camera component. */
     UCameraComponent *GetCameraComponent() const { return Camera; }
 
+    /** Return the square arena feed consumed by the gameplay HUD. */
+    UTextureRenderTarget2D *GetArenaRenderTarget() const { return ArenaRenderTarget; }
+
     /** Reposition to frame a grid of given dimensions. */
     void FrameArena(int32 GridWidth, int32 GridHeight, float CellSize);
 
 protected:
-    UPROPERTY(VisibleAnywhere, Category = "Camera")
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Camera")
     TObjectPtr<UCameraComponent> Camera;
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Camera")
+    TObjectPtr<USceneCaptureComponent2D> ArenaCapture;
+
+private:
+    /** Allocate the transient square render target once per camera instance. */
+    void EnsureRenderTarget();
+
+    UPROPERTY(Transient)
+    TObjectPtr<UTextureRenderTarget2D> ArenaRenderTarget;
 };

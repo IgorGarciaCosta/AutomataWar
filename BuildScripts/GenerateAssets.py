@@ -1,9 +1,13 @@
 import os
 import shutil
+import sys
 import tempfile
 import urllib.request
 import zipfile
 import unreal
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import BuildVFXAssets
 
 PROJECT_DIR = unreal.Paths.convert_relative_path_to_full(
     unreal.Paths.project_dir())
@@ -267,7 +271,11 @@ def create_niagara_systems():
         destination = f"/Game/Art/VFX/{name}"
         if unreal.EditorAssetLibrary.does_asset_exist(destination):
             unreal.EditorAssetLibrary.delete_asset(destination)
-        if not unreal.EditorAssetLibrary.duplicate_asset(source, destination):
+        source_system = unreal.load_asset(source)
+        if not source_system:
+            raise RuntimeError(f"Missing Niagara template: {source}")
+        if not unreal.AssetToolsHelpers.get_asset_tools().duplicate_asset(
+                name, "/Game/Art/VFX", source_system):
             raise RuntimeError(f"Niagara duplication failed: {name}")
         unreal.EditorAssetLibrary.save_asset(destination)
 
@@ -278,6 +286,7 @@ def main():
     import_models(model_files)
     create_materials()
     create_niagara_systems()
+    BuildVFXAssets.main()
     unreal.EditorAssetLibrary.save_directory(
         "/Game/Art", only_if_is_dirty=False, recursive=True)
     unreal.EditorAssetLibrary.save_directory(

@@ -13,13 +13,13 @@ namespace Automata
     {
         constexpr uint8_t RoundStateVersion = 1;
 
-        void WriteU16(std::vector<uint8_t> &Out, uint16_t Value)
+        void WriteStateU16(std::vector<uint8_t> &Out, uint16_t Value)
         {
             Out.push_back(static_cast<uint8_t>(Value));
             Out.push_back(static_cast<uint8_t>(Value >> 8));
         }
 
-        uint16_t ReadU16(const uint8_t *Data)
+        uint16_t ReadStateU16(const uint8_t *Data)
         {
             return static_cast<uint16_t>(Data[0]) | (static_cast<uint16_t>(Data[1]) << 8);
         }
@@ -39,8 +39,8 @@ namespace Automata
         std::vector<uint8_t> Bytes;
         Bytes.reserve(5 + CellCount * 3 + 10);
         Bytes.push_back(RoundStateVersion);
-        WriteU16(Bytes, static_cast<uint16_t>(State.gridWidth));
-        WriteU16(Bytes, static_cast<uint16_t>(State.gridHeight));
+        WriteStateU16(Bytes, static_cast<uint16_t>(State.gridWidth));
+        WriteStateU16(Bytes, static_cast<uint16_t>(State.gridHeight));
         for (CellType Cell : State.grid)
             Bytes.push_back(static_cast<uint8_t>(Cell));
         for (int32_t Health : State.obstacleHealth)
@@ -60,8 +60,8 @@ namespace Automata
             if (State.robotX[RobotIndex] < 0 || State.robotX[RobotIndex] > 65535 ||
                 State.robotY[RobotIndex] < 0 || State.robotY[RobotIndex] > 65535)
                 return {};
-            WriteU16(Bytes, static_cast<uint16_t>(State.robotX[RobotIndex]));
-            WriteU16(Bytes, static_cast<uint16_t>(State.robotY[RobotIndex]));
+            WriteStateU16(Bytes, static_cast<uint16_t>(State.robotX[RobotIndex]));
+            WriteStateU16(Bytes, static_cast<uint16_t>(State.robotY[RobotIndex]));
             Bytes.push_back(static_cast<uint8_t>(State.robotFacing[RobotIndex]));
         }
         return Bytes;
@@ -76,8 +76,8 @@ namespace Automata
             return false;
 
         RoundState State;
-        State.gridWidth = ReadU16(Data + 1);
-        State.gridHeight = ReadU16(Data + 3);
+        State.gridWidth = ReadStateU16(Data + 1);
+        State.gridHeight = ReadStateU16(Data + 3);
         const size_t CellCount = static_cast<size_t>(State.gridWidth) * static_cast<size_t>(State.gridHeight);
         if (State.gridWidth <= 0 || State.gridHeight <= 0 || Size != 5 + CellCount * 3 + 10)
             return false;
@@ -111,8 +111,8 @@ namespace Automata
 
         for (int32_t RobotIndex = 0; RobotIndex < 2; ++RobotIndex)
         {
-            State.robotX[RobotIndex] = ReadU16(Cursor);
-            State.robotY[RobotIndex] = ReadU16(Cursor + 2);
+            State.robotX[RobotIndex] = ReadStateU16(Cursor);
+            State.robotY[RobotIndex] = ReadStateU16(Cursor + 2);
             if (Cursor[4] > static_cast<uint8_t>(Dir::West))
                 return false;
             State.robotFacing[RobotIndex] = static_cast<Dir>(Cursor[4]);

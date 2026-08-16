@@ -4,6 +4,7 @@
 #include "AWVisualTypes.h"
 #include "Components/SceneComponent.h"
 #include "Engine/World.h"
+#include "UObject/ConstructorHelpers.h"
 
 AAWAPItemSpawner::AAWAPItemSpawner()
 {
@@ -15,6 +16,19 @@ AAWAPItemSpawner::AAWAPItemSpawner()
     ExtraAmmoItemClass = AAWExtraAmmoItem::StaticClass();
     ShieldItemClass = AAWShieldItem::StaticClass();
     AcceleratorItemClass = AAWAcceleratorItem::StaticClass();
+
+    static ConstructorHelpers::FClassFinder<AAWItem> ActionPointBlueprint(TEXT("/Game/Blueprints/Items/BP_ActionPointItem"));
+    static ConstructorHelpers::FClassFinder<AAWItem> ExtraAmmoBlueprint(TEXT("/Game/Blueprints/Items/BP_ExtraAmmoItem"));
+    static ConstructorHelpers::FClassFinder<AAWItem> ShieldBlueprint(TEXT("/Game/Blueprints/Items/BP_ShieldItem"));
+    static ConstructorHelpers::FClassFinder<AAWItem> AcceleratorBlueprint(TEXT("/Game/Blueprints/Items/BP_AcceleratorItem"));
+    if (ActionPointBlueprint.Succeeded())
+        ItemClass = ActionPointBlueprint.Class;
+    if (ExtraAmmoBlueprint.Succeeded())
+        ExtraAmmoItemClass = ExtraAmmoBlueprint.Class;
+    if (ShieldBlueprint.Succeeded())
+        ShieldItemClass = ShieldBlueprint.Class;
+    if (AcceleratorBlueprint.Succeeded())
+        AcceleratorItemClass = AcceleratorBlueprint.Class;
 }
 
 void AAWAPItemSpawner::BeginPlay()

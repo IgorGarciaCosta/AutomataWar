@@ -14,8 +14,9 @@ class UAWSimulationDockWidget;
 class UButton;
 class UComboBoxString;
 class UEditableTextBox;
-class USlider;
+class UImage;
 class UTextBlock;
+class UTextureRenderTarget2D;
 class UWidget;
 
 /** Semantic actions emitted by HUD screens and handled by the root HUD. */
@@ -57,7 +58,6 @@ enum class EAWUIAction : uint8
 };
 
 DECLARE_MULTICAST_DELEGATE_OneParam(FAWUIActionEvent, EAWUIAction);
-DECLARE_MULTICAST_DELEGATE_OneParam(FAWReplayScrubEvent, float);
 DECLARE_MULTICAST_DELEGATE_OneParam(FAWProgrammingPanelEvent, int32);
 
 /** Base class that keeps child screens independent from the root HUD type. */
@@ -336,10 +336,15 @@ class AUTOMATAWAR_API UAWSimulationScreen : public UAWScreenWidget
     GENERATED_BODY()
 
 public:
+    /** Display the camera-owned arena render target in the center viewport. */
+    void SetArenaRenderTarget(UTextureRenderTarget2D *RenderTarget);
     void SetCommands(const TArray<EAWCommand> &PlayerOneCommands, const TArray<EAWCommand> &PlayerTwoCommands);
     void SetPlayerDetails(int32 PlayerIndex, const FString &Details);
 
 private:
+    UPROPERTY(meta = (BindWidget))
+    TObjectPtr<UImage> SimulationArenaFeed;
+
     UPROPERTY(meta = (BindWidget))
     TObjectPtr<UAWSimulationDockWidget> SimulationP1DockWidget;
 
@@ -356,13 +361,10 @@ class AUTOMATAWAR_API UAWReplayAutopsyScreen : public UAWScreenWidget
 public:
     virtual void NativeConstruct() override;
 
-    /** Raised for player-driven timeline changes only. */
-    FAWReplayScrubEvent OnScrubbed;
-
-    void SetTimeline(float Speed, float NormalizedPosition);
+    /** Display the camera-owned arena render target in the center viewport. */
+    void SetArenaRenderTarget(UTextureRenderTarget2D *RenderTarget);
     void SetSpeed(float Speed);
     void SetCombatantData(int32 PlayerIndex, const TArray<EAWCommand> &Commands, int32 CurrentCommand, const FString &Details);
-    void SetEventLog(const FString &EventLog);
 
 private:
     UFUNCTION()
@@ -387,8 +389,6 @@ private:
     void OnBackToMenu();
     UFUNCTION()
     void OnNextRound();
-    UFUNCTION()
-    void OnScrubChanged(float Value);
 
     UPROPERTY(meta = (BindWidget))
     TObjectPtr<UTextBlock> ReplaySpeedText;
@@ -400,12 +400,7 @@ private:
     TObjectPtr<UAWSimulationDockWidget> ReplayP2DockWidget;
 
     UPROPERTY(meta = (BindWidget))
-    TObjectPtr<UTextBlock> ReplayEventLog;
-
-    UPROPERTY(meta = (BindWidget))
-    TObjectPtr<USlider> ReplayScrubSlider;
-
-    bool bUpdatingSlider = false;
+    TObjectPtr<UImage> ReplayArenaFeed;
 };
 
 /** Saved replay selection and import/export controls. */

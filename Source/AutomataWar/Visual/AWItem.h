@@ -50,16 +50,16 @@ protected:
     /** Spawn the configured pickup Niagara system and shared collection sound. */
     virtual void PlayPickupEffects() const;
 
-    UPROPERTY(VisibleAnywhere, Category = "Item")
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Item")
     TObjectPtr<USceneComponent> SceneRoot;
 
-    UPROPERTY(VisibleAnywhere, Category = "Item")
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Item")
     TObjectPtr<UStaticMeshComponent> ItemMesh;
 
-    UPROPERTY(VisibleAnywhere, Category = "Item")
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Item")
     TObjectPtr<USphereComponent> PickupTrigger;
 
-    UPROPERTY(VisibleAnywhere, Category = "Item")
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Item")
     TObjectPtr<UPointLightComponent> ItemLight;
 
     UPROPERTY(EditDefaultsOnly, Category = "Item|Visual")

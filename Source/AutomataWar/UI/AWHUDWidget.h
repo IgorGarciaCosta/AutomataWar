@@ -21,6 +21,7 @@ class UAWReplayAutopsyScreen;
 class UAWReplayBrowserScreen;
 class UAWSimulationScreen;
 class UTextBlock;
+class UTextureRenderTarget2D;
 class UWidgetSwitcher;
 enum class EAWAIDifficulty : uint8;
 enum class EAWUIAction : uint8;
@@ -67,6 +68,9 @@ public:
     int32 GetScreenCount() const;
     /** @return Active UMG switcher index, or -1 before construction. */
     int32 GetActiveScreenIndex() const;
+
+    /** Route the camera-owned arena feed to both gameplay screens. */
+    void SetArenaRenderTarget(UTextureRenderTarget2D *RenderTarget);
 
 protected:
     /** Screen selected when this widget class is first constructed. */
@@ -126,9 +130,8 @@ private:
     UFUNCTION()
     void OnReplayStepBack();
     void OnReplaySetSpeed(float Speed);
-    void OnReplayScrub(int32 Step);
     UFUNCTION()
-    void OnReplayScrubStart();
+    void OnReplayStart();
     UFUNCTION()
     void OnReplaySpeedQuarter();
     UFUNCTION()
@@ -137,7 +140,6 @@ private:
     void OnReplaySpeedDouble();
     UFUNCTION()
     void OnReplaySpeedQuadruple();
-    void OnReplayScrubChanged(float Value);
     void InitializeReplayFromGameState();
     bool InitializeReplay(const TArray<EAWCommand> &CommandsA, const TArray<EAWCommand> &CommandsB, int64 Seed,
                           int32 ActionPointsA = Automata::InitialActionPoints,

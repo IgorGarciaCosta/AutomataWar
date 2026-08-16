@@ -25,47 +25,6 @@
 
 namespace
 {
-    const TCHAR *EventName(Automata::EventType Type)
-    {
-        switch (Type)
-        {
-        case Automata::EventType::Move:
-            return TEXT("moved");
-        case Automata::EventType::MoveBlockedWall:
-            return TEXT("bumped wall");
-        case Automata::EventType::MoveBlockedCover:
-            return TEXT("blocked by cover");
-        case Automata::EventType::MoveBlockedRobot:
-            return TEXT("blocked by robot");
-        case Automata::EventType::Turn:
-            return TEXT("turned");
-        case Automata::EventType::Wait:
-            return TEXT("waited");
-        case Automata::EventType::ShieldCharged:
-            return TEXT("charged shield");
-        case Automata::EventType::AccelerationCharged:
-            return TEXT("primed acceleration");
-        case Automata::EventType::Fire:
-            return TEXT("fired");
-        case Automata::EventType::Hit:
-            return TEXT("hit");
-        case Automata::EventType::ShieldAbsorbed:
-            return TEXT("shield absorbed damage");
-        case Automata::EventType::ShotBlocked:
-            return TEXT("shot blocked");
-        case Automata::EventType::ActionPointsCollected:
-            return TEXT("collected AP");
-        case Automata::EventType::ExtraAmmoCollected:
-            return TEXT("collected extra ammo");
-        case Automata::EventType::ShieldCollected:
-            return TEXT("collected shield");
-        case Automata::EventType::AcceleratorCollected:
-            return TEXT("collected accelerator");
-        default:
-            return TEXT("unknown");
-        }
-    }
-
     const TCHAR *FacingName(Automata::Dir Direction)
     {
         static const TCHAR *Names[] = {TEXT("NORTH"), TEXT("EAST"), TEXT("SOUTH"), TEXT("WEST")};
@@ -85,8 +44,6 @@ void UAWHUDWidget::NativeConstruct()
         if (Screen)
             Screen->OnAction.AddUObject(this, &UAWHUDWidget::OnScreenAction);
     }
-    if (ReplayAutopsyScreenWidget)
-        ReplayAutopsyScreenWidget->OnScrubbed.AddUObject(this, &UAWHUDWidget::OnReplayScrubChanged);
 
     PopulateLanguageReference();
 
@@ -161,6 +118,16 @@ void UAWHUDWidget::NativeConstruct()
                 Sub->SubmitLocalCommands(1, {EAWCommand::TurnRight, EAWCommand::Move, EAWCommand::Fire});
             }
         }
+        else if (CaptureMode.Equals(TEXT("MuzzleVFX"), ESearchCase::IgnoreCase) ||
+                 CaptureMode.Equals(TEXT("ImpactVFX"), ESearchCase::IgnoreCase))
+        {
+            OnLocalMatch();
+            if (UAWGameSubsystem *Sub = GetSubsystem())
+            {
+                Sub->SubmitLocalCommands(0, {EAWCommand::Fire});
+                Sub->SubmitLocalCommands(1, {EAWCommand::Fire});
+            }
+        }
 
         if (FParse::Param(FCommandLine::Get(), TEXT("AutomataCaptureScreenshot")))
         {
@@ -196,8 +163,6 @@ void UAWHUDWidget::NativeDestruct()
         if (Screen)
             Screen->OnAction.RemoveAll(this);
     }
-    if (ReplayAutopsyScreenWidget)
-        ReplayAutopsyScreenWidget->OnScrubbed.RemoveAll(this);
 
     if (UWorld *World = GetWorld())
     {
@@ -245,6 +210,14 @@ int32 UAWHUDWidget::GetScreenCount() const
 int32 UAWHUDWidget::GetActiveScreenIndex() const
 {
     return ScreenSwitcher ? ScreenSwitcher->GetActiveWidgetIndex() : -1;
+}
+
+void UAWHUDWidget::SetArenaRenderTarget(UTextureRenderTarget2D *RenderTarget)
+{
+    if (SimulationScreenWidget)
+        SimulationScreenWidget->SetArenaRenderTarget(RenderTarget);
+    if (ReplayAutopsyScreenWidget)
+        ReplayAutopsyScreenWidget->SetArenaRenderTarget(RenderTarget);
 }
 
 UAWGameSubsystem *UAWHUDWidget::GetSubsystem() const
@@ -321,7 +294,7 @@ void UAWHUDWidget::OnScreenAction(EAWUIAction Action)
         OnReturnToPlanningSlot(1);
         break;
     case EAWUIAction::ReplayStart:
-        OnReplayScrubStart();
+        OnReplayStart();
         break;
     case EAWUIAction::ReplayBack:
         OnReplayStepBack();
@@ -672,12 +645,8 @@ void UAWHUDWidget::UpdateReplayUI()
     if (!ReplayController.IsValid() || !ReplayController->IsValid())
         return;
 
-    int32 Step = ReplayController->GetCurrentStep();
-    int32 Total = ReplayController->GetTotalSteps();
-
     if (ReplayAutopsyScreenWidget)
-        ReplayAutopsyScreenWidget->SetTimeline(ReplaySpeed,
-                                               Total > 1 ? static_cast<float>(Step) / static_cast<float>(Total - 1) : 0.f);
+        ReplayAutopsyScreenWidget->SetSpeed(ReplaySpeed);
 
     const auto &Snap = ReplayController->GetCurrentSnapshot();
     auto FormatDetails = [&](int32 Idx) -> FString
@@ -691,14 +660,6 @@ void UAWHUDWidget::UpdateReplayUI()
             0, ReplayController->GetCommandsA(), Snap.robots[0].currentCommand, FormatDetails(0));
         ReplayAutopsyScreenWidget->SetCombatantData(
             1, ReplayController->GetCommandsB(), Snap.robots[1].currentCommand, FormatDetails(1));
-
-        auto Events = ReplayController->GetEventsInRange(FMath::Max(0, Step - 8), Step);
-        FString Log;
-        for (const auto &E : Events)
-        {
-            Log += FString::Printf(TEXT("[STEP %d P%d] %s (%d,%d)\n"), E.step + 1, E.robot + 1, EventName(E.type), E.paramA, E.paramB);
-        }
-        ReplayAutopsyScreenWidget->SetEventLog(Log);
     }
 }
 
@@ -775,30 +736,19 @@ void UAWHUDWidget::OnReplaySetSpeed(float Speed)
         ReplayAutopsyScreenWidget->SetSpeed(Speed);
 }
 
-void UAWHUDWidget::OnReplayScrub(int32 Step)
+void UAWHUDWidget::OnReplayStart()
 {
     if (ReplayController.IsValid() && ReplayController->IsValid())
     {
-        ReplayController->SeekToStep(Step);
+        ReplayController->SeekToStep(0);
         UpdateReplayUI();
         UpdateArenaFromReplay();
     }
 }
-
-void UAWHUDWidget::OnReplayScrubStart() { OnReplayScrub(0); }
 void UAWHUDWidget::OnReplaySpeedQuarter() { OnReplaySetSpeed(0.25f); }
 void UAWHUDWidget::OnReplaySpeedNormal() { OnReplaySetSpeed(1.f); }
 void UAWHUDWidget::OnReplaySpeedDouble() { OnReplaySetSpeed(2.f); }
 void UAWHUDWidget::OnReplaySpeedQuadruple() { OnReplaySetSpeed(4.f); }
-
-void UAWHUDWidget::OnReplayScrubChanged(float Value)
-{
-    if (!ReplayController.IsValid() || !ReplayController->IsValid())
-        return;
-
-    const int32 Step = FMath::RoundToInt32(Value * (ReplayController->GetTotalSteps() - 1));
-    OnReplayScrub(Step);
-}
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // Replay Browser Actions

@@ -3,9 +3,10 @@
 #include "Components/Button.h"
 #include "Components/ComboBoxString.h"
 #include "Components/EditableTextBox.h"
-#include "Components/Slider.h"
+#include "Components/Image.h"
 #include "Components/TextBlock.h"
 #include "Components/Widget.h"
+#include "Engine/TextureRenderTarget2D.h"
 
 #define BIND_SCREEN_BUTTON(Name, Class, Handler)                        \
     if (UButton *Button = Cast<UButton>(GetWidgetFromName(TEXT(Name)))) \
@@ -425,6 +426,12 @@ void UAWSimulationScreen::SetCommands(const TArray<EAWCommand> &PlayerOneCommand
         SimulationP2DockWidget->SetCommands(PlayerTwoCommands);
 }
 
+void UAWSimulationScreen::SetArenaRenderTarget(UTextureRenderTarget2D *RenderTarget)
+{
+    if (SimulationArenaFeed)
+        SimulationArenaFeed->SetBrushResourceObject(RenderTarget);
+}
+
 void UAWSimulationScreen::SetPlayerDetails(int32 PlayerIndex, const FString &Details)
 {
     UAWSimulationDockWidget *Dock = PlayerIndex == 0 ? SimulationP1DockWidget.Get() : SimulationP2DockWidget.Get();
@@ -446,24 +453,18 @@ void UAWReplayAutopsyScreen::NativeConstruct()
     BIND_SCREEN_BUTTON("ReplayQuadButton", UAWReplayAutopsyScreen, OnSpeedQuadruple);
     BIND_SCREEN_BUTTON("ReplayBackToMenuButton", UAWReplayAutopsyScreen, OnBackToMenu);
     BIND_SCREEN_BUTTON("NextRoundButton", UAWReplayAutopsyScreen, OnNextRound);
-    if (ReplayScrubSlider)
-        ReplayScrubSlider->OnValueChanged.AddUniqueDynamic(this, &UAWReplayAutopsyScreen::OnScrubChanged);
-}
-
-void UAWReplayAutopsyScreen::SetTimeline(float Speed, float NormalizedPosition)
-{
-    SetSpeed(Speed);
-    if (ReplayScrubSlider)
-    {
-        TGuardValue<bool> Guard(bUpdatingSlider, true);
-        ReplayScrubSlider->SetValue(NormalizedPosition);
-    }
 }
 
 void UAWReplayAutopsyScreen::SetSpeed(float Speed)
 {
     if (ReplaySpeedText)
         ReplaySpeedText->SetText(FText::FromString(FString::Printf(TEXT("Speed: %.2fx"), Speed)));
+}
+
+void UAWReplayAutopsyScreen::SetArenaRenderTarget(UTextureRenderTarget2D *RenderTarget)
+{
+    if (ReplayArenaFeed)
+        ReplayArenaFeed->SetBrushResourceObject(RenderTarget);
 }
 
 void UAWReplayAutopsyScreen::SetCombatantData(int32 PlayerIndex, const TArray<EAWCommand> &Commands, int32 CurrentCommand, const FString &Details)
@@ -474,12 +475,6 @@ void UAWReplayAutopsyScreen::SetCombatantData(int32 PlayerIndex, const TArray<EA
         Dock->SetCommands(Commands, CurrentCommand);
         Dock->SetDetails(Details);
     }
-}
-
-void UAWReplayAutopsyScreen::SetEventLog(const FString &EventLog)
-{
-    if (ReplayEventLog)
-        ReplayEventLog->SetText(FText::FromString(EventLog));
 }
 
 void UAWReplayAutopsyScreen::OnStart() { BroadcastAction(EAWUIAction::ReplayStart); }
@@ -493,12 +488,6 @@ void UAWReplayAutopsyScreen::OnSpeedDouble() { BroadcastAction(EAWUIAction::Repl
 void UAWReplayAutopsyScreen::OnSpeedQuadruple() { BroadcastAction(EAWUIAction::ReplaySpeedQuadruple); }
 void UAWReplayAutopsyScreen::OnBackToMenu() { BroadcastAction(EAWUIAction::BackToMainMenu); }
 void UAWReplayAutopsyScreen::OnNextRound() { BroadcastAction(EAWUIAction::NextRound); }
-
-void UAWReplayAutopsyScreen::OnScrubChanged(float Value)
-{
-    if (!bUpdatingSlider)
-        OnScrubbed.Broadcast(Value);
-}
 
 void UAWReplayBrowserScreen::NativeConstruct()
 {

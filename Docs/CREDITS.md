@@ -1,6 +1,6 @@
 # Third-Party Credits
 
-Original asset-pack acquisition date: **2026-08-01**. Additional UI variants were selected from the same CC0 pack on **2026-08-13**.
+Original asset-pack acquisition date: **2026-08-01**. Additional UI variants were selected from the same CC0 pack on **2026-08-13**, and stylized VFX sprites were selected on **2026-08-16**.
 
 No asset with unclear, non-commercial, or no-derivatives terms is included. Project-authored C++ code, materials, procedural layouts, screenshots, and mesh assemblies are not third-party assets.
 
@@ -31,6 +31,15 @@ All audio below is by **Kenney** and is released under [Creative Commons CC0 1.0
 | `Content/Audio/SFX/S_UIHover.uasset`     | `Audio/rollover2.ogg`           | [Kenney UI Audio](https://kenney.nl/assets/ui-audio)           |
 | `Content/Audio/SFX/S_UIError.uasset`     | `Audio/switch26.ogg`            | [Kenney UI Audio](https://kenney.nl/assets/ui-audio)           |
 
+## VFX Textures
+
+Both textures below are by **Kenney** and are released under [Creative Commons CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/). Project-authored unlit materials apply them to UE 5.5 Niagara template emitters.
+
+| Project asset                                         | Original file                     | Pack and source                                                |
+| ----------------------------------------------------- | --------------------------------- | -------------------------------------------------------------- |
+| `Content/Art/VFX/Textures/T_VFX_Muzzle_Kenney.uasset` | `PNG (Transparent)/muzzle_01.png` | [Kenney Particle Pack](https://kenney.nl/assets/particle-pack) |
+| `Content/Art/VFX/Textures/T_VFX_Impact_Kenney.uasset` | `PNG (Transparent)/scorch_01.png` | [Kenney Particle Pack](https://kenney.nl/assets/particle-pack) |
+
 ## 3D Models
 
 All models below are by **Quaternius** and are released under [Creative Commons CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/). They are imported as lightweight combined static meshes without textures, animation data, collision, or Nanite.
@@ -51,9 +60,9 @@ The following assets are Epic-provided Unreal Engine 5.5 Licensed Technology use
 | ----------------------------------------------------------- | ---------------------------------------------------------------------------------------- | ------------------------------------------------------------------------ |
 | Arena foundation, rails, walls, barrels, cover, and effects | `/Engine/BasicShapes/Cube`, `/Engine/BasicShapes/Cylinder`, `/Engine/BasicShapes/Sphere` | Level references and runtime components; engine meshes are not copied.   |
 | Editor-authored sky                                         | `/Engine/EngineSky/BP_Sky_Sphere`, `/Engine/EngineSky/SM_SkySphere`                      | Level reference only; engine assets are not copied into this repository. |
-| Directional muzzle burst                                    | `/Niagara/DefaultAssets/Templates/Systems/DirectionalBurst`                              | `Content/Art/VFX/NS_MuzzleFlash.uasset`                                  |
+| Directional muzzle timing                                   | `/Niagara/DefaultAssets/Templates/Systems/DirectionalBurst`                              | `Content/Art/VFX/NS_MuzzleFlash.uasset`, with the CC0 Kenney sprite above |
 | Projectile trail                                            | `/Niagara/DefaultAssets/Templates/Systems/AttributeReaderTrails`                         | `Content/Art/VFX/NS_ProjectileTrail.uasset`                              |
-| Impact burst                                                | `/Niagara/DefaultAssets/Templates/Systems/RadialBurst`                                   | `Content/Art/VFX/NS_Impact.uasset`                                       |
+| Impact burst timing                                         | `/Niagara/DefaultAssets/Templates/Systems/RadialBurst`                                   | `Content/Art/VFX/NS_Impact.uasset`, with the CC0 Kenney sprite above      |
 | Shield burst                                                | `/Niagara/DefaultAssets/Templates/Systems/RadialBurst`                                   | `Content/Art/VFX/NS_Shield.uasset`                                       |
 | Destruction burst                                           | `/Niagara/DefaultAssets/Templates/Systems/SimpleExplosion`                               | `Content/Art/VFX/NS_Destruction.uasset`                                  |
 
@@ -65,7 +74,7 @@ Required Unreal notices:
 
 ## Project-Generated Assets
 
-The following assets are authored reproducibly by `BuildScripts/GenerateAssets.py` and `BuildScripts/CreateArenaMap.py`. Imported third-party meshes remain itemized above.
+The following assets are authored reproducibly by the scripts under `BuildScripts`, primarily `GenerateAssets.py`, `BuildItemAssets.py`, `BuildVFXAssets.py`, and `CreateArenaMap.py`. Imported third-party meshes remain itemized above.
 
 - `Content/Art/Materials/M_ArenaCell.uasset`
 - `Content/Art/Materials/M_Robot.uasset`
@@ -76,11 +85,17 @@ The following assets are authored reproducibly by `BuildScripts/GenerateAssets.p
 - `Content/Art/Materials/M_Wood.uasset`
 - `Content/Art/Materials/M_Stone.uasset`
 - `Content/Art/Materials/M_Industrial.uasset`
+- `Content/Art/VFX/Materials/M_VFX_Muzzle_Kenney.uasset`
+- `Content/Art/VFX/Materials/M_VFX_Impact_Kenney.uasset`
 - `Content/Blueprints/BP_AWPlayer.uasset`
 - `Content/Blueprints/BP_AWPlayerController.uasset`
 - `Content/Blueprints/BP_AWGameMode.uasset`
 - `Content/Blueprints/BP_AWIsometricCamera.uasset`
 - `Content/Blueprints/BP_AWArenaRenderer.uasset`
+- `Content/Blueprints/Items/BP_ActionPointItem.uasset`
+- `Content/Blueprints/Items/BP_ExtraAmmoItem.uasset`
+- `Content/Blueprints/Items/BP_ShieldItem.uasset`
+- `Content/Blueprints/Items/BP_AcceleratorItem.uasset`
 - `Content/UI/WBP_AWHUD.uasset`
 - `Content/UI/WBP_AWCursor.uasset`
 - `Content/UI/T_AWCursorPixel.uasset`

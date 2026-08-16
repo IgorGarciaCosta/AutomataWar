@@ -48,12 +48,12 @@ void AAWPlayerController::BeginPlay()
         if (ArenaCamera)
         {
             ArenaCamera->FrameArena(Automata::DefaultGridWidth, Automata::DefaultGridHeight, AWVisualConfig::CellSize);
-            SetViewTarget(ArenaCamera);
         }
 
         HUDWidget = CreateWidget<UAWHUDWidget>(this, HUDWidgetClass);
         if (HUDWidget)
         {
+            HUDWidget->SetArenaRenderTarget(ArenaCamera ? ArenaCamera->GetArenaRenderTarget() : nullptr);
             HUDWidget->AddToViewport(0);
         }
 
