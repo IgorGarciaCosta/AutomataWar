@@ -21,7 +21,7 @@ struct FAWDesyncDetector
      * @brief Re-simulate a match locally and compare hash to authority.
      * @param Commands0 Commands for slot 0.
      * @param Commands1 Commands for slot 1.
-    * @param Config Complete canonical starting state for this round.
+     * @param Config Complete canonical starting state for this round.
      * @param AuthoritativeHash The server's final hash.
      * @return True if hashes match (no desync).
      */

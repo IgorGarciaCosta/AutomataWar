@@ -516,7 +516,7 @@ namespace Automata
         }
 
         finalHash_ = ComputeHash();
-    CaptureFinalState();
+        CaptureFinalState();
         MatchResult Result;
         Result.stepsExecuted = static_cast<int32_t>(snapshots_.size());
         Result.finalHP = {robots_[0].hp, robots_[1].hp};

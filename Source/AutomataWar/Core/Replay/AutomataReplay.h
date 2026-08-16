@@ -31,10 +31,10 @@ namespace Automata
      *   [30..33] player A initial effects (flags + three duration bytes)
      *   [34..37] player B initial effects (flags + three duration bytes)
      *   [38]     starting robot slot (uint8)
-    *   [39..40] initial round-state length (uint16)
-    *   [41..N]  initial round-state bytes
-    *   [N..N+1] commandsA length (uint16)
-    *   [...]     commandsA bytes
+     *   [39..40] initial round-state length (uint16)
+     *   [41..N]  initial round-state bytes
+     *   [N..N+1] commandsA length (uint16)
+     *   [...]     commandsA bytes
      *   [N..N+1] commandsB length (uint16)
      *   [N+2..M] commandsB bytes
      *   [M..M+3] CRC-32 of all preceding bytes

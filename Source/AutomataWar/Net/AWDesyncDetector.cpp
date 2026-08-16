@@ -12,7 +12,7 @@ bool FAWDesyncDetector::VerifyMatch(const TArray<EAWCommand> &Commands0, const T
     if (LocalHash != AuthoritativeHash)
     {
         UE_LOG(LogAutomataNet, Error, TEXT("DESYNC DETECTED: local hash 0x%016llX != authority 0x%016llX (seed=%llu)"),
-             LocalHash, AuthoritativeHash, Config.seed);
+               LocalHash, AuthoritativeHash, Config.seed);
         return false;
     }
 
