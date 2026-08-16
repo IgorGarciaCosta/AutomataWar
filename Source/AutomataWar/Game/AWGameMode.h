@@ -11,6 +11,7 @@
 #include "CoreMinimal.h"
 #include "GameFramework/GameModeBase.h"
 #include "AutomataWar/AI/AWAIController.h"
+#include "AutomataWar/Core/Sim/AutomataSimulation.h"
 #include "AWMatchTypes.h"
 #include "AWGameMode.generated.h"
 
@@ -104,6 +105,9 @@ protected:
 
     /** AP already reserved by each slot's last accepted persistent program. */
     int32 CommittedProgramCosts[2] = {0, 0};
+
+    /** Final arena placement reused as the next round's starting placement. */
+    Automata::RoundState PersistentRoundState;
 
     /** Timer handle for submission deadline. */
     FTimerHandle SubmissionTimerHandle;

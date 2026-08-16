@@ -47,7 +47,7 @@ namespace Automata
     inline constexpr std::array<int32_t, 4> DirDY = {-1, 0, 1, 0};
 
     /** Compact replay format storing one byte per command. */
-    inline constexpr uint16_t ReplayVersion = 7;
+    inline constexpr uint16_t ReplayVersion = 8;
 
     /** Changes whenever command semantics or balance changes. */
     inline constexpr uint64_t RulesetHash = []() constexpr -> uint64_t

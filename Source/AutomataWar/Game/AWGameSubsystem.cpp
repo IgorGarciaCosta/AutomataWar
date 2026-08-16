@@ -332,6 +332,9 @@ bool UAWGameSubsystem::SaveReplay(const FString &Filename)
     Data.initialActionPointsB = GS->ReplayStartActionPoints1;
     Data.initialEffectsA = GS->ReplayStartEffects0;
     Data.initialEffectsB = GS->ReplayStartEffects1;
+    Data.initialState.reserve(GS->ReplayStartArenaState.Num());
+    for (uint8 Byte : GS->ReplayStartArenaState)
+        Data.initialState.push_back(Byte);
     Data.commandsA = GS->RevealedCommands0;
     Data.commandsB = GS->RevealedCommands1;
 
@@ -340,7 +343,8 @@ bool UAWGameSubsystem::SaveReplay(const FString &Filename)
 
 bool UAWGameSubsystem::LoadReplay(const FString &Filename, TArray<EAWCommand> &OutCommands0, TArray<EAWCommand> &OutCommands1,
                                   int64 &OutSeed, int32 &OutStartingSlot, int32 &OutActionPoints0, int32 &OutActionPoints1,
-                                  FAWRobotEffects &OutEffects0, FAWRobotEffects &OutEffects1, FString &OutError)
+                                  FAWRobotEffects &OutEffects0, FAWRobotEffects &OutEffects1,
+                                  TArray<uint8> &OutInitialState, FString &OutError)
 {
     Automata::ReplayData Data;
     if (!FAWReplayService::Load(Filename, Data, OutError))
@@ -356,6 +360,9 @@ bool UAWGameSubsystem::LoadReplay(const FString &Filename, TArray<EAWCommand> &O
     OutActionPoints1 = Data.initialActionPointsB;
     OutEffects0 = Data.initialEffectsA;
     OutEffects1 = Data.initialEffectsB;
+    OutInitialState.Reset(static_cast<int32>(Data.initialState.size()));
+    if (!Data.initialState.empty())
+        OutInitialState.Append(Data.initialState.data(), static_cast<int32>(Data.initialState.size()));
     return true;
 }
 

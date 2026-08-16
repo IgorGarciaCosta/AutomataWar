@@ -4,6 +4,7 @@
  */
 
 #include "AutomataReplay.h"
+#include "AutomataWar/Core/Sim/AutomataSimulation.h"
 #include <cstring>
 
 namespace Automata
@@ -104,7 +105,7 @@ namespace Automata
     std::vector<uint8_t> EncodeReplay(const ReplayData &data)
     {
         std::vector<uint8_t> out;
-        out.reserve(41 + data.commandsA.Num() + data.commandsB.Num());
+        out.reserve(43 + data.initialState.size() + data.commandsA.Num() + data.commandsB.Num());
 
         // Magic.
         out.push_back('A');
@@ -119,6 +120,10 @@ namespace Automata
         WriteEffects(out, data.initialEffectsA);
         WriteEffects(out, data.initialEffectsB);
         out.push_back(static_cast<uint8_t>(data.startingRobot == 1 ? 1 : 0));
+
+        const uint16_t StateSize = static_cast<uint16_t>(FMath::Min<size_t>(data.initialState.size(), 65535));
+        WriteU16(out, StateSize);
+        out.insert(out.end(), data.initialState.begin(), data.initialState.begin() + StateSize);
 
         // Commands A.
         uint16_t lenA = static_cast<uint16_t>(FMath::Min<int32>(data.commandsA.Num(), MaxCommands));
@@ -144,7 +149,7 @@ namespace Automata
     ReplayDecodeResult DecodeReplay(const std::vector<uint8_t> &bytes)
     {
         ReplayDecodeResult result;
-        const size_t minSize = 4 + 2 + 8 + 8 + 4 + 4 + 4 + 4 + 1 + 2 + 2 + 4; // 47 bytes minimum
+        const size_t minSize = 4 + 2 + 8 + 8 + 4 + 4 + 4 + 4 + 1 + 2 + 2 + 2 + 4; // 49 bytes minimum
 
         if (bytes.size() < minSize)
         {
@@ -196,8 +201,31 @@ namespace Automata
             return result;
         }
 
-        // Commands A.
         size_t remaining = bytes.size() - static_cast<size_t>(p - bytes.data());
+        if (remaining < 2)
+        {
+            result.error = ReplayError::Truncated;
+            return result;
+        }
+        const uint16_t StateSize = ReadU16(p);
+        p += 2;
+        remaining -= 2;
+        if (remaining < StateSize)
+        {
+            result.error = ReplayError::Truncated;
+            return result;
+        }
+        result.data.initialState.assign(p, p + StateSize);
+        RoundState InitialState;
+        if (!DecodeRoundState(result.data.initialState.data(), result.data.initialState.size(), InitialState))
+        {
+            result.error = ReplayError::InvalidState;
+            return result;
+        }
+        p += StateSize;
+        remaining -= StateSize;
+
+        // Commands A.
         if (remaining < 2)
         {
             result.error = ReplayError::Truncated;

@@ -119,6 +119,41 @@ bool FCommandsDeterministic::RunTest(const FString &Parameters)
     return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FRoundStatePersists, "AutomataWar.Core.Rounds.StatePersists",
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FRoundStatePersists::RunTest(const FString &Parameters)
+{
+    Automata::SimConfig FirstConfig;
+    FirstConfig.gridWidth = 4;
+    FirstConfig.gridHeight = 4;
+
+    Automata::Simulation First;
+    First.RunMatch({EAWCommand::TurnLeft, EAWCommand::Move}, {EAWCommand::Wait}, FirstConfig);
+
+    const std::vector<uint8_t> EncodedState = Automata::EncodeRoundState(First.GetFinalState());
+    Automata::RoundState RestoredState;
+    TestTrue(TEXT("Final round state decodes"),
+             Automata::DecodeRoundState(EncodedState.data(), EncodedState.size(), RestoredState));
+
+    Automata::SimConfig SecondConfig = FirstConfig;
+    SecondConfig.initialState = MoveTemp(RestoredState);
+    Automata::Simulation Second;
+    Second.RunMatch({EAWCommand::Wait}, {EAWCommand::Wait}, SecondConfig);
+
+    const Automata::StepSnapshot &FirstFinal = First.GetSnapshots().back();
+    const Automata::StepSnapshot &SecondStart = Second.GetSnapshots().front();
+    for (int32 RobotIndex = 0; RobotIndex < 2; ++RobotIndex)
+    {
+        TestEqual(TEXT("Tank X carries into the next round"), SecondStart.robots[RobotIndex].x, FirstFinal.robots[RobotIndex].x);
+        TestEqual(TEXT("Tank Y carries into the next round"), SecondStart.robots[RobotIndex].y, FirstFinal.robots[RobotIndex].y);
+        TestEqual(TEXT("Tank facing carries into the next round"), SecondStart.robots[RobotIndex].facing, FirstFinal.robots[RobotIndex].facing);
+    }
+    TestTrue(TEXT("The first round collected an item"), First.GetGrid() != First.GetFinalState().grid);
+    TestTrue(TEXT("Collected items remain absent in the next round"), Second.GetGrid() == First.GetFinalState().grid);
+    return true;
+}
+
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FActionPointRules, "AutomataWar.Core.ActionPoints.Rules",
                                  EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 
@@ -216,6 +251,9 @@ bool FCommandReplayRoundTrip::RunTest(const FString &Parameters)
     Data.initialEffectsA.ExtraAmmoRounds = 2;
     Data.initialEffectsB.bAccelerateNextMove = true;
     Data.initialEffectsB.AcceleratorRounds = 1;
+    Automata::Simulation StateSource;
+    StateSource.RunMatch({EAWCommand::Move}, {EAWCommand::Wait});
+    Data.initialState = Automata::EncodeRoundState(StateSource.GetFinalState());
     Data.commandsA = {EAWCommand::Move, EAWCommand::Fire};
     Data.commandsB = {EAWCommand::TurnLeft, EAWCommand::TurnRight};
 
@@ -230,6 +268,7 @@ bool FCommandReplayRoundTrip::RunTest(const FString &Parameters)
     TestEqual(TEXT("P1 extra ammo duration survives"), Decoded.data.initialEffectsA.ExtraAmmoRounds, 2);
     TestTrue(TEXT("P2 charged acceleration survives"), Decoded.data.initialEffectsB.bAccelerateNextMove);
     TestEqual(TEXT("P2 accelerator duration survives"), Decoded.data.initialEffectsB.AcceleratorRounds, 1);
+    TestTrue(TEXT("Initial arena state survives"), Decoded.data.initialState == Data.initialState);
     TestTrue(TEXT("P1 commands survive"), Decoded.data.commandsA == Data.commandsA);
     TestTrue(TEXT("P2 commands survive"), Decoded.data.commandsB == Data.commandsB);
     return true;
@@ -244,7 +283,7 @@ bool FCommandReplayRejectsInvalidAction::RunTest(const FString &Parameters)
     Data.commandsA = {EAWCommand::Move};
     Data.commandsB = {EAWCommand::Fire};
     std::vector<uint8_t> Encoded = Automata::EncodeReplay(Data);
-    Encoded[41] = 255;
+    Encoded[43] = 255;
 
     const Automata::ReplayDecodeResult Decoded = Automata::DecodeReplay(Encoded);
     TestEqual(TEXT("Invalid enum byte is rejected"), Decoded.error, Automata::ReplayError::InvalidCommands);

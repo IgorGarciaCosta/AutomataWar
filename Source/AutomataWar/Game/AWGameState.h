@@ -92,6 +92,10 @@ public:
     UPROPERTY(Replicated, BlueprintReadOnly, Category = "Match|Effects")
     FAWRobotEffects ReplayStartEffects1;
 
+    /** Compact arena placement at simulation start, retained for exact replay reconstruction. */
+    UPROPERTY(Replicated)
+    TArray<uint8> ReplayStartArenaState;
+
     /** Return the non-negative AP balance for a command slot. */
     int32 GetActionPoints(int32 Slot) const { return Slot == 0 ? ActionPoints0 : ActionPoints1; }
     /** Replace a command slot's AP balance, clamped to zero. */

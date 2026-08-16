@@ -39,6 +39,24 @@ namespace Automata
         FAWRobotEffects effects;
     };
 
+    /** Arena occupancy and tank placement carried from one round into the next. */
+    struct RoundState
+    {
+        int32_t gridWidth = 0;
+        int32_t gridHeight = 0;
+        std::vector<CellType> grid;
+        std::vector<int32_t> obstacleHealth;
+        std::vector<int32_t> actionPointItemValues;
+        std::array<int32_t, 2> robotX = {};
+        std::array<int32_t, 2> robotY = {};
+        std::array<Dir, 2> robotFacing = {Dir::South, Dir::North};
+    };
+
+    /** Encode round carryover for replication and replay storage. */
+    std::vector<uint8_t> EncodeRoundState(const RoundState &State);
+    /** Decode and validate round carryover received from storage or the network. */
+    bool DecodeRoundState(const uint8_t *Data, size_t Size, RoundState &OutState);
+
     /** Replay-visible effects emitted while commands execute. */
     enum class EventType : uint8_t
     {
@@ -107,6 +125,7 @@ namespace Automata
         int32_t startingRobot = 0;
         std::array<int32_t, 2> initialActionPoints = {InitialActionPoints, InitialActionPoints};
         std::array<FAWRobotEffects, 2> initialEffects;
+        RoundState initialState;
     };
 
     /** Runs the starter's complete queue, then the opponent's complete queue. */
@@ -119,6 +138,7 @@ namespace Automata
         const std::vector<StepSnapshot> &GetSnapshots() const { return snapshots_; }
         uint64_t GetFinalHash() const { return finalHash_; }
         const std::vector<CellType> &GetGrid() const { return initialGrid_; }
+        const RoundState &GetFinalState() const { return finalState_; }
 
     private:
         struct Xorshift64
@@ -135,6 +155,8 @@ namespace Automata
 
         void InitGrid(int32_t Width, int32_t Height, Xorshift64 &Rng);
         void SpawnRobots(int32_t Width, int32_t Height, const SimConfig &Config);
+        bool RestoreState(const RoundState &State, const SimConfig &Config);
+        void CaptureFinalState();
         void ExecuteCommand(int32_t RobotIndex, EAWCommand Command, int32_t Step);
         /** Move one or two cells, stopping at the first blocker and collecting each crossed item. */
         void Move(int32_t RobotIndex, int32_t Step);
@@ -154,6 +176,7 @@ namespace Automata
         std::array<RobotState, 2> robots_;
         std::vector<SimEvent> events_;
         std::vector<StepSnapshot> snapshots_;
+        RoundState finalState_;
         uint64_t finalHash_ = 0;
     };
 

@@ -20,7 +20,8 @@ namespace Automata
                         int32_t InitialActionPointsB = InitialActionPoints,
                         const FAWRobotEffects &InitialEffectsA = {},
                         const FAWRobotEffects &InitialEffectsB = {},
-                        int32_t StartingRobot = 0);
+                        int32_t StartingRobot = 0,
+                        TConstArrayView<uint8> InitialState = {});
         bool IsValid() const { return bValid_; }
 
         int32_t GetTotalSteps() const { return static_cast<int32_t>(snapshots_.size()); }

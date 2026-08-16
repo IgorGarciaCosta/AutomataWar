@@ -143,7 +143,7 @@ private:
                           int32 ActionPointsA = Automata::InitialActionPoints,
                           int32 ActionPointsB = Automata::InitialActionPoints,
                           const FAWRobotEffects &EffectsA = {}, const FAWRobotEffects &EffectsB = {},
-                          int32 StartingSlot = 0);
+                          int32 StartingSlot = 0, const TArray<uint8> &InitialState = {});
     void UpdateReplayUI();
     void UpdateArenaFromReplay();
 

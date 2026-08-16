@@ -7,7 +7,7 @@ namespace Automata
     bool FAWReplayController::Initialize(const TArray<EAWCommand> &CommandsA, const TArray<EAWCommand> &CommandsB, uint64_t Seed,
                                          int32_t InitialActionPointsA, int32_t InitialActionPointsB,
                                          const FAWRobotEffects &InitialEffectsA, const FAWRobotEffects &InitialEffectsB,
-                                         int32_t StartingRobot)
+                                         int32_t StartingRobot, TConstArrayView<uint8> InitialState)
     {
         bValid_ = false;
         commandsA_ = CommandsA;
@@ -16,6 +16,13 @@ namespace Automata
         config_.startingRobot = StartingRobot == 1 ? 1 : 0;
         config_.initialActionPoints = {InitialActionPointsA, InitialActionPointsB};
         config_.initialEffects = {InitialEffectsA, InitialEffectsB};
+        if (!DecodeRoundState(InitialState.GetData(), static_cast<size_t>(InitialState.Num()), config_.initialState))
+            return false;
+        if (!config_.initialState.grid.empty())
+        {
+            config_.gridWidth = config_.initialState.gridWidth;
+            config_.gridHeight = config_.initialState.gridHeight;
+        }
 
         Simulation Sim;
         result_ = Sim.RunMatch(commandsA_, commandsB_, config_);

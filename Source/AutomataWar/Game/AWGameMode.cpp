@@ -80,6 +80,7 @@ void AAWGameMode::BeginLocalMatch()
     bSlotSubmitted[1] = false;
     CommittedProgramCosts[0] = 0;
     CommittedProgramCosts[1] = 0;
+    PersistentRoundState = {};
 
     if (AAWGameState *GS = GetGameState<AAWGameState>())
     {
@@ -100,6 +101,7 @@ void AAWGameMode::BeginLocalMatch()
         GS->SetEffects(1, {});
         GS->ReplayStartEffects0 = {};
         GS->ReplayStartEffects1 = {};
+        GS->ReplayStartArenaState.Reset();
     }
 
     SetPhase(EAWMatchPhase::Programming);
@@ -304,6 +306,7 @@ void AAWGameMode::RunSimulation()
 
     Automata::SimConfig Config;
     Config.seed = Seed;
+    Config.initialState = PersistentRoundState;
 
     AAWGameState *GS = GetGameState<AAWGameState>();
     if (GS)
@@ -320,12 +323,17 @@ void AAWGameMode::RunSimulation()
         GS->ReplayStartActionPoints1 = Config.initialActionPoints[1];
         GS->ReplayStartEffects0 = Config.initialEffects[0];
         GS->ReplayStartEffects1 = Config.initialEffects[1];
+        const std::vector<uint8_t> EncodedState = Automata::EncodeRoundState(Config.initialState);
+        GS->ReplayStartArenaState.Reset(static_cast<int32>(EncodedState.size()));
+        if (!EncodedState.empty())
+            GS->ReplayStartArenaState.Append(EncodedState.data(), static_cast<int32>(EncodedState.size()));
         UE_LOG(LogAutomataGame, Log, TEXT("Round %d starts with slot %d."),
                GS->RoundNumber, GS->RoundStartingSlot);
     }
 
     Automata::Simulation Sim;
     Automata::MatchResult Result = Sim.RunMatch(AcceptedCommands[0], AcceptedCommands[1], Config);
+    PersistentRoundState = Sim.GetFinalState();
     uint64 FinalHash = Sim.GetFinalHash();
 
     // Populate GameState

@@ -9,6 +9,130 @@
 namespace Automata
 {
 
+    namespace
+    {
+        constexpr uint8_t RoundStateVersion = 1;
+
+        void WriteU16(std::vector<uint8_t> &Out, uint16_t Value)
+        {
+            Out.push_back(static_cast<uint8_t>(Value));
+            Out.push_back(static_cast<uint8_t>(Value >> 8));
+        }
+
+        uint16_t ReadU16(const uint8_t *Data)
+        {
+            return static_cast<uint16_t>(Data[0]) | (static_cast<uint16_t>(Data[1]) << 8);
+        }
+    }
+
+    std::vector<uint8_t> EncodeRoundState(const RoundState &State)
+    {
+        if (State.grid.empty())
+            return {};
+
+        const size_t CellCount = static_cast<size_t>(State.gridWidth) * static_cast<size_t>(State.gridHeight);
+        if (State.gridWidth <= 0 || State.gridWidth > 65535 || State.gridHeight <= 0 || State.gridHeight > 65535 ||
+            State.grid.size() != CellCount || State.obstacleHealth.size() != CellCount ||
+            State.actionPointItemValues.size() != CellCount)
+            return {};
+
+        std::vector<uint8_t> Bytes;
+        Bytes.reserve(5 + CellCount * 3 + 10);
+        Bytes.push_back(RoundStateVersion);
+        WriteU16(Bytes, static_cast<uint16_t>(State.gridWidth));
+        WriteU16(Bytes, static_cast<uint16_t>(State.gridHeight));
+        for (CellType Cell : State.grid)
+            Bytes.push_back(static_cast<uint8_t>(Cell));
+        for (int32_t Health : State.obstacleHealth)
+        {
+            if (Health < 0 || Health > 255)
+                return {};
+            Bytes.push_back(static_cast<uint8_t>(Health));
+        }
+        for (int32_t Value : State.actionPointItemValues)
+        {
+            if (Value < 0 || Value > 255)
+                return {};
+            Bytes.push_back(static_cast<uint8_t>(Value));
+        }
+        for (int32_t RobotIndex = 0; RobotIndex < 2; ++RobotIndex)
+        {
+            if (State.robotX[RobotIndex] < 0 || State.robotX[RobotIndex] > 65535 ||
+                State.robotY[RobotIndex] < 0 || State.robotY[RobotIndex] > 65535)
+                return {};
+            WriteU16(Bytes, static_cast<uint16_t>(State.robotX[RobotIndex]));
+            WriteU16(Bytes, static_cast<uint16_t>(State.robotY[RobotIndex]));
+            Bytes.push_back(static_cast<uint8_t>(State.robotFacing[RobotIndex]));
+        }
+        return Bytes;
+    }
+
+    bool DecodeRoundState(const uint8_t *Data, size_t Size, RoundState &OutState)
+    {
+        OutState = {};
+        if (Size == 0)
+            return true;
+        if (!Data || Size < 15 || Data[0] != RoundStateVersion)
+            return false;
+
+        RoundState State;
+        State.gridWidth = ReadU16(Data + 1);
+        State.gridHeight = ReadU16(Data + 3);
+        const size_t CellCount = static_cast<size_t>(State.gridWidth) * static_cast<size_t>(State.gridHeight);
+        if (State.gridWidth <= 0 || State.gridHeight <= 0 || Size != 5 + CellCount * 3 + 10)
+            return false;
+
+        const uint8_t *Cursor = Data + 5;
+        State.grid.reserve(CellCount);
+        for (size_t CellIndex = 0; CellIndex < CellCount; ++CellIndex)
+        {
+            if (Cursor[CellIndex] > static_cast<uint8_t>(CellType::AcceleratorItem))
+                return false;
+            State.grid.push_back(static_cast<CellType>(Cursor[CellIndex]));
+        }
+        Cursor += CellCount;
+        State.obstacleHealth.assign(Cursor, Cursor + CellCount);
+        Cursor += CellCount;
+        State.actionPointItemValues.assign(Cursor, Cursor + CellCount);
+        Cursor += CellCount;
+
+        for (size_t CellIndex = 0; CellIndex < CellCount; ++CellIndex)
+        {
+            const bool bCover = State.grid[CellIndex] == CellType::Cover;
+            if ((bCover && (State.obstacleHealth[CellIndex] <= 0 || State.obstacleHealth[CellIndex] > ObstacleMaxHealth)) ||
+                (!bCover && State.obstacleHealth[CellIndex] != 0))
+                return false;
+            const bool bActionPointItem = State.grid[CellIndex] == CellType::ActionPointItem;
+            if ((bActionPointItem && (State.actionPointItemValues[CellIndex] < ActionPointItemMinValue ||
+                                      State.actionPointItemValues[CellIndex] > ActionPointItemMaxValue)) ||
+                (!bActionPointItem && State.actionPointItemValues[CellIndex] != 0))
+                return false;
+        }
+
+        for (int32_t RobotIndex = 0; RobotIndex < 2; ++RobotIndex)
+        {
+            State.robotX[RobotIndex] = ReadU16(Cursor);
+            State.robotY[RobotIndex] = ReadU16(Cursor + 2);
+            if (Cursor[4] > static_cast<uint8_t>(Dir::West))
+                return false;
+            State.robotFacing[RobotIndex] = static_cast<Dir>(Cursor[4]);
+            Cursor += 5;
+
+            const int32_t X = State.robotX[RobotIndex];
+            const int32_t Y = State.robotY[RobotIndex];
+            if (X < 0 || X >= State.gridWidth || Y < 0 || Y >= State.gridHeight)
+                return false;
+            const CellType Cell = State.grid[static_cast<size_t>(Y * State.gridWidth + X)];
+            if (Cell == CellType::Wall || Cell == CellType::Cover)
+                return false;
+        }
+        if (State.robotX[0] == State.robotX[1] && State.robotY[0] == State.robotY[1])
+            return false;
+
+        OutState = MoveTemp(State);
+        return true;
+    }
+
     void Simulation::InitGrid(int32_t Width, int32_t Height, Xorshift64 &Rng)
     {
         gridWidth_ = Width;
@@ -90,6 +214,59 @@ namespace Automata
         robots_[1].facing = Dir::North;
         robots_[1].actionPoints = Config.initialActionPoints[1];
         robots_[1].effects = Config.initialEffects[1];
+    }
+
+    bool Simulation::RestoreState(const RoundState &State, const SimConfig &Config)
+    {
+        const size_t CellCount = static_cast<size_t>(Config.gridWidth * Config.gridHeight);
+        if (State.gridWidth != Config.gridWidth || State.gridHeight != Config.gridHeight ||
+            State.grid.size() != CellCount || State.obstacleHealth.size() != CellCount ||
+            State.actionPointItemValues.size() != CellCount)
+            return false;
+
+        for (int32_t RobotIndex = 0; RobotIndex < 2; ++RobotIndex)
+        {
+            const int32_t X = State.robotX[RobotIndex];
+            const int32_t Y = State.robotY[RobotIndex];
+            if (X < 0 || X >= Config.gridWidth || Y < 0 || Y >= Config.gridHeight)
+                return false;
+            const CellType Cell = State.grid[static_cast<size_t>(Y * Config.gridWidth + X)];
+            if (Cell == CellType::Wall || Cell == CellType::Cover ||
+                static_cast<uint8_t>(State.robotFacing[RobotIndex]) > static_cast<uint8_t>(Dir::West))
+                return false;
+        }
+        if (State.robotX[0] == State.robotX[1] && State.robotY[0] == State.robotY[1])
+            return false;
+
+        gridWidth_ = Config.gridWidth;
+        gridHeight_ = Config.gridHeight;
+        grid_ = State.grid;
+        initialGrid_ = grid_;
+        obstacleHealth_ = State.obstacleHealth;
+        actionPointItemValues_ = State.actionPointItemValues;
+        SpawnRobots(gridWidth_, gridHeight_, Config);
+        for (int32_t RobotIndex = 0; RobotIndex < 2; ++RobotIndex)
+        {
+            robots_[RobotIndex].x = State.robotX[RobotIndex];
+            robots_[RobotIndex].y = State.robotY[RobotIndex];
+            robots_[RobotIndex].facing = State.robotFacing[RobotIndex];
+        }
+        return true;
+    }
+
+    void Simulation::CaptureFinalState()
+    {
+        finalState_.gridWidth = gridWidth_;
+        finalState_.gridHeight = gridHeight_;
+        finalState_.grid = grid_;
+        finalState_.obstacleHealth = obstacleHealth_;
+        finalState_.actionPointItemValues = actionPointItemValues_;
+        for (int32_t RobotIndex = 0; RobotIndex < 2; ++RobotIndex)
+        {
+            finalState_.robotX[RobotIndex] = robots_[RobotIndex].x;
+            finalState_.robotY[RobotIndex] = robots_[RobotIndex].y;
+            finalState_.robotFacing[RobotIndex] = robots_[RobotIndex].facing;
+        }
     }
 
     bool Simulation::InBounds(int32_t X, int32_t Y) const
@@ -293,8 +470,11 @@ namespace Automata
     MatchResult Simulation::RunMatch(TConstArrayView<EAWCommand> CommandsA, TConstArrayView<EAWCommand> CommandsB, const SimConfig &Config)
     {
         Xorshift64 Rng{Config.seed == 0 ? 1 : Config.seed};
-        InitGrid(Config.gridWidth, Config.gridHeight, Rng);
-        SpawnRobots(Config.gridWidth, Config.gridHeight, Config);
+        if (!RestoreState(Config.initialState, Config))
+        {
+            InitGrid(Config.gridWidth, Config.gridHeight, Rng);
+            SpawnRobots(Config.gridWidth, Config.gridHeight, Config);
+        }
         events_.clear();
         snapshots_.clear();
 
@@ -336,6 +516,7 @@ namespace Automata
         }
 
         finalHash_ = ComputeHash();
+    CaptureFinalState();
         MatchResult Result;
         Result.stepsExecuted = static_cast<int32_t>(snapshots_.size());
         Result.finalHP = {robots_[0].hp, robots_[1].hp};

@@ -10,7 +10,7 @@
  */
 
 #include "CoreMinimal.h"
-#include "AutomataWar/Game/AWMatchTypes.h"
+#include "AutomataWar/Core/Sim/AutomataSimulation.h"
 
 /**
  * @brief Utility for client-side desync verification.
@@ -21,9 +21,10 @@ struct FAWDesyncDetector
      * @brief Re-simulate a match locally and compare hash to authority.
      * @param Commands0 Commands for slot 0.
      * @param Commands1 Commands for slot 1.
-     * @param Seed The simulation seed.
+    * @param Config Complete canonical starting state for this round.
      * @param AuthoritativeHash The server's final hash.
      * @return True if hashes match (no desync).
      */
-    static bool VerifyMatch(const TArray<EAWCommand> &Commands0, const TArray<EAWCommand> &Commands1, uint64 Seed, uint64 AuthoritativeHash);
+    static bool VerifyMatch(const TArray<EAWCommand> &Commands0, const TArray<EAWCommand> &Commands1,
+                            const Automata::SimConfig &Config, uint64 AuthoritativeHash);
 };

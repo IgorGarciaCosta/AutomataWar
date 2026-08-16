@@ -26,6 +26,7 @@ void AAWGameState::GetLifetimeReplicatedProps(TArray<FLifetimeProperty> &OutLife
     DOREPLIFETIME(AAWGameState, Effects1);
     DOREPLIFETIME(AAWGameState, ReplayStartEffects0);
     DOREPLIFETIME(AAWGameState, ReplayStartEffects1);
+    DOREPLIFETIME(AAWGameState, ReplayStartArenaState);
 }
 
 void AAWGameState::SetActionPoints(int32 Slot, int32 Value)
