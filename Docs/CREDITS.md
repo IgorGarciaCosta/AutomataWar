@@ -35,38 +35,38 @@ All audio below is by **Kenney** and is released under [Creative Commons CC0 1.0
 
 All models below are released under [Creative Commons CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/). The original environment and tank models are by **Quaternius**; the pickup table identifies its authors individually. They are imported as lightweight static meshes without animation, collision, or Nanite.
 
-| Project asset                                 | Original file     | Pack and source                                                                     |
-| --------------------------------------------- | ----------------- | ----------------------------------------------------------------------------------- |
-| `Content/Art/Meshes/SM_Tank_PlayerOne.uasset` | `Tank.fbx`        | [Quaternius Animated Tanks Pack](https://quaternius.com/packs/animatedtanks.html)   |
-| `Content/Art/Meshes/SM_Tank_PlayerTwo.uasset` | `Tank2.fbx`       | [Quaternius Animated Tanks Pack](https://quaternius.com/packs/animatedtanks.html)   |
-| `Content/Art/Meshes/SM_BirchTree.uasset`      | `BirchTree_3.fbx` | [Quaternius Ultimate Nature Pack](https://quaternius.com/packs/ultimatenature.html) |
-| `Content/Art/Meshes/SM_Rock.uasset`           | `Rock_3.fbx`      | [Quaternius Ultimate Nature Pack](https://quaternius.com/packs/ultimatenature.html) |
-| `Content/Art/Meshes/SM_TreeStump.uasset`      | `TreeStump.fbx`   | [Quaternius Ultimate Nature Pack](https://quaternius.com/packs/ultimatenature.html) |
-| `Content/Art/Meshes/Items/SM_Item_Bullets.uasset` | Bullets Pickup | [Quaternius on Poly Pizza](https://poly.pizza/m/bTEYFxKHF9)                       |
-| `Content/Art/Meshes/Items/SM_Item_Coin.uasset`    | Coin           | [Quaternius on Poly Pizza](https://poly.pizza/m/QHZtj94fvh)                       |
-| `Content/Art/Meshes/Items/SM_Item_Shield.uasset`  | Shield         | [Quaternius on Poly Pizza](https://poly.pizza/m/srN1KGAO7f)                       |
-| `Content/Art/Meshes/Items/SM_Item_Rocket.uasset`  | Rocket         | [hat_my_guy on Poly Pizza](https://poly.pizza/m/9awwTQWYux)                       |
+| Project asset                                     | Original file     | Pack and source                                                                     |
+| ------------------------------------------------- | ----------------- | ----------------------------------------------------------------------------------- |
+| `Content/Art/Meshes/SM_Tank_PlayerOne.uasset`     | `Tank.fbx`        | [Quaternius Animated Tanks Pack](https://quaternius.com/packs/animatedtanks.html)   |
+| `Content/Art/Meshes/SM_Tank_PlayerTwo.uasset`     | `Tank2.fbx`       | [Quaternius Animated Tanks Pack](https://quaternius.com/packs/animatedtanks.html)   |
+| `Content/Art/Meshes/SM_BirchTree.uasset`          | `BirchTree_3.fbx` | [Quaternius Ultimate Nature Pack](https://quaternius.com/packs/ultimatenature.html) |
+| `Content/Art/Meshes/SM_Rock.uasset`               | `Rock_3.fbx`      | [Quaternius Ultimate Nature Pack](https://quaternius.com/packs/ultimatenature.html) |
+| `Content/Art/Meshes/SM_TreeStump.uasset`          | `TreeStump.fbx`   | [Quaternius Ultimate Nature Pack](https://quaternius.com/packs/ultimatenature.html) |
+| `Content/Art/Meshes/Items/SM_Item_Bullets.uasset` | Bullets Pickup    | [Quaternius on Poly Pizza](https://poly.pizza/m/bTEYFxKHF9)                         |
+| `Content/Art/Meshes/Items/SM_Item_Coin.uasset`    | Coin              | [Quaternius on Poly Pizza](https://poly.pizza/m/QHZtj94fvh)                         |
+| `Content/Art/Meshes/Items/SM_Item_Shield.uasset`  | Shield            | [Quaternius on Poly Pizza](https://poly.pizza/m/srN1KGAO7f)                         |
+| `Content/Art/Meshes/Items/SM_Item_Rocket.uasset`  | Rocket            | [hat_my_guy on Poly Pizza](https://poly.pizza/m/9awwTQWYux)                         |
 
 ## Niagara VFX Packages
 
 The following free authored Niagara packages retain their original folders. The project uses exact canonical copies without replacing renderers or materials.
 
-| Project content                         | Package and author             | Source                                                                            | License                                                                    | Project use                             |
-| --------------------------------------- | ------------------------------ | --------------------------------------------------------------------------------- | -------------------------------------------------------------------------- | --------------------------------------- |
-| `Content/MuzzleFlash/`                  | Muzzle Flash by Kopo Study     | [Fab listing](https://www.fab.com/listings/435b3bcb-d7f5-467d-99aa-2edc97a6c5fd) | [Fab Standard License](https://www.fab.com/eula)                           | `Content/Art/VFX/NS_MuzzleFlash.uasset` |
-| `Content/Vefects/Easy_Impact_Frames/`   | Easy Impact Frames by Vefects  | [Fab listing](https://www.fab.com/listings/15cb7c95-3220-43fe-8d68-c67c73e83eba) | [Creative Commons Attribution 4.0](https://creativecommons.org/licenses/by/4.0/) | `Content/Art/VFX/NS_Impact.uasset`      |
+| Project content                       | Package and author            | Source                                                                           | License                                                                          | Project use                             |
+| ------------------------------------- | ----------------------------- | -------------------------------------------------------------------------------- | -------------------------------------------------------------------------------- | --------------------------------------- |
+| `Content/MuzzleFlash/`                | Muzzle Flash by Kopo Study    | [Fab listing](https://www.fab.com/listings/435b3bcb-d7f5-467d-99aa-2edc97a6c5fd) | [Fab Standard License](https://www.fab.com/eula)                                 | `Content/Art/VFX/NS_MuzzleFlash.uasset` |
+| `Content/Vefects/Easy_Impact_Frames/` | Easy Impact Frames by Vefects | [Fab listing](https://www.fab.com/listings/15cb7c95-3220-43fe-8d68-c67c73e83eba) | [Creative Commons Attribution 4.0](https://creativecommons.org/licenses/by/4.0/) | `Content/Art/VFX/NS_Impact.uasset`      |
 
 ## Unreal Engine Content
 
 The following assets are Epic-provided Unreal Engine 5.5 Licensed Technology used under the [Unreal Engine EULA](https://www.unrealengine.com/eula/unreal).
 
-| Project use                                                 | Epic source                                                                              | Derived project assets                                                    |
-| ----------------------------------------------------------- | ---------------------------------------------------------------------------------------- | ------------------------------------------------------------------------- |
-| Arena foundation, rails, walls, barrels, cover, and effects | `/Engine/BasicShapes/Cube`, `/Engine/BasicShapes/Cylinder`, `/Engine/BasicShapes/Sphere` | Level references and runtime components; engine meshes are not copied.    |
-| Editor-authored sky                                         | `/Engine/EngineSky/BP_Sky_Sphere`, `/Engine/EngineSky/SM_SkySphere`                      | Level reference only; engine assets are not copied into this repository.  |
-| Projectile trail                                            | `/Niagara/DefaultAssets/Templates/Systems/AttributeReaderTrails`                         | `Content/Art/VFX/NS_ProjectileTrail.uasset`                               |
-| Shield burst                                                | `/Niagara/DefaultAssets/Templates/Systems/RadialBurst`                                   | `Content/Art/VFX/NS_Shield.uasset`                                        |
-| Destruction burst                                           | `/Niagara/DefaultAssets/Templates/Systems/SimpleExplosion`                               | `Content/Art/VFX/NS_Destruction.uasset`                                   |
+| Project use                                                 | Epic source                                                                              | Derived project assets                                                   |
+| ----------------------------------------------------------- | ---------------------------------------------------------------------------------------- | ------------------------------------------------------------------------ |
+| Arena foundation, rails, walls, barrels, cover, and effects | `/Engine/BasicShapes/Cube`, `/Engine/BasicShapes/Cylinder`, `/Engine/BasicShapes/Sphere` | Level references and runtime components; engine meshes are not copied.   |
+| Editor-authored sky                                         | `/Engine/EngineSky/BP_Sky_Sphere`, `/Engine/EngineSky/SM_SkySphere`                      | Level reference only; engine assets are not copied into this repository. |
+| Projectile trail                                            | `/Niagara/DefaultAssets/Templates/Systems/AttributeReaderTrails`                         | `Content/Art/VFX/NS_ProjectileTrail.uasset`                              |
+| Shield burst                                                | `/Niagara/DefaultAssets/Templates/Systems/RadialBurst`                                   | `Content/Art/VFX/NS_Shield.uasset`                                       |
+| Destruction burst                                           | `/Niagara/DefaultAssets/Templates/Systems/SimpleExplosion`                               | `Content/Art/VFX/NS_Destruction.uasset`                                  |
 
 Required Unreal notices:
 
