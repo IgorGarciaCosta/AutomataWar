@@ -96,22 +96,6 @@ $Project = "$PWD\AutomataWar.uproject"
 & "$UE55\Engine\Build\BatchFiles\Build.bat" AutomataWarEditor Win64 DebugGame $Project -WaitMutex
 ```
 
-After changing `BuildScripts/BuildHUD.py`, regenerate the HUD assets with:
-
-```powershell
-& "$UE55\Engine\Binaries\Win64\UnrealEditor-Win64-DebugGame-Cmd.exe" $Project `
-  -run=pythonscript -script="$PWD\BuildScripts\BuildHUD.py" -unattended -nop4 -nosplash
-```
-
-Regenerate the editable pickup Blueprints and package-authored Niagara effects with:
-
-```powershell
-& "$UE55\Engine\Binaries\Win64\UnrealEditor-Win64-DebugGame-Cmd.exe" $Project `
-  -run=pythonscript -script="$PWD\BuildScripts\BuildItemAssets.py" -unattended -nop4 -nosplash
-& "$UE55\Engine\Binaries\Win64\UnrealEditor-Win64-DebugGame-Cmd.exe" $Project `
-  -run=pythonscript -script="$PWD\BuildScripts\BuildVFXAssets.py" -unattended -nop4 -nosplash
-```
-
 ## Tests
 
 ```powershell
@@ -124,4 +108,4 @@ The test suite covers command execution, tank-relative turns, deterministic hash
 
 ## Credits
 
-Third-party assets and their licenses are listed in the project documentation. Architectural decisions are recorded alongside the source.
+Third-party assets and their licenses are listed in `Docs/CREDITS.md`.

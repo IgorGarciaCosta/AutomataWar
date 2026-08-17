@@ -13,7 +13,7 @@ class UWidget;
 class UWidgetBlueprint;
 class UWidgetTree;
 
-/** Minimal generic bridge used by BuildScripts/BuildHUD.py. */
+/** Minimal editor bridge for authoring Widget Blueprint trees. */
 UCLASS()
 class AUTOMATAWAREDITOR_API UAWWidgetBlueprintLibrary : public UBlueprintFunctionLibrary
 {

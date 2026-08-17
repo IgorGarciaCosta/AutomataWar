@@ -49,7 +49,7 @@ All models below are released under [Creative Commons CC0 1.0](https://creativec
 
 ## Niagara VFX Packages
 
-The following free authored Niagara packages retain their original folders. `BuildScripts/BuildVFXAssets.py` creates exact canonical copies without replacing renderers or materials.
+The following free authored Niagara packages retain their original folders. The project uses exact canonical copies without replacing renderers or materials.
 
 | Project content                         | Package and author             | Source                                                                            | License                                                                    | Project use                             |
 | --------------------------------------- | ------------------------------ | --------------------------------------------------------------------------------- | -------------------------------------------------------------------------- | --------------------------------------- |
@@ -76,7 +76,7 @@ Required Unreal notices:
 
 ## Project-Generated Assets
 
-The following assets are authored reproducibly by the scripts under `BuildScripts`, primarily `GenerateAssets.py`, `BuildItemAssets.py`, `BuildVFXAssets.py`, and `CreateArenaMap.py`. Imported third-party meshes remain itemized above.
+The following project-authored assets are stored as Unreal content. Imported third-party meshes remain itemized above.
 
 - `Content/Art/Materials/M_ArenaCell.uasset`
 - `Content/Art/Materials/M_Robot.uasset`

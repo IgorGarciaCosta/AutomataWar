@@ -14,3 +14,14 @@ Saved/
 *.xcodeproj
 *.xcworkspace
 .DS_Store
+
+# Local development artifacts
+/.ignore
+/*.code-workspace
+/BuildScripts/
+/DECISIONS.md
+/Docs/LANGUAGE.md
+/Docs/VISUAL_STYLE.md
+/Docs/debugger.png
+/Docs/editor.png
+/Docs/menu.png
