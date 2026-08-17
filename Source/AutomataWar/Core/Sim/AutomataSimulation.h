@@ -109,6 +109,8 @@ namespace Automata
     struct MatchResult
     {
         MatchOutcome outcome = MatchOutcome::Draw;
+        /** True when either tank reaches zero HP or AP. */
+        bool bMatchEnded = false;
         int32_t stepsExecuted = 0;
         std::array<int32_t, 2> finalHP = {};
         std::array<int32_t, 2> finalActionPoints = {};
@@ -128,7 +130,7 @@ namespace Automata
         RoundState initialState;
     };
 
-    /** Runs the starter's complete queue, then the opponent's complete queue. */
+    /** Runs both queues until they finish or either tank reaches zero HP or AP. */
     class Simulation
     {
     public:

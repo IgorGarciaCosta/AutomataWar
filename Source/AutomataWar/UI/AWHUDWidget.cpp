@@ -4,6 +4,7 @@
 #include "AutomataWar/Game/AWGameSubsystem.h"
 #include "AutomataWar/Game/AWGameState.h"
 #include "AutomataWar/Game/AWGameMode.h"
+#include "AutomataWar/Game/AWPlayerState.h"
 #include "AutomataWar/Game/AWReplayService.h"
 #include "AutomataWar/Game/AWPlayerController.h"
 #include "AutomataWar/Core/Replay/AutomataReplay.h"
@@ -38,7 +39,7 @@ void UAWHUDWidget::NativeConstruct()
 
     UAWScreenWidget *Screens[] = {
         MainMenuScreenWidget, DifficultyScreenWidget, ProgrammingScreenWidget, ReplayAutopsyScreenWidget,
-        ReplayBrowserScreenWidget, LanguageReferenceScreenWidget};
+        ReplayBrowserScreenWidget, LanguageReferenceScreenWidget, MatchResultPopupWidget};
     for (UAWScreenWidget *Screen : Screens)
     {
         if (Screen)
@@ -118,6 +119,28 @@ void UAWHUDWidget::NativeConstruct()
                 Sub->SubmitLocalCommands(1, {EAWCommand::TurnRight, EAWCommand::Move, EAWCommand::Fire});
             }
         }
+        else if (CaptureMode.Equals(TEXT("MatchResult"), ESearchCase::IgnoreCase) ||
+                 CaptureMode.Equals(TEXT("MatchResultReturn"), ESearchCase::IgnoreCase))
+        {
+            OnLocalMatch();
+            ShowScreen(EAWScreen::ReplayAutopsy);
+            if (MatchResultPopupWidget)
+                MatchResultPopupWidget->ShowResult(0, 0, true);
+            if (CaptureMode.Equals(TEXT("MatchResultReturn"), ESearchCase::IgnoreCase))
+            {
+                ScreenshotDelay = 1.4f;
+                TWeakObjectPtr<UAWMatchResultPopupWidget> WeakPopup = MatchResultPopupWidget;
+                FTimerHandle ReturnTimer;
+                GetWorld()->GetTimerManager().SetTimer(
+                    ReturnTimer,
+                    FTimerDelegate::CreateWeakLambda(this, [WeakPopup]()
+                                                     {
+                                                         if (UAWMatchResultPopupWidget *Popup = WeakPopup.Get())
+                                                             if (UButton *ReturnButton = Cast<UButton>(Popup->GetWidgetFromName(TEXT("MatchResultReturnButton"))))
+                                                                 ReturnButton->OnClicked.Broadcast(); }),
+                    0.7f, false);
+            }
+        }
         else if (CaptureMode.Equals(TEXT("MuzzleVFX"), ESearchCase::IgnoreCase) ||
                  CaptureMode.Equals(TEXT("ImpactVFX"), ESearchCase::IgnoreCase))
         {
@@ -157,7 +180,7 @@ void UAWHUDWidget::NativeDestruct()
 {
     UAWScreenWidget *Screens[] = {
         MainMenuScreenWidget, DifficultyScreenWidget, ProgrammingScreenWidget, ReplayAutopsyScreenWidget,
-        ReplayBrowserScreenWidget, LanguageReferenceScreenWidget};
+        ReplayBrowserScreenWidget, LanguageReferenceScreenWidget, MatchResultPopupWidget};
     for (UAWScreenWidget *Screen : Screens)
     {
         if (Screen)
@@ -377,6 +400,16 @@ void UAWHUDWidget::OnPhaseChanged(EAWMatchPhase NewPhase)
         PlayUISound(AWVisualAssets::SFX_MatchEnd);
         InitializeReplayFromGameState();
         ShowScreen(EAWScreen::ReplayAutopsy);
+        if (AAWGameState *GS = GetWorld()->GetGameState<AAWGameState>();
+            GS && GS->Outcome.bMatchEnded && MatchResultPopupWidget)
+        {
+            int32 ViewerSlot = 0;
+            if (APlayerController *PlayerController = GetWorld()->GetFirstPlayerController())
+                if (AAWPlayerState *PlayerState = PlayerController->GetPlayerState<AAWPlayerState>())
+                    ViewerSlot = PlayerState->CommandSlot;
+            const bool bLocalMultiplayer = GetWorld()->GetNetMode() == NM_Standalone && !bSinglePlayer;
+            MatchResultPopupWidget->ShowResult(GS->Outcome.WinnerSlot, ViewerSlot, bLocalMultiplayer);
+        }
         break;
     default:
         break;

@@ -484,12 +484,14 @@ namespace Automata
         snapshots_.reserve(static_cast<size_t>(StepCount));
         const int32_t StartingRobot = Config.startingRobot == 1 ? 1 : 0;
         int32_t Step = 0;
+        const auto IsDefeated = [](const RobotState &Robot)
+        { return Robot.hp <= 0 || Robot.actionPoints <= 0; };
 
         for (int32_t Turn = 0; Turn < 2; ++Turn)
         {
             const int32_t RobotIndex = Turn == 0 ? StartingRobot : 1 - StartingRobot;
             RobotState &Robot = robots_[RobotIndex];
-            if (Robot.hp <= 0)
+            if (IsDefeated(robots_[0]) || IsDefeated(robots_[1]))
                 break;
 
             while (Robot.nextCommand < Commands[RobotIndex].Num())
@@ -507,11 +509,11 @@ namespace Automata
                 Snapshot.stateHash = ComputeHash();
                 snapshots_.push_back(MoveTemp(Snapshot));
 
-                if (robots_[0].hp <= 0 || robots_[1].hp <= 0)
+                if (IsDefeated(robots_[0]) || IsDefeated(robots_[1]))
                     break;
             }
 
-            if (robots_[0].hp <= 0 || robots_[1].hp <= 0)
+            if (IsDefeated(robots_[0]) || IsDefeated(robots_[1]))
                 break;
         }
 
@@ -521,6 +523,9 @@ namespace Automata
         Result.stepsExecuted = static_cast<int32_t>(snapshots_.size());
         Result.finalHP = {robots_[0].hp, robots_[1].hp};
         Result.finalActionPoints = {robots_[0].actionPoints, robots_[1].actionPoints};
+        const bool bRobot0Defeated = IsDefeated(robots_[0]);
+        const bool bRobot1Defeated = IsDefeated(robots_[1]);
+        Result.bMatchEnded = bRobot0Defeated || bRobot1Defeated;
         for (int32_t RobotIndex = 0; RobotIndex < 2; ++RobotIndex)
         {
             Result.finalEffects[RobotIndex] = robots_[RobotIndex].effects;
@@ -529,9 +534,11 @@ namespace Automata
             Effects.ShieldRounds = std::max(0, Effects.ShieldRounds - 1);
             Effects.AcceleratorRounds = std::max(0, Effects.AcceleratorRounds - 1);
         }
-        if (robots_[0].hp > robots_[1].hp)
+        if (bRobot0Defeated != bRobot1Defeated)
+            Result.outcome = bRobot0Defeated ? MatchOutcome::Robot1Wins : MatchOutcome::Robot0Wins;
+        else if (!Result.bMatchEnded && robots_[0].hp > robots_[1].hp)
             Result.outcome = MatchOutcome::Robot0Wins;
-        else if (robots_[1].hp > robots_[0].hp)
+        else if (!Result.bMatchEnded && robots_[1].hp > robots_[0].hp)
             Result.outcome = MatchOutcome::Robot1Wins;
         return Result;
     }

@@ -155,6 +155,9 @@ struct FAWMatchOutcome
 {
     GENERATED_BODY()
 
+    /** True when HP or AP depletion has ended the match. */
+    UPROPERTY(BlueprintReadOnly)
+    bool bMatchEnded = false;
     /** -1 = draw, 0 = player0 wins, 1 = player1 wins. */
     UPROPERTY(BlueprintReadOnly)
     int32 WinnerSlot = -1;

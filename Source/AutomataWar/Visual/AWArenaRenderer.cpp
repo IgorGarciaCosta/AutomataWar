@@ -312,9 +312,10 @@ void AAWArenaRenderer::TriggerMuzzleFlash(int32 RobotIdx)
     UNiagaraSystem *NS = LoadObject<UNiagaraSystem>(nullptr, AWVisualAssets::NS_MuzzleFlash);
     if (NS)
     {
-        UNiagaraFunctionLibrary::SpawnSystemAttached(NS, Tank->GetMuzzleComponent(), Tank->GetMuzzleSocketName(),
-                                                     FVector::ZeroVector, FRotator::ZeroRotator,
-                                                     EAttachLocation::SnapToTarget, true);
+        if (UNiagaraComponent *MuzzleFlash = UNiagaraFunctionLibrary::SpawnSystemAttached(
+            NS, Tank->GetMuzzleComponent(), Tank->GetMuzzleSocketName(), FVector::ZeroVector,
+            FRotator::ZeroRotator, EAttachLocation::SnapToTarget, true))
+            ScheduleComponentDestruction(MuzzleFlash, AWVisualConfig::TransientVFXLifespan);
     }
     else
     {

@@ -55,6 +55,7 @@ void AAWGameMode::Logout(AController *Exiting)
         if (GS && GS->Phase != EAWMatchPhase::ReplayAutopsy)
         {
             // End the match as forfeit for the disconnected player
+            GS->Outcome.bMatchEnded = true;
             GS->Outcome.WinnerSlot = (Exiting->GetPlayerState<AAWPlayerState>()->CommandSlot == 0) ? 1 : 0;
             SetPhase(EAWMatchPhase::ReplayAutopsy);
         }
@@ -346,6 +347,7 @@ void AAWGameMode::RunSimulation()
 
         GS->Outcome.HP0 = Result.finalHP[0];
         GS->Outcome.HP1 = Result.finalHP[1];
+        GS->Outcome.bMatchEnded = Result.bMatchEnded;
         GS->SetActionPoints(0, Result.finalActionPoints[0]);
         GS->SetActionPoints(1, Result.finalActionPoints[1]);
         GS->SetEffects(0, Result.finalEffects[0]);

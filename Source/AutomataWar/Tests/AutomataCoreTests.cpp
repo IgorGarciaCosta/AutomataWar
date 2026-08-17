@@ -38,6 +38,40 @@ bool FCommandsRunOnce::RunTest(const FString &Parameters)
     return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FResourceDepletionEndsMatch, "AutomataWar.Core.Match.ResourceDepletion",
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+/** Verify that zero AP or HP defeats a tank and stops command execution. */
+bool FResourceDepletionEndsMatch::RunTest(const FString &Parameters)
+{
+    Automata::SimConfig Config;
+    Config.initialActionPoints = {0, Automata::InitialActionPoints};
+
+    Automata::Simulation Simulation;
+    const Automata::MatchResult Result = Simulation.RunMatch({EAWCommand::Wait}, {EAWCommand::Wait}, Config);
+
+    TestTrue(TEXT("Resource depletion ends the match"), Result.bMatchEnded);
+    TestEqual(TEXT("No command executes after defeat"), Result.stepsExecuted, 0);
+    TestTrue(TEXT("The surviving tank wins"), Result.outcome == Automata::MatchOutcome::Robot1Wins);
+
+    Automata::SimConfig HealthConfig;
+    HealthConfig.gridWidth = 3;
+    HealthConfig.gridHeight = 4;
+    TArray<EAWCommand> LethalCommands;
+    LethalCommands.Init(EAWCommand::Fire,
+                        FMath::DivideAndRoundUp(Automata::MaxHP, Automata::ProjectileDamage));
+
+    Automata::Simulation HealthSimulation;
+    const Automata::MatchResult HealthResult = HealthSimulation.RunMatch(
+        LethalCommands, {EAWCommand::Wait}, HealthConfig);
+
+    TestTrue(TEXT("Zero HP ends the match"), HealthResult.bMatchEnded);
+    TestTrue(TEXT("The defeated tank reaches zero HP"), HealthResult.finalHP[1] <= 0);
+    TestTrue(TEXT("The tank with HP remaining wins"),
+             HealthResult.outcome == Automata::MatchOutcome::Robot0Wins);
+    return true;
+}
+
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FTurnInitiative, "AutomataWar.Core.Turns.Initiative",
                                  EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 

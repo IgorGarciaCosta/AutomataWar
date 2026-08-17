@@ -16,6 +16,7 @@ class AAWArenaRenderer;
 class UAWDifficultyScreen;
 class UAWLanguageReferenceScreen;
 class UAWMainMenuScreen;
+class UAWMatchResultPopupWidget;
 class UAWProgrammingScreen;
 class UAWReplayAutopsyScreen;
 class UAWReplayBrowserScreen;
@@ -198,6 +199,9 @@ private:
 
     UPROPERTY(meta = (BindWidget))
     TObjectPtr<UAWLanguageReferenceScreen> LanguageReferenceScreenWidget;
+
+    UPROPERTY(meta = (BindWidget))
+    TObjectPtr<UAWMatchResultPopupWidget> MatchResultPopupWidget;
 
     EAWScreen CurrentScreen = EAWScreen::MainMenu;
     TArray<FString> ReplayFilenames;

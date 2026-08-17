@@ -447,6 +447,48 @@ private:
     TObjectPtr<UTextBlock> ReplayBrowserStatus;
 };
 
+/**
+ * Presents the terminal match result as a modal overlay owned by WBP_AWMatchResultPopup.
+ * It animates itself on and off screen and emits BackToMainMenu after its exit completes.
+ */
+UCLASS(Blueprintable)
+class AUTOMATAWAR_API UAWMatchResultPopupWidget : public UAWScreenWidget
+{
+    GENERATED_BODY()
+
+public:
+    /** Bind the return button and initialize the popup off screen. */
+    virtual void NativeConstruct() override;
+    /** Advance the frame-rate-independent entrance or exit transition. */
+    virtual void NativeTick(const FGeometry &MyGeometry, float InDeltaTime) override;
+
+    /** Populate and animate the popup for a terminal match outcome. */
+    void ShowResult(int32 WinnerSlot, int32 ViewerSlot, bool bUsePlayerLabels);
+    /** Build the result label for personal or shared-screen presentation. */
+    static FText FormatResultText(int32 WinnerSlot, int32 ViewerSlot, bool bUsePlayerLabels);
+
+protected:
+    /** Seconds used by each entrance and exit transition. */
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "AutomataWar|UI", meta = (ClampMin = "0.1"))
+    float TransitionDuration = 0.35f;
+
+private:
+    /** Start the exit transition before returning to the menu. */
+    UFUNCTION()
+    void OnReturnToMainMenu();
+    /** Apply the current transition opacity and position. */
+    void ApplyTransition();
+
+    UPROPERTY(meta = (BindWidget))
+    TObjectPtr<UTextBlock> MatchResultText;
+
+    UPROPERTY(meta = (BindWidget))
+    TObjectPtr<UButton> MatchResultReturnButton;
+
+    float TransitionAlpha = 0.f;
+    int8 TransitionDirection = 0;
+};
+
 /** Programming language reference presentation. */
 UCLASS(Blueprintable)
 class AUTOMATAWAR_API UAWLanguageReferenceScreen : public UAWScreenWidget

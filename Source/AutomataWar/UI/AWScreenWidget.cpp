@@ -489,6 +489,75 @@ void UAWReplayAutopsyScreen::OnSpeedQuadruple() { BroadcastAction(EAWUIAction::R
 void UAWReplayAutopsyScreen::OnBackToMenu() { BroadcastAction(EAWUIAction::BackToMainMenu); }
 void UAWReplayAutopsyScreen::OnNextRound() { BroadcastAction(EAWUIAction::NextRound); }
 
+void UAWMatchResultPopupWidget::NativeConstruct()
+{
+    Super::NativeConstruct();
+    BIND_SCREEN_BUTTON("MatchResultReturnButton", UAWMatchResultPopupWidget, OnReturnToMainMenu);
+    SetRenderTransformPivot(FVector2D(0.5f, 0.5f));
+    SetVisibility(ESlateVisibility::Collapsed);
+}
+
+void UAWMatchResultPopupWidget::NativeTick(const FGeometry &MyGeometry, float InDeltaTime)
+{
+    Super::NativeTick(MyGeometry, InDeltaTime);
+    if (TransitionDirection == 0)
+        return;
+
+    TransitionAlpha = FMath::Clamp(
+        TransitionAlpha + TransitionDirection * InDeltaTime / TransitionDuration,
+        0.f, 1.f);
+    ApplyTransition();
+
+    if (TransitionDirection > 0 && TransitionAlpha >= 1.f)
+    {
+        TransitionDirection = 0;
+    }
+    else if (TransitionDirection < 0 && TransitionAlpha <= 0.f)
+    {
+        TransitionDirection = 0;
+        SetVisibility(ESlateVisibility::Collapsed);
+        BroadcastAction(EAWUIAction::BackToMainMenu);
+    }
+}
+
+void UAWMatchResultPopupWidget::ShowResult(int32 WinnerSlot, int32 ViewerSlot, bool bUsePlayerLabels)
+{
+    if (MatchResultText)
+        MatchResultText->SetText(FormatResultText(WinnerSlot, ViewerSlot, bUsePlayerLabels));
+    if (MatchResultReturnButton)
+        MatchResultReturnButton->SetIsEnabled(true);
+
+    TransitionAlpha = 0.f;
+    TransitionDirection = 1;
+    SetVisibility(ESlateVisibility::Visible);
+    ApplyTransition();
+}
+
+FText UAWMatchResultPopupWidget::FormatResultText(int32 WinnerSlot, int32 ViewerSlot, bool bUsePlayerLabels)
+{
+    if (WinnerSlot != 0 && WinnerSlot != 1)
+        return INVTEXT("DRAW");
+    if (bUsePlayerLabels)
+        return FText::Format(INVTEXT("P{0} WON"), FText::AsNumber(WinnerSlot + 1));
+    return WinnerSlot == ViewerSlot ? INVTEXT("YOU WON") : INVTEXT("YOU LOSE");
+}
+
+void UAWMatchResultPopupWidget::OnReturnToMainMenu()
+{
+    if (TransitionDirection != 0 || TransitionAlpha <= 0.f)
+        return;
+    if (MatchResultReturnButton)
+        MatchResultReturnButton->SetIsEnabled(false);
+    TransitionDirection = -1;
+}
+
+void UAWMatchResultPopupWidget::ApplyTransition()
+{
+    const float EasedAlpha = FMath::InterpEaseOut(0.f, 1.f, TransitionAlpha, 3.f);
+    SetRenderTranslation(FVector2D(0.f, FMath::Lerp(900.f, 0.f, EasedAlpha)));
+    SetRenderOpacity(EasedAlpha);
+}
+
 void UAWReplayBrowserScreen::NativeConstruct()
 {
     Super::NativeConstruct();
