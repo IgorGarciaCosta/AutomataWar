@@ -52,9 +52,7 @@ AUDIO_FILES = {
 REMOVED_AUDIO_ASSETS = ["/Game/Audio/SFX/S_Move"]
 
 NIAGARA_TEMPLATES = {
-    "NS_MuzzleFlash": "/Niagara/DefaultAssets/Templates/Systems/DirectionalBurst.DirectionalBurst",
     "NS_ProjectileTrail": "/Niagara/DefaultAssets/Templates/Systems/AttributeReaderTrails.AttributeReaderTrails",
-    "NS_Impact": "/Niagara/DefaultAssets/Templates/Systems/RadialBurst.RadialBurst",
     "NS_Shield": "/Niagara/DefaultAssets/Templates/Systems/RadialBurst.RadialBurst",
     "NS_Destruction": "/Niagara/DefaultAssets/Templates/Systems/SimpleExplosion.SimpleExplosion",
 }

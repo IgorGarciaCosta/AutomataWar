@@ -18,16 +18,17 @@ ITEM_BLUEPRINTS = {
     "/Game/Blueprints/Items/BP_ShieldItem": "/Script/AutomataWar.AWShieldItem",
     "/Game/Blueprints/Items/BP_AcceleratorItem": "/Script/AutomataWar.AWAcceleratorItem",
 }
-VFX_DEPENDENCIES = {
-    "/Game/Art/VFX/NS_MuzzleFlash": (
-        "/Game/Art/VFX/Materials/M_VFX_Muzzle_Kenney",
-        "/Game/Art/VFX/Textures/T_VFX_Muzzle_Kenney",
-    ),
-    "/Game/Art/VFX/NS_Impact": (
-        "/Game/Art/VFX/Materials/M_VFX_Impact_Kenney",
-        "/Game/Art/VFX/Textures/T_VFX_Impact_Kenney",
-    ),
+ITEM_MESHES = {
+    "/Game/Blueprints/Items/BP_ActionPointItem": "/Game/Art/Meshes/Items/SM_Item_Coin",
+    "/Game/Blueprints/Items/BP_ExtraAmmoItem": "/Game/Art/Meshes/Items/SM_Item_Bullets",
+    "/Game/Blueprints/Items/BP_ShieldItem": "/Game/Art/Meshes/Items/SM_Item_Shield",
+    "/Game/Blueprints/Items/BP_AcceleratorItem": "/Game/Art/Meshes/Items/SM_Item_Rocket",
 }
+VFX_SOURCES = {
+    "/Game/Art/VFX/NS_MuzzleFlash": "/Game/MuzzleFlash/MuzzleFlash/Niagara/NS_MuzzleFlash",
+    "/Game/Art/VFX/NS_Impact": "/Game/Vefects/Easy_Impact_Frames/VFX/Frames/Particles/NS_Impact_Frame_Advanced_01_Always",
+}
+VFX_SOURCE_METADATA_TAG = "AutomataWar.SourcePackage"
 
 BUTTON_SOUND_PATHS = {
     "navigate": "/Game/Audio/SFX/S_UINavigate.S_UINavigate",
@@ -364,19 +365,26 @@ for asset_path, parent_path in ITEM_BLUEPRINTS.items():
         if not component or not component.get_editor_property("editable_when_inherited"):
             raise RuntimeError(
                 f"{asset_path} component is not editable: {component_name}")
+    item_mesh = components["ItemMesh"].get_editor_property("static_mesh")
+    expected_mesh = ITEM_MESHES[asset_path]
+    if not item_mesh or item_mesh.get_path_name().split(".", 1)[0] != expected_mesh:
+        raise RuntimeError(f"{asset_path} does not use {expected_mesh}")
 
-for system_path, (material_path, texture_path) in VFX_DEPENDENCIES.items():
-    for asset_path in [system_path, material_path, texture_path]:
-        if not unreal.EditorAssetLibrary.does_asset_exist(asset_path):
-            raise RuntimeError(f"Missing stylized VFX asset: {asset_path}")
-    material_referencers = unreal.EditorAssetLibrary.find_package_referencers_for_asset(
-        material_path, False)
-    texture_referencers = unreal.EditorAssetLibrary.find_package_referencers_for_asset(
-        texture_path, False)
-    if system_path not in material_referencers:
-        raise RuntimeError(f"{system_path} does not use {material_path}")
-    if material_path not in texture_referencers:
-        raise RuntimeError(f"{material_path} does not use {texture_path}")
+for system_path, source_path in VFX_SOURCES.items():
+    system = unreal.load_asset(system_path)
+    if not system or not unreal.load_asset(source_path):
+        raise RuntimeError(
+            f"Missing packaged VFX asset: {system_path} or {source_path}")
+    actual_source = unreal.EditorAssetLibrary.get_metadata_tag(
+        system, VFX_SOURCE_METADATA_TAG)
+    if actual_source != source_path:
+        raise RuntimeError(
+            f"{system_path} source is {actual_source}, expected {source_path}")
+
+for obsolete_directory in ["/Game/Art/VFX/Materials", "/Game/Art/VFX/Textures"]:
+    if unreal.EditorAssetLibrary.does_directory_exist(obsolete_directory):
+        raise RuntimeError(
+            f"Obsolete template-reskin assets remain: {obsolete_directory}")
 
 controller = unreal.load_asset(CONTROLLER_PATH)
 controller_cdo = unreal.get_default_object(controller.generated_class())

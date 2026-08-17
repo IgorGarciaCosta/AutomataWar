@@ -1,180 +1,85 @@
-import os
-import tempfile
-import urllib.request
-import zipfile
-
 import unreal
 
 
-PACK_URL = (
-    "https://kenney.nl/media/pages/assets/particle-pack/"
-    "f8fe0f8cb8-1677578741/kenney_particle-pack.zip"
-)
-PACK_FILE = os.path.join(tempfile.gettempdir(), "kenney_particle-pack.zip")
-SOURCE_DIR = os.path.join(tempfile.gettempdir(), "AutomataWarVFX")
-TEXTURES = {
-    "T_VFX_Muzzle_Kenney": "PNG (Transparent)/muzzle_01.png",
-    "T_VFX_Impact_Kenney": "PNG (Transparent)/scorch_01.png",
+SYSTEM_SOURCES = {
+    "NS_MuzzleFlash": "/Game/MuzzleFlash/MuzzleFlash/Niagara/NS_MuzzleFlash",
+    "NS_Impact": "/Game/Vefects/Easy_Impact_Frames/VFX/Frames/Particles/NS_Impact_Frame_Advanced_01_Always",
 }
-SYSTEMS = {
-    "NS_MuzzleFlash": (
-        "/Niagara/DefaultAssets/Templates/Systems/DirectionalBurst.DirectionalBurst",
-        "M_VFX_Muzzle_Kenney",
-    ),
-    "NS_Impact": (
-        "/Niagara/DefaultAssets/Templates/Systems/RadialBurst.RadialBurst",
-        "M_VFX_Impact_Kenney",
-    ),
+SOURCE_ROOTS = {
+    SYSTEM_SOURCES["NS_MuzzleFlash"]: "/Game/MuzzleFlash",
+    SYSTEM_SOURCES["NS_Impact"]: "/Game/Vefects/Easy_Impact_Frames",
 }
+SOURCE_METADATA_TAG = "AutomataWar.SourcePackage"
+OBSOLETE_DIRECTORIES = [
+    "/Game/Art/VFX/Materials",
+    "/Game/Art/VFX/Textures",
+    "/Game/FreeNiagaraPack",
+]
 
 asset_tools = unreal.AssetToolsHelpers.get_asset_tools()
-material_library = unreal.MaterialEditingLibrary
-bridge = unreal.AWWidgetBlueprintLibrary
+asset_registry = unreal.AssetRegistryHelpers.get_asset_registry()
 
 
-def prepare_sources():
-    os.makedirs(SOURCE_DIR, exist_ok=True)
-    if not os.path.isfile(PACK_FILE):
-        urllib.request.urlretrieve(PACK_URL, PACK_FILE)
-
-    source_files = {}
-    with zipfile.ZipFile(PACK_FILE) as package:
-        for asset_name, archive_path in TEXTURES.items():
-            destination = os.path.join(SOURCE_DIR, asset_name + ".png")
-            with package.open(archive_path) as source, open(destination, "wb") as output:
-                output.write(source.read())
-            source_files[asset_name] = destination
-    return source_files
+def dependency_options():
+    options = unreal.AssetRegistryDependencyOptions()
+    options.set_editor_property("include_soft_package_references", True)
+    options.set_editor_property("include_hard_package_references", True)
+    options.set_editor_property("include_searchable_names", False)
+    options.set_editor_property("include_soft_management_references", False)
+    options.set_editor_property("include_hard_management_references", False)
+    return options
 
 
-def import_textures(source_files):
-    tasks = []
-    for asset_name, filename in source_files.items():
-        task = unreal.AssetImportTask()
-        task.filename = filename
-        task.destination_path = "/Game/Art/VFX/Textures"
-        task.destination_name = asset_name
-        task.automated = True
-        task.replace_existing = True
-        task.save = True
-        tasks.append(task)
-    asset_tools.import_asset_tasks(tasks)
+def trim_package(source_path, root_path):
+    keep = {source_path}
+    pending = [source_path]
+    options = dependency_options()
+    while pending:
+        package = pending.pop()
+        for dependency in asset_registry.get_dependencies(package, options):
+            dependency = str(dependency)
+            if dependency.startswith(root_path) and dependency not in keep:
+                keep.add(dependency)
+                pending.append(dependency)
 
-    textures = {}
-    for asset_name in source_files:
-        texture = unreal.load_asset(f"/Game/Art/VFX/Textures/{asset_name}")
-        if not texture:
-            raise RuntimeError(f"Failed to import VFX texture: {asset_name}")
-        textures[asset_name] = texture
-    return textures
-
-
-def expression(material, expression_class, x, y):
-    return material_library.create_material_expression(
-        material, expression_class, x, y)
+    removed = 0
+    for asset_data in asset_registry.get_assets_by_path(root_path, recursive=True):
+        package_name = str(asset_data.package_name)
+        if package_name not in keep:
+            if not unreal.EditorAssetLibrary.delete_asset(package_name):
+                raise RuntimeError(f"Failed to trim unused package asset: {package_name}")
+            removed += 1
+    unreal.log(
+        f"AUTOMATA_VFX_PACKAGE_TRIMMED root={root_path} keep={len(keep)} removed={removed}")
 
 
-def create_sprite_material(name, texture, tint):
-    asset_path = f"/Game/Art/VFX/Materials/{name}"
-    if unreal.EditorAssetLibrary.does_asset_exist(asset_path):
-        unreal.EditorAssetLibrary.delete_asset(asset_path)
-    material = asset_tools.create_asset(
-        name,
-        "/Game/Art/VFX/Materials",
-        unreal.Material,
-        unreal.MaterialFactoryNew(),
-    )
-    if not material:
-        raise RuntimeError(f"Failed to create VFX material: {name}")
-
-    material.set_editor_property("blend_mode", unreal.BlendMode.BLEND_ADDITIVE)
-    material.set_editor_property(
-        "shading_model", unreal.MaterialShadingModel.MSM_UNLIT)
-    material.set_editor_property("two_sided", True)
-    material.set_editor_property("used_with_niagara_sprites", True)
-
-    texture_sample = expression(
-        material, unreal.MaterialExpressionTextureSampleParameter2D, -760, -80)
-    texture_sample.set_editor_property("parameter_name", "SpriteTexture")
-    texture_sample.set_editor_property("texture", texture)
-
-    tint_parameter = expression(
-        material, unreal.MaterialExpressionVectorParameter, -760, 100)
-    tint_parameter.set_editor_property("parameter_name", "Tint")
-    tint_parameter.set_editor_property("default_value", tint)
-    particle_color = expression(
-        material, unreal.MaterialExpressionParticleColor, -760, 260)
-
-    tinted_sprite = expression(
-        material, unreal.MaterialExpressionMultiply, -430, -40)
-    material_library.connect_material_expressions(
-        texture_sample, "RGB", tinted_sprite, "A")
-    material_library.connect_material_expressions(
-        tint_parameter, "", tinted_sprite, "B")
-    final_color = expression(
-        material, unreal.MaterialExpressionMultiply, -190, -40)
-    material_library.connect_material_expressions(
-        tinted_sprite, "", final_color, "A")
-    material_library.connect_material_expressions(
-        particle_color, "RGB", final_color, "B")
-
-    final_opacity = expression(
-        material, unreal.MaterialExpressionMultiply, -190, 180)
-    material_library.connect_material_expressions(
-        texture_sample, "A", final_opacity, "A")
-    material_library.connect_material_expressions(
-        particle_color, "A", final_opacity, "B")
-    material_library.connect_material_property(
-        final_color, "", unreal.MaterialProperty.MP_EMISSIVE_COLOR)
-    material_library.connect_material_property(
-        final_opacity, "", unreal.MaterialProperty.MP_OPACITY)
-    material_library.recompile_material(material)
-    unreal.EditorAssetLibrary.save_loaded_asset(
-        material, only_if_is_dirty=False)
-    return material
-
-
-def create_system(name, source_path, material):
-    destination = f"/Game/Art/VFX/{name}"
+def duplicate_package_system(asset_name, source_path):
+    destination = f"/Game/Art/VFX/{asset_name}"
     if unreal.EditorAssetLibrary.does_asset_exist(destination):
         unreal.EditorAssetLibrary.delete_asset(destination)
-    source_system = unreal.load_asset(source_path)
-    if not source_system:
-        raise RuntimeError(f"Missing Niagara template: {source_path}")
-    system = asset_tools.duplicate_asset(
-        name, "/Game/Art/VFX", source_system)
-    if not system:
-        raise RuntimeError(f"Failed to duplicate Niagara system: {name}")
 
-    changed_renderers = bridge.set_niagara_sprite_material(system, material)
-    if changed_renderers == 0:
-        raise RuntimeError(f"{name} contains no editable sprite renderers")
+    source = unreal.load_asset(source_path)
+    if not source or not isinstance(source, unreal.NiagaraSystem):
+        raise RuntimeError(f"Missing packaged Niagara system: {source_path}")
+    system = asset_tools.duplicate_asset(asset_name, "/Game/Art/VFX", source)
+    if not system:
+        raise RuntimeError(
+            f"Failed to duplicate packaged Niagara system: {asset_name}")
+    unreal.EditorAssetLibrary.set_metadata_tag(
+        system, SOURCE_METADATA_TAG, source_path)
     unreal.EditorAssetLibrary.save_loaded_asset(
         system, only_if_is_dirty=False)
-    return changed_renderers
 
 
 def main():
-    textures = import_textures(prepare_sources())
-    materials = {
-        "M_VFX_Muzzle_Kenney": create_sprite_material(
-            "M_VFX_Muzzle_Kenney",
-            textures["T_VFX_Muzzle_Kenney"],
-            unreal.LinearColor(5.0, 1.15, 0.08, 1.0),
-        ),
-        "M_VFX_Impact_Kenney": create_sprite_material(
-            "M_VFX_Impact_Kenney",
-            textures["T_VFX_Impact_Kenney"],
-            unreal.LinearColor(0.2, 2.8, 4.5, 1.0),
-        ),
-    }
-
-    changed_renderers = 0
-    for name, (source_path, material_name) in SYSTEMS.items():
-        changed_renderers += create_system(
-            name, source_path, materials[material_name])
-    unreal.log(
-        f"AUTOMATA_VFX_ASSETS_COMPLETE renderers={changed_renderers}")
+    for directory in OBSOLETE_DIRECTORIES:
+        if unreal.EditorAssetLibrary.does_directory_exist(directory):
+            unreal.EditorAssetLibrary.delete_directory(directory)
+    for asset_name, source_path in SYSTEM_SOURCES.items():
+        duplicate_package_system(asset_name, source_path)
+    for source_path, root_path in SOURCE_ROOTS.items():
+        trim_package(source_path, root_path)
+    unreal.log(f"AUTOMATA_VFX_ASSETS_COMPLETE systems={len(SYSTEM_SOURCES)}")
 
 
 if __name__ == "__main__":

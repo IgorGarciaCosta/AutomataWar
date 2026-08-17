@@ -327,7 +327,9 @@ void AAWArenaRenderer::TriggerImpact(FVector WorldPos)
     UNiagaraSystem *NS = LoadObject<UNiagaraSystem>(nullptr, AWVisualAssets::NS_Impact);
     if (NS)
     {
-        UNiagaraFunctionLibrary::SpawnSystemAtLocation(GetWorld(), NS, WorldPos);
+        if (UNiagaraComponent *Impact = UNiagaraFunctionLibrary::SpawnSystemAtLocation(
+                GetWorld(), NS, WorldPos, FRotator::ZeroRotator, FVector(0.32f)))
+            ScheduleComponentDestruction(Impact, AWVisualConfig::TransientVFXLifespan);
     }
     else
     {

@@ -103,7 +103,7 @@ After changing `BuildScripts/BuildHUD.py`, regenerate the HUD assets with:
   -run=pythonscript -script="$PWD\BuildScripts\BuildHUD.py" -unattended -nop4 -nosplash
 ```
 
-Regenerate the editable pickup Blueprints and CC0-backed Niagara effects with:
+Regenerate the editable pickup Blueprints and package-authored Niagara effects with:
 
 ```powershell
 & "$UE55\Engine\Binaries\Win64\UnrealEditor-Win64-DebugGame-Cmd.exe" $Project `

@@ -6,8 +6,6 @@
 #include "Components/StaticMeshComponent.h"
 #include "Engine/StaticMesh.h"
 #include "Kismet/GameplayStatics.h"
-#include "Materials/MaterialInstanceDynamic.h"
-#include "Materials/MaterialInterface.h"
 #include "NiagaraFunctionLibrary.h"
 #include "NiagaraSystem.h"
 #include "Sound/SoundBase.h"
@@ -37,8 +35,8 @@ AAWItem::AAWItem()
 
     ItemLight = CreateDefaultSubobject<UPointLightComponent>(TEXT("ItemLight"));
     ItemLight->SetupAttachment(SceneRoot);
-    ItemLight->SetIntensity(1800.f);
-    ItemLight->SetAttenuationRadius(150.f);
+    ItemLight->SetIntensity(900.f);
+    ItemLight->SetAttenuationRadius(115.f);
     ItemLight->bEditableWhenInherited = true;
 
     PickupEffectPath = AWVisualAssets::NS_ActionPointPickup;
@@ -49,14 +47,6 @@ void AAWItem::BeginPlay()
     Super::BeginPlay();
     SpawnTransform = GetActorTransform();
     ItemLight->SetLightColor(ItemColor);
-
-    if (UMaterialInterface *Material = LoadObject<UMaterialInterface>(nullptr, AWVisualAssets::M_Effect))
-    {
-        UMaterialInstanceDynamic *DynamicMaterial = UMaterialInstanceDynamic::Create(Material, this);
-        DynamicMaterial->SetVectorParameterValue(TEXT("EmissiveColor"), ItemColor * 5.f);
-        DynamicMaterial->SetScalarParameterValue(TEXT("Opacity"), 0.9f);
-        ItemMesh->SetMaterial(0, DynamicMaterial);
-    }
 }
 
 void AAWItem::Tick(float DeltaTime)

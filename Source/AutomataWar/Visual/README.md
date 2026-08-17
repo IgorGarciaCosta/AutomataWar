@@ -16,11 +16,11 @@ C++ presentation-only visuals for Automata War. Reads simulation snapshots; neve
 
 - All collision disabled; no physics involved in gameplay
 - Two `BP_TankActor` instances, derived from `AAWTankActor`, are placed in `L_AutomataArena` and referenced by the renderer
-- Four data-only pickup Blueprints expose the inherited mesh, trigger, and light components while native classes retain behavior
+- Four data-only pickup Blueprints expose the inherited mesh, trigger, and light components while native classes retain behavior; downloaded CC0 meshes provide bullet, rocket, coin, and shield silhouettes
 - Arena boundary walls are map-authored; the renderer does not generate `CellType::Wall` cubes
 - Player-color: cyan (P1) vs coral (P2) with emissive differentiation
 - Cover variants chosen deterministically from cell index (3 visual styles)
-- Muzzle and impact Niagara sprite renderers use CC0 Kenney Particle Pack textures; complete emissive/point-light fallback remains
+- Muzzle and impact feedback use exact systems from the Kopo Study and Vefects Fab packages; point-light fallback remains
 - Audio: soft-path references; silent when assets absent
 - Interpolation uses frame delta purely for visual smoothness
 - Projectile gameplay resolves instantly in Core; presentation animates a slower bolt, Niagara trail, and growing beam before impact feedback

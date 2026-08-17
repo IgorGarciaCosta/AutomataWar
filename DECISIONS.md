@@ -4,11 +4,11 @@ This log records decisions made where the build brief allowed or required engine
 
 ## 2026-08-16 - Isolate the arena in a captured HUD feed and expose pickup presentation
 
-**Decision:** Render the arena through a square orthographic scene-capture target used by the simulation and replay Widget Blueprints. Keep every surrounding gameplay region opaque, remove the replay scrubber and event dock, and keep transport actions together. Generate one data-only Blueprint for each concrete pickup and spawn those classes while retaining native fallbacks. Replace the muzzle and impact renderer materials with two CC0 Kenney Particle Pack sprites while retaining UE 5.5 Niagara template timing.
+**Decision:** Render the arena through a square orthographic scene-capture target used by the simulation and replay Widget Blueprints. Keep every surrounding gameplay region opaque, remove the replay scrubber and event dock, and keep transport actions together. Generate one data-only Blueprint for each concrete pickup and spawn those classes while retaining native fallbacks. Use Kopo Study's packaged Niagara muzzle flash and Vefects' Easy Impact Frames Niagara system for impact feedback. Assign downloaded CC0 bullet, rocket, coin, and shield meshes to the pickup Blueprints.
 
-**Alternatives:** Continue revealing the player camera through transparent UMG gaps; duplicate item behavior in Blueprint graphs; import an account-gated Fab pack; author particle art from scratch.
+**Alternatives:** Continue revealing the player camera through transparent UMG gaps; duplicate item behavior in Blueprint graphs; reskin Epic Niagara templates; author particle art and pickup meshes from scratch.
 
-**Rationale:** A scene capture makes the arena the only world-space image visible through the HUD. Data-only pickup Blueprints expose inherited components without splitting behavior ownership. The CC0 sprites provide a stylized, redistributable visual upgrade without an account-bound binary dependency. This supersedes the Epic-only muzzle and impact portion of the 2026-08-01 VFX decision.
+**Rationale:** A scene capture makes the arena the only world-space image visible through the HUD. Data-only pickup Blueprints expose inherited components without splitting behavior ownership. Exact copies of package-authored Niagara systems produce materially different effects instead of preserving old template behavior, while source metadata keeps provenance testable. CC0 meshes make each pickup readable without adding gameplay logic to Blueprint. This supersedes the Epic-only muzzle and impact portion of the 2026-08-01 VFX decision.
 
 ## 2026-08-15 - Resolve complete-queue turns with AP-based round initiative
 
