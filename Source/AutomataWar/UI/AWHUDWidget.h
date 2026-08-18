@@ -21,6 +21,7 @@ class UAWProgrammingScreen;
 class UAWReplayAutopsyScreen;
 class UAWReplayBrowserScreen;
 class UAWSimulationScreen;
+class UBorder;
 class UTextBlock;
 class UTextureRenderTarget2D;
 class UWidgetSwitcher;
@@ -202,6 +203,12 @@ private:
 
     UPROPERTY(meta = (BindWidget))
     TObjectPtr<UAWMatchResultPopupWidget> MatchResultPopupWidget;
+
+    UPROPERTY(meta = (BindWidget))
+    TObjectPtr<UAWMatchResultPopupWidget> MatchResultPopupWidgetPlayerTwo;
+
+    UPROPERTY(meta = (BindWidget))
+    TObjectPtr<UBorder> MatchResultScrim;
 
     EAWScreen CurrentScreen = EAWScreen::MainMenu;
     TArray<FString> ReplayFilenames;

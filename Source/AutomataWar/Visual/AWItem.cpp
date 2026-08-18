@@ -115,7 +115,7 @@ void AAWItem::PlayPickupEffects() const
 AAWExtraAmmoItem::AAWExtraAmmoItem()
 {
     ItemColor = FLinearColor(1.f, 0.24f, 0.06f);
-    PickupEffectPath = AWVisualAssets::NS_Impact;
+    PickupEffectPath = AWVisualAssets::NS_Shield;
     PickupSoundPitch = 0.9f;
     ItemMesh->SetStaticMesh(LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Cube.Cube")));
     ItemMesh->SetRelativeRotation(FRotator(0.f, 45.f, 0.f));

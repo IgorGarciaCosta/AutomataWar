@@ -16,7 +16,7 @@ Commands are relative to the tank's current facing:
 | `CHARGE SHIELD` | Spend 20 AP to reduce the next incoming hit by 50%.                     |
 | `ACCELERATE`    | Spend 30 AP so the next move crosses up to two cells.                   |
 
-Commands run once, in order, with exactly one tank acting per replay step. The round starter executes its entire queue without yielding; then the other tank executes its entire queue. The round ends when both turns finish or one tank is destroyed.
+Commands run once, in order, with exactly one tank acting per replay step. The round starter executes its entire queue without yielding; then the other tank executes its entire queue. After both turns finish, a player loses when their remaining AP is below the cheapest positive-cost command. If both players reach that state together, higher HP wins. Destroying a tank ends the match immediately.
 
 ## Turn Initiative
 
@@ -51,11 +51,13 @@ Pickup state is canonical and included in replay inputs. Timed effects count the
 
 The UI uses a shared AW-80 phosphor-terminal style, including a software cursor and terminal button sounds. Tank movement is intentionally silent.
 
+Terminal results use reason-specific messages stored in `/Game/UI/Data/E_MatchResultMessage`. Local multiplayer displays one result popup for each player's viewpoint.
+
 ## Replays
 
 A replay stores the two command arrays, round starter, canonical starting effects, a 64-bit seed, format version, ruleset hash, and CRC-32. It does not store snapshots, transforms, animation, or video. Playback simply simulates the command queues again.
 
-With the current limit of 256 commands per player, a replay is under 1 KiB. Replay format version 7 deliberately rejects files whose turn, command, or persistent-effect rules are incompatible.
+With the current limit of 256 commands per player, a replay is under 1 KiB. Replay format version 8 and its ruleset hash reject files whose turn, command, terminal-outcome, or persistent-effect rules are incompatible.
 
 ## Architecture
 

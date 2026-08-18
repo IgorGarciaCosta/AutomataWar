@@ -41,18 +41,39 @@ bool FCommandsRunOnce::RunTest(const FString &Parameters)
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FResourceDepletionEndsMatch, "AutomataWar.Core.Match.ResourceDepletion",
                                  EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 
-/** Verify that zero AP or HP defeats a tank and stops command execution. */
+/** Verify end-of-round AP affordability, HP defeat, and simultaneous AP tiebreaks. */
 bool FResourceDepletionEndsMatch::RunTest(const FString &Parameters)
 {
     Automata::SimConfig Config;
-    Config.initialActionPoints = {0, Automata::InitialActionPoints};
+    Config.initialActionPoints = {GetMinimumPositiveActionPointCost() - 1,
+                                  GetMinimumPositiveActionPointCost()};
 
     Automata::Simulation Simulation;
     const Automata::MatchResult Result = Simulation.RunMatch({EAWCommand::Wait}, {EAWCommand::Wait}, Config);
 
-    TestTrue(TEXT("Resource depletion ends the match"), Result.bMatchEnded);
-    TestEqual(TEXT("No command executes after defeat"), Result.stepsExecuted, 0);
-    TestTrue(TEXT("The surviving tank wins"), Result.outcome == Automata::MatchOutcome::Robot1Wins);
+    TestEqual(TEXT("Minimum positive command cost is derived from commands"),
+              GetMinimumPositiveActionPointCost(), Automata::TurnActionPointCost);
+    TestTrue(TEXT("AP below the cheapest paid command ends the match"), Result.bMatchEnded);
+    TestEqual(TEXT("AP defeat is checked after both queues finish"), Result.stepsExecuted, 2);
+    TestTrue(TEXT("The tank that can still buy a paid command wins"),
+             Result.outcome == Automata::MatchOutcome::Robot1Wins);
+    TestTrue(TEXT("AP defeat retains its reason"),
+             Result.endReason == EAWMatchEndReason::ActionPoints);
+
+    Automata::SimConfig TieBreakConfig;
+    TieBreakConfig.gridWidth = 3;
+    TieBreakConfig.gridHeight = 4;
+    TieBreakConfig.initialActionPoints = {0, 0};
+    Automata::Simulation TieBreakSimulation;
+    const Automata::MatchResult TieBreakResult = TieBreakSimulation.RunMatch(
+        {EAWCommand::Fire}, {EAWCommand::Wait}, TieBreakConfig);
+
+    TestTrue(TEXT("Both tanks without affordable paid commands end the match"), TieBreakResult.bMatchEnded);
+    TestEqual(TEXT("Both command queues finish before the AP tiebreak"), TieBreakResult.stepsExecuted, 2);
+    TestTrue(TEXT("Higher HP wins simultaneous AP depletion"),
+             TieBreakResult.outcome == Automata::MatchOutcome::Robot0Wins);
+    TestTrue(TEXT("The simultaneous AP winner is reported as an HP tiebreak"),
+             TieBreakResult.endReason == EAWMatchEndReason::Health);
 
     Automata::SimConfig HealthConfig;
     HealthConfig.gridWidth = 3;
@@ -69,6 +90,8 @@ bool FResourceDepletionEndsMatch::RunTest(const FString &Parameters)
     TestTrue(TEXT("The defeated tank reaches zero HP"), HealthResult.finalHP[1] <= 0);
     TestTrue(TEXT("The tank with HP remaining wins"),
              HealthResult.outcome == Automata::MatchOutcome::Robot0Wins);
+    TestTrue(TEXT("HP defeat retains its reason"),
+             HealthResult.endReason == EAWMatchEndReason::Health);
     return true;
 }
 
@@ -260,6 +283,16 @@ bool FCommandEffects::RunTest(const FString &Parameters)
     TestEqual(TEXT("Charged shield halves the next hit"), ShieldedResult.finalHP[0],
               Automata::MaxHP - Automata::ProjectileDamage / 2);
     TestFalse(TEXT("Charged shield is consumed by damage"), ShieldedResult.finalEffects[0].bShieldCharged);
+    TestFalse(TEXT("Consumed one-shot shield is no longer visually active"),
+              HasActiveShield(ShieldedResult.finalEffects[0]));
+
+    Automata::SimConfig TimedShieldConfig = Config;
+    TimedShieldConfig.initialEffects[0].ShieldRounds = 2;
+    Automata::Simulation TimedShield;
+    const Automata::MatchResult TimedShieldResult = TimedShield.RunMatch(
+        {EAWCommand::Wait}, {EAWCommand::Fire}, TimedShieldConfig);
+    TestTrue(TEXT("Timed shield remains visually active after absorbing a hit"),
+             HasActiveShield(TimedShieldResult.finalEffects[0]));
 
     Config.initialEffects[0].ExtraAmmoRounds = 1;
     Automata::Simulation ExtraAmmo;

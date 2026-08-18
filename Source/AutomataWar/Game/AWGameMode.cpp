@@ -348,6 +348,7 @@ void AAWGameMode::RunSimulation()
         GS->Outcome.HP0 = Result.finalHP[0];
         GS->Outcome.HP1 = Result.finalHP[1];
         GS->Outcome.bMatchEnded = Result.bMatchEnded;
+        GS->Outcome.EndReason = Result.endReason;
         GS->SetActionPoints(0, Result.finalActionPoints[0]);
         GS->SetActionPoints(1, Result.finalActionPoints[1]);
         GS->SetEffects(0, Result.finalEffects[0]);

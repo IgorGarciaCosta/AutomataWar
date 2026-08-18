@@ -7,6 +7,20 @@
 #include "Components/TextBlock.h"
 #include "Components/Widget.h"
 #include "Engine/TextureRenderTarget2D.h"
+#include "UObject/Class.h"
+
+namespace
+{
+    /** Stable entry order in /Game/UI/Data/E_MatchResultMessage. */
+    enum class EResultMessageIndex : int32
+    {
+        WinByHealth,
+        WinByActionPoints,
+        LoseByHealth,
+        LoseByActionPoints,
+        Draw
+    };
+}
 
 #define BIND_SCREEN_BUTTON(Name, Class, Handler)                        \
     if (UButton *Button = Cast<UButton>(GetWidgetFromName(TEXT(Name)))) \
@@ -520,10 +534,12 @@ void UAWMatchResultPopupWidget::NativeTick(const FGeometry &MyGeometry, float In
     }
 }
 
-void UAWMatchResultPopupWidget::ShowResult(int32 WinnerSlot, int32 ViewerSlot, bool bUsePlayerLabels)
+void UAWMatchResultPopupWidget::ShowResult(int32 WinnerSlot, int32 ViewerSlot,
+                                           EAWMatchEndReason EndReason, bool bUsePlayerLabels)
 {
     if (MatchResultText)
-        MatchResultText->SetText(FormatResultText(WinnerSlot, ViewerSlot, bUsePlayerLabels));
+        MatchResultText->SetText(FormatResultText(
+            WinnerSlot, ViewerSlot, EndReason, bUsePlayerLabels, MatchResultMessageEnum));
     if (MatchResultReturnButton)
         MatchResultReturnButton->SetIsEnabled(true);
 
@@ -533,13 +549,28 @@ void UAWMatchResultPopupWidget::ShowResult(int32 WinnerSlot, int32 ViewerSlot, b
     ApplyTransition();
 }
 
-FText UAWMatchResultPopupWidget::FormatResultText(int32 WinnerSlot, int32 ViewerSlot, bool bUsePlayerLabels)
+FText UAWMatchResultPopupWidget::FormatResultText(int32 WinnerSlot, int32 ViewerSlot,
+                                                  EAWMatchEndReason EndReason, bool bUsePlayerLabels,
+                                                  const UEnum *MessageEnum)
 {
-    if (WinnerSlot != 0 && WinnerSlot != 1)
-        return INVTEXT("DRAW");
-    if (bUsePlayerLabels)
-        return FText::Format(INVTEXT("P{0} WON"), FText::AsNumber(WinnerSlot + 1));
-    return WinnerSlot == ViewerSlot ? INVTEXT("YOU WON") : INVTEXT("YOU LOSE");
+    const bool bDraw = WinnerSlot != 0 && WinnerSlot != 1;
+    const bool bViewerWon = WinnerSlot == ViewerSlot;
+    const EResultMessageIndex MessageIndex = bDraw
+                                                ? EResultMessageIndex::Draw
+                                            : EndReason == EAWMatchEndReason::ActionPoints
+                                                ? (bViewerWon ? EResultMessageIndex::WinByActionPoints
+                                                              : EResultMessageIndex::LoseByActionPoints)
+                                                : (bViewerWon ? EResultMessageIndex::WinByHealth
+                                                              : EResultMessageIndex::LoseByHealth);
+    if (!MessageEnum)
+        MessageEnum = LoadObject<UEnum>(nullptr,
+                                        TEXT("/Game/UI/Data/E_MatchResultMessage.E_MatchResultMessage"));
+    const FText Message = MessageEnum && static_cast<int32>(MessageIndex) < MessageEnum->NumEnums() - 1
+                              ? MessageEnum->GetDisplayNameTextByIndex(static_cast<int32>(MessageIndex))
+                              : INVTEXT("MATCH RESULT UNAVAILABLE");
+    return bUsePlayerLabels
+               ? FText::Format(INVTEXT("P{0}: {1}"), FText::AsNumber(ViewerSlot + 1), Message)
+               : Message;
 }
 
 void UAWMatchResultPopupWidget::OnReturnToMainMenu()

@@ -14,6 +14,7 @@ class UAWSimulationDockWidget;
 class UButton;
 class UComboBoxString;
 class UEditableTextBox;
+class UEnum;
 class UImage;
 class UTextBlock;
 class UTextureRenderTarget2D;
@@ -463,14 +464,19 @@ public:
     virtual void NativeTick(const FGeometry &MyGeometry, float InDeltaTime) override;
 
     /** Populate and animate the popup for a terminal match outcome. */
-    void ShowResult(int32 WinnerSlot, int32 ViewerSlot, bool bUsePlayerLabels);
-    /** Build the result label for personal or shared-screen presentation. */
-    static FText FormatResultText(int32 WinnerSlot, int32 ViewerSlot, bool bUsePlayerLabels);
+    void ShowResult(int32 WinnerSlot, int32 ViewerSlot, EAWMatchEndReason EndReason, bool bUsePlayerLabels);
+    /** Build the reason-specific result label for one player's viewpoint. */
+    static FText FormatResultText(int32 WinnerSlot, int32 ViewerSlot, EAWMatchEndReason EndReason,
+                                  bool bUsePlayerLabels, const UEnum *MessageEnum = nullptr);
 
 protected:
     /** Seconds used by each entrance and exit transition. */
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "AutomataWar|UI", meta = (ClampMin = "0.1"))
     float TransitionDuration = 0.35f;
+
+    /** Content-authored enum whose display names are the match result messages. */
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "AutomataWar|UI")
+    TObjectPtr<UEnum> MatchResultMessageEnum;
 
 private:
     /** Start the exit transition before returning to the menu. */

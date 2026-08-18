@@ -109,8 +109,10 @@ namespace Automata
     struct MatchResult
     {
         MatchOutcome outcome = MatchOutcome::Draw;
-        /** True when either tank reaches zero HP or AP. */
+        /** True when HP reaches zero or end-of-round AP cannot buy a positive-cost command. */
         bool bMatchEnded = false;
+        /** Rule that produced the terminal result. */
+        EAWMatchEndReason endReason = EAWMatchEndReason::None;
         int32_t stepsExecuted = 0;
         std::array<int32_t, 2> finalHP = {};
         std::array<int32_t, 2> finalActionPoints = {};
@@ -130,7 +132,7 @@ namespace Automata
         RoundState initialState;
     };
 
-    /** Runs both queues until they finish or either tank reaches zero HP or AP. */
+    /** Runs both queues until they finish or either tank reaches zero HP. */
     class Simulation
     {
     public:

@@ -10,6 +10,7 @@
 #include "AutomataWar/Core/Replay/AutomataReplay.h"
 #include "AutomataWar/Visual/AWArenaRenderer.h"
 #include "AutomataWar/Visual/AWVisualTypes.h"
+#include "Components/Border.h"
 #include "Components/Button.h"
 #include "Components/TextBlock.h"
 #include "Components/WidgetSwitcher.h"
@@ -39,7 +40,8 @@ void UAWHUDWidget::NativeConstruct()
 
     UAWScreenWidget *Screens[] = {
         MainMenuScreenWidget, DifficultyScreenWidget, ProgrammingScreenWidget, ReplayAutopsyScreenWidget,
-        ReplayBrowserScreenWidget, LanguageReferenceScreenWidget, MatchResultPopupWidget};
+        ReplayBrowserScreenWidget, LanguageReferenceScreenWidget, MatchResultPopupWidget,
+        MatchResultPopupWidgetPlayerTwo};
     for (UAWScreenWidget *Screen : Screens)
     {
         if (Screen)
@@ -124,8 +126,12 @@ void UAWHUDWidget::NativeConstruct()
         {
             OnLocalMatch();
             ShowScreen(EAWScreen::ReplayAutopsy);
+            if (MatchResultScrim)
+                MatchResultScrim->SetVisibility(ESlateVisibility::Visible);
             if (MatchResultPopupWidget)
-                MatchResultPopupWidget->ShowResult(0, 0, true);
+                MatchResultPopupWidget->ShowResult(0, 0, EAWMatchEndReason::Health, true);
+            if (MatchResultPopupWidgetPlayerTwo)
+                MatchResultPopupWidgetPlayerTwo->ShowResult(0, 1, EAWMatchEndReason::Health, true);
             if (CaptureMode.Equals(TEXT("MatchResultReturn"), ESearchCase::IgnoreCase))
             {
                 ScreenshotDelay = 1.4f;
@@ -149,6 +155,15 @@ void UAWHUDWidget::NativeConstruct()
             {
                 Sub->SubmitLocalCommands(0, {EAWCommand::Fire});
                 Sub->SubmitLocalCommands(1, {EAWCommand::Fire});
+            }
+        }
+        else if (CaptureMode.Equals(TEXT("ShieldVFX"), ESearchCase::IgnoreCase))
+        {
+            OnLocalMatch();
+            if (UAWGameSubsystem *Sub = GetSubsystem())
+            {
+                Sub->SubmitLocalCommands(0, {EAWCommand::ChargeShield});
+                Sub->SubmitLocalCommands(1, {EAWCommand::Wait});
             }
         }
 
@@ -180,7 +195,8 @@ void UAWHUDWidget::NativeDestruct()
 {
     UAWScreenWidget *Screens[] = {
         MainMenuScreenWidget, DifficultyScreenWidget, ProgrammingScreenWidget, ReplayAutopsyScreenWidget,
-        ReplayBrowserScreenWidget, LanguageReferenceScreenWidget, MatchResultPopupWidget};
+        ReplayBrowserScreenWidget, LanguageReferenceScreenWidget, MatchResultPopupWidget,
+        MatchResultPopupWidgetPlayerTwo};
     for (UAWScreenWidget *Screen : Screens)
     {
         if (Screen)
@@ -258,6 +274,15 @@ void UAWHUDWidget::ShowScreen(EAWScreen Screen)
     if (ScreenSwitcher)
     {
         ScreenSwitcher->SetActiveWidgetIndex(static_cast<int32>(Screen));
+    }
+    if (Screen != EAWScreen::ReplayAutopsy)
+    {
+        if (MatchResultScrim)
+            MatchResultScrim->SetVisibility(ESlateVisibility::Collapsed);
+        if (MatchResultPopupWidget)
+            MatchResultPopupWidget->SetVisibility(ESlateVisibility::Collapsed);
+        if (MatchResultPopupWidgetPlayerTwo)
+            MatchResultPopupWidgetPlayerTwo->SetVisibility(ESlateVisibility::Collapsed);
     }
 }
 
@@ -408,7 +433,19 @@ void UAWHUDWidget::OnPhaseChanged(EAWMatchPhase NewPhase)
                 if (AAWPlayerState *PlayerState = PlayerController->GetPlayerState<AAWPlayerState>())
                     ViewerSlot = PlayerState->CommandSlot;
             const bool bLocalMultiplayer = GetWorld()->GetNetMode() == NM_Standalone && !bSinglePlayer;
-            MatchResultPopupWidget->ShowResult(GS->Outcome.WinnerSlot, ViewerSlot, bLocalMultiplayer);
+            if (MatchResultScrim)
+                MatchResultScrim->SetVisibility(ESlateVisibility::Visible);
+            MatchResultPopupWidget->ShowResult(
+                GS->Outcome.WinnerSlot, bLocalMultiplayer ? 0 : ViewerSlot,
+                GS->Outcome.EndReason, bLocalMultiplayer);
+            if (MatchResultPopupWidgetPlayerTwo)
+            {
+                if (bLocalMultiplayer)
+                    MatchResultPopupWidgetPlayerTwo->ShowResult(
+                        GS->Outcome.WinnerSlot, 1, GS->Outcome.EndReason, true);
+                else
+                    MatchResultPopupWidgetPlayerTwo->SetVisibility(ESlateVisibility::Collapsed);
+            }
         }
         break;
     default:
@@ -717,6 +754,8 @@ void UAWHUDWidget::UpdateArenaFromReplay()
     for (const auto &E : Events)
         UEEvents.Add(E);
     Renderer->ProcessEvents(UEEvents, Step, Step);
+    if (Step == ReplayController->GetTotalSteps() - 1)
+        Renderer->SetFinalEffects(ReplayController->GetResult().finalEffects);
 }
 
 AAWArenaRenderer *UAWHUDWidget::FindOrSpawnRenderer()

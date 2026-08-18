@@ -2,6 +2,8 @@
 #include "Blueprint/UserWidget.h"
 #include "Blueprint/WidgetTree.h"
 #include "Components/Widget.h"
+#include "Engine/UserDefinedEnum.h"
+#include "Kismet2/EnumEditorUtils.h"
 #include "WidgetBlueprint.h"
 
 UWidgetTree *UAWWidgetBlueprintLibrary::GetWidgetTree(UWidgetBlueprint *Blueprint)
@@ -51,4 +53,20 @@ void UAWWidgetBlueprintLibrary::SetRootWidget(UWidgetTree *WidgetTree, UWidget *
 
     WidgetTree->Modify();
     WidgetTree->RootWidget = RootWidget;
+}
+
+bool UAWWidgetBlueprintLibrary::SetUserDefinedEnumDisplayNames(UUserDefinedEnum *Enum, const TArray<FString> &DisplayNames)
+{
+    if (!Enum || DisplayNames.IsEmpty())
+        return false;
+
+    while (Enum->NumEnums() > 1)
+        FEnumEditorUtils::RemoveEnumeratorFromUserDefinedEnum(Enum, 0);
+
+    for (const FString &DisplayName : DisplayNames)
+        FEnumEditorUtils::AddNewEnumeratorForUserDefinedEnum(Enum);
+    for (int32 Index = 0; Index < DisplayNames.Num(); ++Index)
+        if (!FEnumEditorUtils::SetEnumeratorDisplayName(Enum, Index, FText::FromString(DisplayNames[Index])))
+            return false;
+    return true;
 }

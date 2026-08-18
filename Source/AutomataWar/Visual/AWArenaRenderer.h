@@ -47,6 +47,9 @@ public:
     /** Set the current step snapshot for interpolation display. */
     void SetSnapshot(const Automata::StepSnapshot &Snapshot);
 
+    /** Reconcile shield visuals with effects after end-of-round duration decay. */
+    void SetFinalEffects(const std::array<FAWRobotEffects, 2> &FinalEffects);
+
     /** Process a batch of sim events for VFX/audio triggers. */
     void ProcessEvents(const TArray<Automata::SimEvent> &Events, int32 FromStep, int32 ToStep);
 
@@ -69,8 +72,11 @@ protected:
     /** Trigger destruction VFX at position. */
     void TriggerDestruction(FVector WorldPos);
 
-    /** Trigger the project shield Niagara system around a tank. */
-    void TriggerShield(int32 RobotIdx);
+    /** Create or destroy the energy sphere owned by one tank's active shield state. */
+    void SetShieldActive(int32 RobotIdx, bool bActive);
+
+    /** Apply final shield state once all projectiles for the last replay step arrive. */
+    void ApplyPendingFinalShieldState();
 
     /** Begin a visible projectile whose gameplay result has already been resolved. */
     void SpawnProjectile(FVector Start, FVector End, int32 TargetRobot,
@@ -137,8 +143,12 @@ protected:
         float Duration = 0.f;
         int32 TargetRobot = INDEX_NONE;
         bool bShielded = false;
+        bool bShieldRemainsActive = false;
         bool bDestroyedTarget = false;
     };
 
     TArray<FProjectileVisual> Projectiles;
+    TWeakObjectPtr<UStaticMeshComponent> ShieldEffects[2];
+    bool PendingFinalShieldState[2] = {false, false};
+    bool bHasPendingFinalShieldState = false;
 };

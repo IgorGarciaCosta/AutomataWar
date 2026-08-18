@@ -1,6 +1,6 @@
 # Third-Party Credits
 
-Original asset-pack acquisition date: **2026-08-01**. Additional UI variants were selected from the same CC0 pack on **2026-08-13**. External Niagara packages and pickup meshes were added on **2026-08-16**.
+Original asset-pack acquisition date: **2026-08-01**. Additional UI variants were selected from the same CC0 pack on **2026-08-13**. The external muzzle package and pickup meshes were added on **2026-08-16**.
 
 No asset with unclear, non-commercial, or no-derivatives terms is included. Project-authored C++ code, materials, procedural layouts, screenshots, and mesh assemblies are not third-party assets.
 
@@ -53,8 +53,7 @@ The following free authored Niagara packages retain their original folders. The 
 
 | Project content                       | Package and author            | Source                                                                           | License                                                                          | Project use                             |
 | ------------------------------------- | ----------------------------- | -------------------------------------------------------------------------------- | -------------------------------------------------------------------------------- | --------------------------------------- |
-| `Content/MuzzleFlash/`                | Muzzle Flash by Kopo Study    | [Fab listing](https://www.fab.com/listings/435b3bcb-d7f5-467d-99aa-2edc97a6c5fd) | [Fab Standard License](https://www.fab.com/eula)                                 | `Content/Art/VFX/NS_MuzzleFlash.uasset` |
-| `Content/Vefects/Easy_Impact_Frames/` | Easy Impact Frames by Vefects | [Fab listing](https://www.fab.com/listings/15cb7c95-3220-43fe-8d68-c67c73e83eba) | [Creative Commons Attribution 4.0](https://creativecommons.org/licenses/by/4.0/) | `Content/Art/VFX/NS_Impact.uasset`      |
+| `Content/MuzzleFlash/` | Muzzle Flash by Kopo Study | [Fab listing](https://www.fab.com/listings/435b3bcb-d7f5-467d-99aa-2edc97a6c5fd) | [Fab Standard License](https://www.fab.com/eula) | `Content/Art/VFX/NS_MuzzleFlash.uasset` |
 
 ## Unreal Engine Content
 
@@ -65,8 +64,9 @@ The following assets are Epic-provided Unreal Engine 5.5 Licensed Technology use
 | Arena foundation, rails, walls, barrels, cover, and effects | `/Engine/BasicShapes/Cube`, `/Engine/BasicShapes/Cylinder`, `/Engine/BasicShapes/Sphere` | Level references and runtime components; engine meshes are not copied.   |
 | Editor-authored sky                                         | `/Engine/EngineSky/BP_Sky_Sphere`, `/Engine/EngineSky/SM_SkySphere`                      | Level reference only; engine assets are not copied into this repository. |
 | Projectile trail                                            | `/Niagara/DefaultAssets/Templates/Systems/AttributeReaderTrails`                         | `Content/Art/VFX/NS_ProjectileTrail.uasset`                              |
-| Shield burst                                                | `/Niagara/DefaultAssets/Templates/Systems/RadialBurst`                                   | `Content/Art/VFX/NS_Shield.uasset`                                       |
-| Destruction burst                                           | `/Niagara/DefaultAssets/Templates/Systems/SimpleExplosion`                               | `Content/Art/VFX/NS_Destruction.uasset`                                  |
+| Shield pickup burst                                         | `/Niagara/DefaultAssets/Templates/Systems/RadialBurst`                                   | `Content/Art/VFX/NS_Shield.uasset`                                       |
+| Projectile impact and destruction smoke                     | `/Niagara/DefaultAssets/Templates/Systems/SimpleExplosion`                               | `Content/Art/VFX/NS_Impact.uasset`, `Content/Art/VFX/NS_Destruction.uasset` |
+| Active shield shell                                         | `/Engine/BasicShapes/Sphere`                                                             | Runtime mesh using `Content/Art/Materials/M_ShieldEnergy.uasset`          |
 
 Required Unreal notices:
 
@@ -82,6 +82,7 @@ The following project-authored assets are stored as Unreal content. Imported thi
 - `Content/Art/Materials/M_Robot.uasset`
 - `Content/Art/Materials/M_Cover.uasset`
 - `Content/Art/Materials/M_Effect.uasset`
+- `Content/Art/Materials/M_ShieldEnergy.uasset`
 - `Content/Art/Materials/M_Ground.uasset`
 - `Content/Art/Materials/M_Foliage.uasset`
 - `Content/Art/Materials/M_Wood.uasset`

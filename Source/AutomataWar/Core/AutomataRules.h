@@ -32,7 +32,7 @@ namespace Automata
     inline constexpr int32_t AcceleratorItemCount = 2;
     inline constexpr int32_t ExtraAmmoDamageBonus = 10;
     inline constexpr int32_t PowerUpDurationRounds = 2;
-    inline constexpr int32_t TurnModelVersion = 3;
+    inline constexpr int32_t TurnModelVersion = 4;
 
     /** Cardinal facing values ordered clockwise. */
     enum class Dir : uint8_t

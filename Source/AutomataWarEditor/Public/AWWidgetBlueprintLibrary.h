@@ -12,6 +12,7 @@
 class UWidget;
 class UWidgetBlueprint;
 class UWidgetTree;
+class UUserDefinedEnum;
 
 /** Minimal editor bridge for authoring Widget Blueprint trees. */
 UCLASS()
@@ -37,4 +38,8 @@ public:
 
     UFUNCTION(BlueprintCallable, Category = "AutomataWar|Editor")
     static void SetRootWidget(UWidgetTree *WidgetTree, UWidget *RootWidget);
+
+    /** Replace a Content Browser enum's entries with the supplied display messages. */
+    UFUNCTION(BlueprintCallable, Category = "AutomataWar|Editor")
+    static bool SetUserDefinedEnumDisplayNames(UUserDefinedEnum *Enum, const TArray<FString> &DisplayNames);
 };

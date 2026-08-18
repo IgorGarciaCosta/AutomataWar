@@ -39,6 +39,12 @@ struct FAWRobotEffects
     int32 AcceleratorRounds = 0;
 };
 
+/** Return whether either canonical shield source is currently active. */
+inline constexpr bool HasActiveShield(const FAWRobotEffects &Effects)
+{
+    return Effects.bShieldCharged || Effects.ShieldRounds > 0;
+}
+
 /** One player-selected action, executed relative to the tank's current facing. */
 UENUM(BlueprintType)
 enum class EAWCommand : uint8
@@ -83,6 +89,19 @@ inline int32 GetProgramActionPointCost(TConstArrayView<EAWCommand> Commands)
     for (EAWCommand Command : Commands)
         Cost += GetActionPointCost(Command);
     return Cost;
+}
+
+/** Lowest AP balance that can still buy a command whose cost is greater than zero. */
+inline constexpr int32 GetMinimumPositiveActionPointCost()
+{
+    int32 MinimumCost = Automata::InitialActionPoints;
+    for (uint8 Value = 0; Value < static_cast<uint8>(EAWCommand::Count); ++Value)
+    {
+        const int32 Cost = GetActionPointCost(static_cast<EAWCommand>(Value));
+        if (Cost > 0 && Cost < MinimumCost)
+            MinimumCost = Cost;
+    }
+    return MinimumCost;
 }
 
 /** Human-readable label used by command lists and replay views. */
@@ -137,6 +156,15 @@ enum class EAWMatchPhase : uint8
     ReplayAutopsy UMETA(DisplayName = "ReplayAutopsy")
 };
 
+/** Rule that produced a terminal match result and selects its presentation message. */
+UENUM(BlueprintType)
+enum class EAWMatchEndReason : uint8
+{
+    None UMETA(DisplayName = "None"),
+    Health UMETA(DisplayName = "Health"),
+    ActionPoints UMETA(DisplayName = "Action Points")
+};
+
 /** Result of a command-list validation attempt. */
 USTRUCT(BlueprintType)
 struct FAWValidationResult
@@ -161,6 +189,9 @@ struct FAWMatchOutcome
     /** -1 = draw, 0 = player0 wins, 1 = player1 wins. */
     UPROPERTY(BlueprintReadOnly)
     int32 WinnerSlot = -1;
+    /** Rule that ended the match. */
+    UPROPERTY(BlueprintReadOnly)
+    EAWMatchEndReason EndReason = EAWMatchEndReason::None;
     UPROPERTY(BlueprintReadOnly)
     int32 HP0 = 0;
     UPROPERTY(BlueprintReadOnly)

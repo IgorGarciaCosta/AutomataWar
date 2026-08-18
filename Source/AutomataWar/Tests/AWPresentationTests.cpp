@@ -10,6 +10,11 @@
 #include "AutomataWar/Core/Replay/AWReplayController.h"
 #include "AutomataWar/UI/AWHUDWidget.h"
 #include "AutomataWar/UI/AWScreenWidget.h"
+#include "AutomataWar/Visual/AWVisualTypes.h"
+#include "Materials/Material.h"
+#include "NiagaraSystem.h"
+#include "UObject/MetaData.h"
+#include "UObject/Package.h"
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCommandCount, "AutomataWar.UI.Commands.CountIsSeven",
                                  EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
@@ -53,13 +58,69 @@ bool FHUDScreenCount::RunTest(const FString &Parameters)
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMatchResultLabels, "AutomataWar.UI.MatchResult.Labels",
                                  EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 
-/** Verify personal and shared-screen match result wording. */
+/** Verify the Content-authored messages for every result reason and viewpoint. */
 bool FMatchResultLabels::RunTest(const FString &Parameters)
 {
-    TestEqual(TEXT("Viewer win"), UAWMatchResultPopupWidget::FormatResultText(0, 0, false).ToString(), FString(TEXT("YOU WON")));
-    TestEqual(TEXT("Viewer loss"), UAWMatchResultPopupWidget::FormatResultText(1, 0, false).ToString(), FString(TEXT("YOU LOSE")));
-    TestEqual(TEXT("Local P1 win"), UAWMatchResultPopupWidget::FormatResultText(0, 0, true).ToString(), FString(TEXT("P1 WON")));
-    TestEqual(TEXT("Local P2 win"), UAWMatchResultPopupWidget::FormatResultText(1, 0, true).ToString(), FString(TEXT("P2 WON")));
+    const UEnum *MessageEnum = LoadObject<UEnum>(nullptr,
+                                                 TEXT("/Game/UI/Data/E_MatchResultMessage.E_MatchResultMessage"));
+    TestNotNull(TEXT("Match result message enum exists in Content"), MessageEnum);
+    if (!MessageEnum)
+        return false;
+
+    TestEqual(TEXT("Enum owns exactly five messages"), MessageEnum->NumEnums() - 1, 5);
+    TestEqual(TEXT("Solo HP win"), UAWMatchResultPopupWidget::FormatResultText(
+                                       0, 0, EAWMatchEndReason::Health, false, MessageEnum).ToString(),
+              FString(TEXT("You crushed your opponent")));
+    TestEqual(TEXT("Solo AP win"), UAWMatchResultPopupWidget::FormatResultText(
+                                       0, 0, EAWMatchEndReason::ActionPoints, false, MessageEnum).ToString(),
+              FString(TEXT("That loser get no munny")));
+    TestEqual(TEXT("Solo HP loss"), UAWMatchResultPopupWidget::FormatResultText(
+                                        1, 0, EAWMatchEndReason::Health, false, MessageEnum).ToString(),
+              FString(TEXT("Wasted, crushed, massacrated")));
+    TestEqual(TEXT("Solo AP loss"), UAWMatchResultPopupWidget::FormatResultText(
+                                        1, 0, EAWMatchEndReason::ActionPoints, false, MessageEnum).ToString(),
+              FString(TEXT("No more moves for you, bro")));
+    TestEqual(TEXT("Local P1 viewpoint"), UAWMatchResultPopupWidget::FormatResultText(
+                                             0, 0, EAWMatchEndReason::Health, true, MessageEnum).ToString(),
+              FString(TEXT("P1: You crushed your opponent")));
+    TestEqual(TEXT("Local P2 viewpoint"), UAWMatchResultPopupWidget::FormatResultText(
+                                             0, 1, EAWMatchEndReason::Health, true, MessageEnum).ToString(),
+              FString(TEXT("P2: Wasted, crushed, massacrated")));
+    return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FVFXAssetContract, "AutomataWar.Visual.VFX.AssetContract",
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+/** Verify production VFX assets and the hard lifetime bound for looping muzzle systems. */
+bool FVFXAssetContract::RunTest(const FString &Parameters)
+{
+    UNiagaraSystem *Muzzle = LoadObject<UNiagaraSystem>(nullptr, AWVisualAssets::NS_MuzzleFlash);
+    UNiagaraSystem *Impact = LoadObject<UNiagaraSystem>(nullptr, AWVisualAssets::NS_Impact);
+    UMaterial *ShieldMaterial = LoadObject<UMaterial>(nullptr, AWVisualAssets::M_ShieldEnergy);
+    TestNotNull(TEXT("Muzzle system exists"), Muzzle);
+    TestNotNull(TEXT("Impact system exists"), Impact);
+    TestNotNull(TEXT("Shield energy material exists"), ShieldMaterial);
+    if (!Muzzle || !Impact || !ShieldMaterial)
+        return false;
+
+    AddInfo(FString::Printf(TEXT("Muzzle source IsLooping=%s; runtime lifespan cap=%.2fs"),
+                            Muzzle->IsLooping() ? TEXT("true") : TEXT("false"),
+                            AWVisualConfig::MuzzleFlashLifespan));
+    TestTrue(TEXT("A looping muzzle source is forcibly bounded to one short flash"),
+             !Muzzle->IsLooping() || AWVisualConfig::MuzzleFlashLifespan <= 0.2f);
+    TestFalse(TEXT("Impact explosion and smoke system is finite"), Impact->IsLooping());
+    TestTrue(TEXT("Impact smoke remains visible after projectile arrival"),
+             AWVisualConfig::ImpactVFXLifespan >= 1.f);
+
+    UMetaData *MetaData = Impact->GetOutermost()->GetMetaData();
+    TestEqual(TEXT("Impact uses the SimpleExplosion source"),
+              FString(MetaData->GetValue(Impact, TEXT("AutomataWar.SourcePackage"))),
+              FString(TEXT("/Niagara/DefaultAssets/Templates/Systems/SimpleExplosion.SimpleExplosion")));
+    TestTrue(TEXT("Shield shell is translucent"), ShieldMaterial->GetBlendMode() == BLEND_Translucent);
+    TestTrue(TEXT("Shield shell is unlit energy"),
+             ShieldMaterial->GetShadingModels().HasShadingModel(MSM_Unlit));
+    TestTrue(TEXT("Shield shell renders from inside and outside"), ShieldMaterial->IsTwoSided());
     return true;
 }
 
