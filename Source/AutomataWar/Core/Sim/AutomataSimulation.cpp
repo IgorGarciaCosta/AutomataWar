@@ -529,7 +529,7 @@ namespace Automata
         const bool bRobot0OutOfActionPoints = robots_[0].actionPoints < MinimumActionPointCost;
         const bool bRobot1OutOfActionPoints = robots_[1].actionPoints < MinimumActionPointCost;
         Result.bMatchEnded = bRobot0OutOfHealth || bRobot1OutOfHealth ||
-                     bRobot0OutOfActionPoints || bRobot1OutOfActionPoints;
+                             bRobot0OutOfActionPoints || bRobot1OutOfActionPoints;
         for (int32_t RobotIndex = 0; RobotIndex < 2; ++RobotIndex)
         {
             Result.finalEffects[RobotIndex] = robots_[RobotIndex].effects;

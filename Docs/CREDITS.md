@@ -51,22 +51,22 @@ All models below are released under [Creative Commons CC0 1.0](https://creativec
 
 The following free authored Niagara packages retain their original folders. The project uses exact canonical copies without replacing renderers or materials.
 
-| Project content                       | Package and author            | Source                                                                           | License                                                                          | Project use                             |
-| ------------------------------------- | ----------------------------- | -------------------------------------------------------------------------------- | -------------------------------------------------------------------------------- | --------------------------------------- |
+| Project content        | Package and author         | Source                                                                           | License                                          | Project use                             |
+| ---------------------- | -------------------------- | -------------------------------------------------------------------------------- | ------------------------------------------------ | --------------------------------------- |
 | `Content/MuzzleFlash/` | Muzzle Flash by Kopo Study | [Fab listing](https://www.fab.com/listings/435b3bcb-d7f5-467d-99aa-2edc97a6c5fd) | [Fab Standard License](https://www.fab.com/eula) | `Content/Art/VFX/NS_MuzzleFlash.uasset` |
 
 ## Unreal Engine Content
 
 The following assets are Epic-provided Unreal Engine 5.5 Licensed Technology used under the [Unreal Engine EULA](https://www.unrealengine.com/eula/unreal).
 
-| Project use                                                 | Epic source                                                                              | Derived project assets                                                   |
-| ----------------------------------------------------------- | ---------------------------------------------------------------------------------------- | ------------------------------------------------------------------------ |
-| Arena foundation, rails, walls, barrels, cover, and effects | `/Engine/BasicShapes/Cube`, `/Engine/BasicShapes/Cylinder`, `/Engine/BasicShapes/Sphere` | Level references and runtime components; engine meshes are not copied.   |
-| Editor-authored sky                                         | `/Engine/EngineSky/BP_Sky_Sphere`, `/Engine/EngineSky/SM_SkySphere`                      | Level reference only; engine assets are not copied into this repository. |
-| Projectile trail                                            | `/Niagara/DefaultAssets/Templates/Systems/AttributeReaderTrails`                         | `Content/Art/VFX/NS_ProjectileTrail.uasset`                              |
-| Shield pickup burst                                         | `/Niagara/DefaultAssets/Templates/Systems/RadialBurst`                                   | `Content/Art/VFX/NS_Shield.uasset`                                       |
+| Project use                                                 | Epic source                                                                              | Derived project assets                                                      |
+| ----------------------------------------------------------- | ---------------------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
+| Arena foundation, rails, walls, barrels, cover, and effects | `/Engine/BasicShapes/Cube`, `/Engine/BasicShapes/Cylinder`, `/Engine/BasicShapes/Sphere` | Level references and runtime components; engine meshes are not copied.      |
+| Editor-authored sky                                         | `/Engine/EngineSky/BP_Sky_Sphere`, `/Engine/EngineSky/SM_SkySphere`                      | Level reference only; engine assets are not copied into this repository.    |
+| Projectile trail                                            | `/Niagara/DefaultAssets/Templates/Systems/AttributeReaderTrails`                         | `Content/Art/VFX/NS_ProjectileTrail.uasset`                                 |
+| Shield pickup burst                                         | `/Niagara/DefaultAssets/Templates/Systems/RadialBurst`                                   | `Content/Art/VFX/NS_Shield.uasset`                                          |
 | Projectile impact and destruction smoke                     | `/Niagara/DefaultAssets/Templates/Systems/SimpleExplosion`                               | `Content/Art/VFX/NS_Impact.uasset`, `Content/Art/VFX/NS_Destruction.uasset` |
-| Active shield shell                                         | `/Engine/BasicShapes/Sphere`                                                             | Runtime mesh using `Content/Art/Materials/M_ShieldEnergy.uasset`          |
+| Active shield shell                                         | `/Engine/BasicShapes/Sphere`                                                             | Runtime mesh using `Content/Art/Materials/M_ShieldEnergy.uasset`            |
 
 Required Unreal notices:
 

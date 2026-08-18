@@ -556,12 +556,12 @@ FText UAWMatchResultPopupWidget::FormatResultText(int32 WinnerSlot, int32 Viewer
     const bool bDraw = WinnerSlot != 0 && WinnerSlot != 1;
     const bool bViewerWon = WinnerSlot == ViewerSlot;
     const EResultMessageIndex MessageIndex = bDraw
-                                                ? EResultMessageIndex::Draw
-                                            : EndReason == EAWMatchEndReason::ActionPoints
-                                                ? (bViewerWon ? EResultMessageIndex::WinByActionPoints
-                                                              : EResultMessageIndex::LoseByActionPoints)
-                                                : (bViewerWon ? EResultMessageIndex::WinByHealth
-                                                              : EResultMessageIndex::LoseByHealth);
+                                                 ? EResultMessageIndex::Draw
+                                             : EndReason == EAWMatchEndReason::ActionPoints
+                                                 ? (bViewerWon ? EResultMessageIndex::WinByActionPoints
+                                                               : EResultMessageIndex::LoseByActionPoints)
+                                                 : (bViewerWon ? EResultMessageIndex::WinByHealth
+                                                               : EResultMessageIndex::LoseByHealth);
     if (!MessageEnum)
         MessageEnum = LoadObject<UEnum>(nullptr,
                                         TEXT("/Game/UI/Data/E_MatchResultMessage.E_MatchResultMessage"));

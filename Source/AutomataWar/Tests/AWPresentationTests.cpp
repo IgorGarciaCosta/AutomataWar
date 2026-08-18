@@ -68,23 +68,17 @@ bool FMatchResultLabels::RunTest(const FString &Parameters)
         return false;
 
     TestEqual(TEXT("Enum owns exactly five messages"), MessageEnum->NumEnums() - 1, 5);
-    TestEqual(TEXT("Solo HP win"), UAWMatchResultPopupWidget::FormatResultText(
-                                       0, 0, EAWMatchEndReason::Health, false, MessageEnum).ToString(),
+    TestEqual(TEXT("Solo HP win"), UAWMatchResultPopupWidget::FormatResultText(0, 0, EAWMatchEndReason::Health, false, MessageEnum).ToString(),
               FString(TEXT("You crushed your opponent")));
-    TestEqual(TEXT("Solo AP win"), UAWMatchResultPopupWidget::FormatResultText(
-                                       0, 0, EAWMatchEndReason::ActionPoints, false, MessageEnum).ToString(),
+    TestEqual(TEXT("Solo AP win"), UAWMatchResultPopupWidget::FormatResultText(0, 0, EAWMatchEndReason::ActionPoints, false, MessageEnum).ToString(),
               FString(TEXT("That loser get no munny")));
-    TestEqual(TEXT("Solo HP loss"), UAWMatchResultPopupWidget::FormatResultText(
-                                        1, 0, EAWMatchEndReason::Health, false, MessageEnum).ToString(),
+    TestEqual(TEXT("Solo HP loss"), UAWMatchResultPopupWidget::FormatResultText(1, 0, EAWMatchEndReason::Health, false, MessageEnum).ToString(),
               FString(TEXT("Wasted, crushed, massacrated")));
-    TestEqual(TEXT("Solo AP loss"), UAWMatchResultPopupWidget::FormatResultText(
-                                        1, 0, EAWMatchEndReason::ActionPoints, false, MessageEnum).ToString(),
+    TestEqual(TEXT("Solo AP loss"), UAWMatchResultPopupWidget::FormatResultText(1, 0, EAWMatchEndReason::ActionPoints, false, MessageEnum).ToString(),
               FString(TEXT("No more moves for you, bro")));
-    TestEqual(TEXT("Local P1 viewpoint"), UAWMatchResultPopupWidget::FormatResultText(
-                                             0, 0, EAWMatchEndReason::Health, true, MessageEnum).ToString(),
+    TestEqual(TEXT("Local P1 viewpoint"), UAWMatchResultPopupWidget::FormatResultText(0, 0, EAWMatchEndReason::Health, true, MessageEnum).ToString(),
               FString(TEXT("P1: You crushed your opponent")));
-    TestEqual(TEXT("Local P2 viewpoint"), UAWMatchResultPopupWidget::FormatResultText(
-                                             0, 1, EAWMatchEndReason::Health, true, MessageEnum).ToString(),
+    TestEqual(TEXT("Local P2 viewpoint"), UAWMatchResultPopupWidget::FormatResultText(0, 1, EAWMatchEndReason::Health, true, MessageEnum).ToString(),
               FString(TEXT("P2: Wasted, crushed, massacrated")));
     return true;
 }
