@@ -11,6 +11,7 @@
 #include "AWScreenWidget.generated.h"
 
 class UAWSimulationDockWidget;
+class UAWTypewriterTextBlock;
 class UButton;
 class UComboBoxString;
 class UEditableTextBox;
@@ -88,6 +89,9 @@ class AUTOMATAWAR_API UAWMainMenuScreen : public UAWScreenWidget
 public:
     virtual void NativeConstruct() override;
 
+    /** Restarts the main title's delayed typewriter animation. */
+    void PlayTitleAnimation();
+
     FString GetJoinIPAddress() const;
     int32 GetSelectedSessionIndex() const;
     void ResetSessions();
@@ -120,6 +124,9 @@ private:
 
     UPROPERTY(meta = (BindWidget))
     TObjectPtr<UComboBoxString> SessionComboBox;
+
+    UPROPERTY(meta = (BindWidget))
+    TObjectPtr<UAWTypewriterTextBlock> MainTypewriterTitle;
 };
 
 /** Difficulty selection for a new single-player match. */

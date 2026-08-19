@@ -297,6 +297,10 @@ void UAWHUDWidget::ShowScreen(EAWScreen Screen)
     {
         ScreenSwitcher->SetActiveWidgetIndex(static_cast<int32>(Screen));
     }
+    if (Screen == EAWScreen::MainMenu && MainMenuScreenWidget)
+    {
+        MainMenuScreenWidget->PlayTitleAnimation();
+    }
     if (Screen != EAWScreen::ReplayAutopsy)
     {
         if (MatchResultScrim)

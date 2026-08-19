@@ -10,6 +10,7 @@
 #include "AutomataWar/Core/Replay/AWReplayController.h"
 #include "AutomataWar/UI/AWHUDWidget.h"
 #include "AutomataWar/UI/AWScreenWidget.h"
+#include "AutomataWar/UI/AWTypewriterTextBlock.h"
 #include "AutomataWar/Visual/AWVisualTypes.h"
 #include "Materials/Material.h"
 #include "NiagaraSystem.h"
@@ -52,6 +53,22 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FHUDScreenCount, "AutomataWar.UI.HUD.ScreenCoun
 bool FHUDScreenCount::RunTest(const FString &Parameters)
 {
     TestEqual(TEXT("EAWScreen count"), static_cast<int32>(EAWScreen::LanguageReference) + 1, 6);
+    return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FTypewriterFrames, "AutomataWar.UI.Typewriter.Frames",
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+/** Verify title frames reveal characters while preserving the target's line layout. */
+bool FTypewriterFrames::RunTest(const FString &Parameters)
+{
+    const FString Title = TEXT("AB\nC");
+    TestEqual(TEXT("Initial frame"), UAWTypewriterTextBlock::FormatFrame(Title, 0, TEXT("|")),
+              FString(TEXT("|  \n ")));
+    TestEqual(TEXT("Mid-animation frame"), UAWTypewriterTextBlock::FormatFrame(Title, 2, TEXT("|")),
+              FString(TEXT("AB|\n ")));
+    TestEqual(TEXT("Completed frame"), UAWTypewriterTextBlock::FormatFrame(Title, Title.Len(), TEXT("|")),
+              FString(TEXT("AB\nC|")));
     return true;
 }
 

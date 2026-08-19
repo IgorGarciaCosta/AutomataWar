@@ -1,4 +1,5 @@
 #include "AWScreenWidget.h"
+#include "AWTypewriterTextBlock.h"
 #include "AutomataWar/Core/AutomataRules.h"
 #include "Components/Button.h"
 #include "Components/ComboBoxString.h"
@@ -43,6 +44,12 @@ void UAWMainMenuScreen::NativeConstruct()
 }
 
 void UAWMainMenuScreen::OnSinglePlayer() { BroadcastAction(EAWUIAction::SinglePlayer); }
+
+void UAWMainMenuScreen::PlayTitleAnimation()
+{
+    if (MainTypewriterTitle)
+        MainTypewriterTitle->PlayTypewriter();
+}
 
 FString UAWMainMenuScreen::GetJoinIPAddress() const
 {
