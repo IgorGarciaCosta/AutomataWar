@@ -111,33 +111,3 @@ void AAWItem::PlayPickupEffects() const
         UNiagaraFunctionLibrary::SpawnSystemAtLocation(GetWorld(), Effect, GetActorLocation(), FRotator::ZeroRotator,
                                                        FVector(0.7f), true, true);
 }
-
-AAWExtraAmmoItem::AAWExtraAmmoItem()
-{
-    ItemColor = FLinearColor(1.f, 0.24f, 0.06f);
-    PickupEffectPath = AWVisualAssets::NS_Shield;
-    PickupSoundPitch = 0.9f;
-    ItemMesh->SetStaticMesh(LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Cube.Cube")));
-    ItemMesh->SetRelativeRotation(FRotator(0.f, 45.f, 0.f));
-    ItemMesh->SetRelativeScale3D(FVector(0.22f, 0.22f, 0.22f));
-}
-
-AAWShieldItem::AAWShieldItem()
-{
-    ItemColor = FLinearColor(0.08f, 0.8f, 1.f);
-    PickupEffectPath = AWVisualAssets::NS_Shield;
-    PickupSoundPitch = 1.1f;
-    ItemMesh->SetStaticMesh(LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Sphere.Sphere")));
-    ItemMesh->SetRelativeRotation(FRotator::ZeroRotator);
-    ItemMesh->SetRelativeScale3D(FVector(0.26f));
-}
-
-AAWAcceleratorItem::AAWAcceleratorItem()
-{
-    ItemColor = FLinearColor(1.f, 0.65f, 0.08f);
-    PickupEffectPath = AWVisualAssets::NS_ProjectileTrail;
-    PickupSoundPitch = 1.3f;
-    ItemMesh->SetStaticMesh(LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Cone.Cone")));
-    ItemMesh->SetRelativeRotation(FRotator(90.f, 0.f, 0.f));
-    ItemMesh->SetRelativeScale3D(FVector(0.28f));
-}

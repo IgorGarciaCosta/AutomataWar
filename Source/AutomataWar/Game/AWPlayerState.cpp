@@ -5,5 +5,4 @@ void AAWPlayerState::GetLifetimeReplicatedProps(TArray<FLifetimeProperty> &OutLi
 {
     Super::GetLifetimeReplicatedProps(OutLifetimeProps);
     DOREPLIFETIME(AAWPlayerState, CommandSlot);
-    DOREPLIFETIME(AAWPlayerState, bSubmitted);
 }

@@ -28,20 +28,36 @@ public:
     /** Create the local HUD and select the placed presentation camera after world startup. */
     virtual void BeginPlay() override;
 
-    /** Submit commands through the authoritative server RPC path. */
+    /** Submit one local slot or the owning network player's commands through the authoritative path. */
     UFUNCTION(BlueprintCallable, Category = "AutomataWar")
-    void SubmitCommands(const TArray<EAWCommand> &Commands);
+    void SubmitCommands(int32 LocalSlot, const TArray<EAWCommand> &Commands);
 
-    DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnSubmissionResult, const FAWValidationResult &, Result);
+    /** Withdraw one local slot or the owning network player's submitted commands. */
+    UFUNCTION(BlueprintCallable, Category = "AutomataWar")
+    void WithdrawCommands(int32 LocalSlot);
+
+    DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnCommandRequestResult, int32, Slot, const FAWValidationResult &, Result);
     UPROPERTY(BlueprintAssignable, Category = "AutomataWar")
-    FOnSubmissionResult OnSubmissionResult;
+    FOnCommandRequestResult OnSubmissionResult;
+
+    UPROPERTY(BlueprintAssignable, Category = "AutomataWar")
+    FOnCommandRequestResult OnWithdrawalResult;
 
 protected:
     UFUNCTION(Server, Reliable)
     void Server_SubmitCommands(const TArray<EAWCommand> &Commands);
 
+    UFUNCTION(Server, Reliable)
+    void Server_WithdrawCommands();
+
     UFUNCTION(Client, Reliable)
-    void Client_SubmissionResult(bool bSuccess, const FString &ErrorMessage);
+    void Client_SubmissionResult(int32 Slot, bool bSuccess, const FString &ErrorMessage);
+
+    UFUNCTION(Client, Reliable)
+    void Client_WithdrawalResult(int32 Slot, bool bSuccess, const FString &ErrorMessage);
+
+    /** Resolve an explicit hot-seat slot or the replicated slot owned by this network player. */
+    int32 ResolveCommandSlot(int32 LocalSlot) const;
 
     /** HUD Blueprint created for the local player. */
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "AutomataWar|UI")

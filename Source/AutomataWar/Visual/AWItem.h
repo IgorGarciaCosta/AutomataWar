@@ -21,7 +21,7 @@ class UStaticMeshComponent;
  * animates collection, and supplies common mesh/light/VFX behavior without
  * participating in collision or authoritative gameplay.
  */
-UCLASS(Abstract, Blueprintable)
+UCLASS(Blueprintable)
 class AUTOMATAWAR_API AAWItem : public AActor
 {
     GENERATED_BODY()
@@ -91,37 +91,4 @@ private:
     float CollectionAlpha = 0.f;
     bool bCollected = false;
     bool bAnimatingCollection = false;
-};
-
-/** Orange ammunition pickup that grants two rounds of bonus shot damage. */
-UCLASS(Blueprintable)
-class AUTOMATAWAR_API AAWExtraAmmoItem : public AAWItem
-{
-    GENERATED_BODY()
-
-public:
-    /** Configure the ammunition pickup's warm color and compact crate silhouette. */
-    AAWExtraAmmoItem();
-};
-
-/** Cyan shield pickup that grants two rounds of incoming damage reduction. */
-UCLASS(Blueprintable)
-class AUTOMATAWAR_API AAWShieldItem : public AAWItem
-{
-    GENERATED_BODY()
-
-public:
-    /** Configure the shield pickup's cool color, sphere silhouette, and shield VFX. */
-    AAWShieldItem();
-};
-
-/** Amber accelerator pickup that doubles movement distance for two rounds. */
-UCLASS(Blueprintable)
-class AUTOMATAWAR_API AAWAcceleratorItem : public AAWItem
-{
-    GENERATED_BODY()
-
-public:
-    /** Configure the accelerator pickup's amber color and directional cone silhouette. */
-    AAWAcceleratorItem();
 };

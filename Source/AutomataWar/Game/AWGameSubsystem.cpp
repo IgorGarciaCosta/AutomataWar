@@ -48,48 +48,6 @@ void UAWGameSubsystem::StartSinglePlayerMatch(EAWAIDifficulty Difficulty)
     OnError.Broadcast(TEXT("Single-player match requires the Automata War arena."));
 }
 
-FAWValidationResult UAWGameSubsystem::SubmitLocalCommands(int32 Slot, const TArray<EAWCommand> &Commands)
-{
-    UWorld *World = GetGameInstance()->GetWorld();
-    if (!World)
-    {
-        FAWValidationResult R;
-        R.ErrorMessage = TEXT("No active world.");
-        return R;
-    }
-
-    AAWGameMode *GM = World->GetAuthGameMode<AAWGameMode>();
-    if (!GM)
-    {
-        FAWValidationResult R;
-        R.ErrorMessage = TEXT("No GameMode (not server).");
-        return R;
-    }
-
-    return GM->HandleSubmission(Slot, Commands);
-}
-
-FAWValidationResult UAWGameSubsystem::WithdrawLocalCommands(int32 Slot)
-{
-    UWorld *World = GetGameInstance()->GetWorld();
-    if (!World)
-    {
-        FAWValidationResult R;
-        R.ErrorMessage = TEXT("No active world.");
-        return R;
-    }
-
-    AAWGameMode *GM = World->GetAuthGameMode<AAWGameMode>();
-    if (!GM)
-    {
-        FAWValidationResult R;
-        R.ErrorMessage = TEXT("No GameMode (not server).");
-        return R;
-    }
-
-    return GM->WithdrawSubmission(Slot);
-}
-
 void UAWGameSubsystem::NextRound()
 {
     UWorld *World = GetGameInstance()->GetWorld();
@@ -381,38 +339,3 @@ bool UAWGameSubsystem::ImportReplayBase64(const FString &Base64Data, const FStri
     return FAWReplayService::ImportBase64(Base64Data, Filename, OutError);
 }
 
-// ─── Status ──────────────────────────────────────────────────────────────────
-
-EAWMatchPhase UAWGameSubsystem::GetCurrentPhase() const
-{
-    UWorld *World = GetGameInstance()->GetWorld();
-    if (!World)
-        return EAWMatchPhase::Programming;
-
-    AAWGameState *GS = World->GetGameState<AAWGameState>();
-    return GS ? GS->Phase : EAWMatchPhase::Programming;
-}
-
-FAWMatchOutcome UAWGameSubsystem::GetOutcome() const
-{
-    UWorld *World = GetGameInstance()->GetWorld();
-    if (!World)
-        return FAWMatchOutcome();
-
-    AAWGameState *GS = World->GetGameState<AAWGameState>();
-    return GS ? GS->Outcome : FAWMatchOutcome();
-}
-
-void UAWGameSubsystem::GetRevealedCommands(TArray<EAWCommand> &OutCommands0, TArray<EAWCommand> &OutCommands1) const
-{
-    UWorld *World = GetGameInstance()->GetWorld();
-    if (!World)
-        return;
-
-    AAWGameState *GS = World->GetGameState<AAWGameState>();
-    if (GS)
-    {
-        OutCommands0 = GS->RevealedCommands0;
-        OutCommands1 = GS->RevealedCommands1;
-    }
-}

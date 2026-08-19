@@ -2,7 +2,7 @@
 
 /**
  * @file AWPlayerState.h
- * @brief Per-player replicated state: submission status and revealed info.
+ * @brief Per-player replicated command-slot assignment.
  */
 
 #include "CoreMinimal.h"
@@ -11,7 +11,7 @@
 #include "AWPlayerState.generated.h"
 
 /**
- * @brief Tracks per-player submission readiness.
+ * @brief Tracks which command slot is owned by a network player.
  *
  * Command queues are revealed through GameState only after simulation.
  */
@@ -21,18 +21,11 @@ class AUTOMATAWAR_API AAWPlayerState : public APlayerState
     GENERATED_BODY()
 
 public:
-    /** Register slot and submission state for replication. */
+    /** Register the authoritative command-slot assignment for replication. */
     virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty> &OutLifetimeProps) const override;
 
     /** Which command slot this player controls (0 or 1). */
     UPROPERTY(Replicated, BlueprintReadOnly, Category = "Match")
     int32 CommandSlot = -1;
 
-    /** Whether this player has submitted/locked their commands this round. */
-    UPROPERTY(Replicated, BlueprintReadOnly, Category = "Match")
-    bool bSubmitted = false;
-
-    /** Last validation error message (client-only, not replicated). */
-    UPROPERTY(BlueprintReadOnly, Category = "Match")
-    FString LastError;
 };

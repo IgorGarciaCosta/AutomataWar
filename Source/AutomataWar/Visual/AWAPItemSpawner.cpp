@@ -1,5 +1,4 @@
 #include "AWAPItemSpawner.h"
-#include "AWAPItem.h"
 #include "AWItem.h"
 #include "AWVisualTypes.h"
 #include "Components/SceneComponent.h"
@@ -12,10 +11,10 @@ AAWAPItemSpawner::AAWAPItemSpawner()
 
     SceneRoot = CreateDefaultSubobject<USceneComponent>(TEXT("Root"));
     SetRootComponent(SceneRoot);
-    ItemClass = AAWAPItem::StaticClass();
-    ExtraAmmoItemClass = AAWExtraAmmoItem::StaticClass();
-    ShieldItemClass = AAWShieldItem::StaticClass();
-    AcceleratorItemClass = AAWAcceleratorItem::StaticClass();
+    ItemClass = AAWItem::StaticClass();
+    ExtraAmmoItemClass = AAWItem::StaticClass();
+    ShieldItemClass = AAWItem::StaticClass();
+    AcceleratorItemClass = AAWItem::StaticClass();
 
     static ConstructorHelpers::FClassFinder<AAWItem> ActionPointBlueprint(TEXT("/Game/Blueprints/Items/BP_ActionPointItem"));
     static ConstructorHelpers::FClassFinder<AAWItem> ExtraAmmoBlueprint(TEXT("/Game/Blueprints/Items/BP_ExtraAmmoItem"));

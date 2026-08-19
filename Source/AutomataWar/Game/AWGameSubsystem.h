@@ -42,14 +42,6 @@ public:
     UFUNCTION(BlueprintCallable, Category = "AutomataWar|Local")
     void StartSinglePlayerMatch(EAWAIDifficulty Difficulty);
 
-    /** Submit commands for a specific local slot (0 or 1). */
-    UFUNCTION(BlueprintCallable, Category = "AutomataWar|Local")
-    FAWValidationResult SubmitLocalCommands(int32 Slot, const TArray<EAWCommand> &Commands);
-
-    /** Withdraw a submitted local command slot and return it to planning. */
-    UFUNCTION(BlueprintCallable, Category = "AutomataWar|Local")
-    FAWValidationResult WithdrawLocalCommands(int32 Slot);
-
     /** Advance to next round (local or host). */
     UFUNCTION(BlueprintCallable, Category = "AutomataWar|Match")
     void NextRound();
@@ -118,20 +110,6 @@ public:
     /** Import replay from base64. */
     UFUNCTION(BlueprintCallable, Category = "AutomataWar|Replay")
     bool ImportReplayBase64(const FString &Base64Data, const FString &Filename, FString &OutError);
-
-    // ─── Status / Delegates ──────────────────────────────────────────────────
-
-    /** Get the current match phase. */
-    UFUNCTION(BlueprintCallable, Category = "AutomataWar|Status")
-    EAWMatchPhase GetCurrentPhase() const;
-
-    /** Get the current match outcome (valid in ReplayAutopsy). */
-    UFUNCTION(BlueprintCallable, Category = "AutomataWar|Status")
-    FAWMatchOutcome GetOutcome() const;
-
-    /** Get revealed commands (valid in ReplayAutopsy). */
-    UFUNCTION(BlueprintCallable, Category = "AutomataWar|Status")
-    void GetRevealedCommands(TArray<EAWCommand> &OutCommands0, TArray<EAWCommand> &OutCommands1) const;
 
     /** Delegate broadcast on any error from this subsystem. */
     DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnError, const FString &, Message);

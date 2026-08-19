@@ -20,12 +20,7 @@ public class AutomataWar : ModuleRules
             "Niagara",
             "ProceduralMeshComponent",
             "OnlineSubsystem",
-            "OnlineSubsystemUtils",
-            "Networking",
-            "Sockets",
-            "Json",
-            "JsonUtilities",
-            "RenderCore"
+            "OnlineSubsystemUtils"
         });
     }
 }

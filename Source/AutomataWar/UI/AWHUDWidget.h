@@ -88,6 +88,10 @@ private:
     UFUNCTION()
     void OnErrorReceived(const FString &Message);
     UFUNCTION()
+    void OnSubmissionResult(int32 SlotIndex, const FAWValidationResult &Result);
+    UFUNCTION()
+    void OnWithdrawalResult(int32 SlotIndex, const FAWValidationResult &Result);
+    UFUNCTION()
     void OnSessionsRefreshed();
 
     /** Open single-player difficulty selection without changing match state. */

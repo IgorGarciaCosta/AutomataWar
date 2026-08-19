@@ -63,6 +63,11 @@ void UAWHUDWidget::NativeConstruct()
         Sub->OnNetworkError.AddDynamic(this, &UAWHUDWidget::OnErrorReceived);
         Sub->OnSessionsRefreshed.AddDynamic(this, &UAWHUDWidget::OnSessionsRefreshed);
     }
+    if (AAWPlayerController *PlayerController = Cast<AAWPlayerController>(GetOwningPlayer()))
+    {
+        PlayerController->OnSubmissionResult.AddDynamic(this, &UAWHUDWidget::OnSubmissionResult);
+        PlayerController->OnWithdrawalResult.AddDynamic(this, &UAWHUDWidget::OnWithdrawalResult);
+    }
     ShowScreen(InitialScreen);
 
 #if !UE_BUILD_SHIPPING
@@ -82,8 +87,8 @@ void UAWHUDWidget::NativeConstruct()
         else if (CaptureMode.Equals(TEXT("SinglePlayerReplay"), ESearchCase::IgnoreCase))
         {
             OnStartSinglePlayer(EAWAIDifficulty::Hard);
-            if (UAWGameSubsystem *Sub = GetSubsystem())
-                Sub->SubmitLocalCommands(0, {EAWCommand::Wait});
+            if (AAWPlayerController *PlayerController = Cast<AAWPlayerController>(GetOwningPlayer()))
+                PlayerController->SubmitCommands(0, {EAWCommand::Wait});
         }
         else if (CaptureMode.Equals(TEXT("ProgrammingSubmitted"), ESearchCase::IgnoreCase) ||
                  CaptureMode.Equals(TEXT("ProgrammingReturned"), ESearchCase::IgnoreCase))
@@ -115,10 +120,10 @@ void UAWHUDWidget::NativeConstruct()
         else if (CaptureMode.Equals(TEXT("Replay"), ESearchCase::IgnoreCase))
         {
             OnLocalMatch();
-            if (UAWGameSubsystem *Sub = GetSubsystem())
+            if (AAWPlayerController *PlayerController = Cast<AAWPlayerController>(GetOwningPlayer()))
             {
-                Sub->SubmitLocalCommands(0, {EAWCommand::Fire, EAWCommand::Move, EAWCommand::Fire});
-                Sub->SubmitLocalCommands(1, {EAWCommand::TurnRight, EAWCommand::Move, EAWCommand::Fire});
+                PlayerController->SubmitCommands(0, {EAWCommand::Fire, EAWCommand::Move, EAWCommand::Fire});
+                PlayerController->SubmitCommands(1, {EAWCommand::TurnRight, EAWCommand::Move, EAWCommand::Fire});
             }
         }
         else if (CaptureMode.Equals(TEXT("MatchResult"), ESearchCase::IgnoreCase) ||
@@ -151,19 +156,19 @@ void UAWHUDWidget::NativeConstruct()
                  CaptureMode.Equals(TEXT("ImpactVFX"), ESearchCase::IgnoreCase))
         {
             OnLocalMatch();
-            if (UAWGameSubsystem *Sub = GetSubsystem())
+            if (AAWPlayerController *PlayerController = Cast<AAWPlayerController>(GetOwningPlayer()))
             {
-                Sub->SubmitLocalCommands(0, {EAWCommand::Fire});
-                Sub->SubmitLocalCommands(1, {EAWCommand::Fire});
+                PlayerController->SubmitCommands(0, {EAWCommand::Fire});
+                PlayerController->SubmitCommands(1, {EAWCommand::Fire});
             }
         }
         else if (CaptureMode.Equals(TEXT("ShieldVFX"), ESearchCase::IgnoreCase))
         {
             OnLocalMatch();
-            if (UAWGameSubsystem *Sub = GetSubsystem())
+            if (AAWPlayerController *PlayerController = Cast<AAWPlayerController>(GetOwningPlayer()))
             {
-                Sub->SubmitLocalCommands(0, {EAWCommand::ChargeShield});
-                Sub->SubmitLocalCommands(1, {EAWCommand::Wait});
+                PlayerController->SubmitCommands(0, {EAWCommand::ChargeShield});
+                PlayerController->SubmitCommands(1, {EAWCommand::Wait});
             }
         }
 
@@ -215,6 +220,11 @@ void UAWHUDWidget::NativeDestruct()
         Sub->OnError.RemoveDynamic(this, &UAWHUDWidget::OnErrorReceived);
         Sub->OnNetworkError.RemoveDynamic(this, &UAWHUDWidget::OnErrorReceived);
         Sub->OnSessionsRefreshed.RemoveDynamic(this, &UAWHUDWidget::OnSessionsRefreshed);
+    }
+    if (AAWPlayerController *PlayerController = Cast<AAWPlayerController>(GetOwningPlayer()))
+    {
+        PlayerController->OnSubmissionResult.RemoveDynamic(this, &UAWHUDWidget::OnSubmissionResult);
+        PlayerController->OnWithdrawalResult.RemoveDynamic(this, &UAWHUDWidget::OnWithdrawalResult);
     }
     Super::NativeDestruct();
 }
@@ -458,6 +468,24 @@ void UAWHUDWidget::OnErrorReceived(const FString &Message)
     SetStatus(Message, true);
 }
 
+void UAWHUDWidget::OnSubmissionResult(int32 SlotIndex, const FAWValidationResult &Result)
+{
+    if (ProgrammingScreenWidget)
+        ProgrammingScreenWidget->ResolveSubmission(SlotIndex, Result.bSuccess);
+    SetStatus(Result.bSuccess
+                  ? FString::Printf(TEXT("Slot %d submitted."), SlotIndex)
+                  : FString::Printf(TEXT("Slot %d: %s"), SlotIndex, *Result.ErrorMessage),
+              !Result.bSuccess);
+}
+
+void UAWHUDWidget::OnWithdrawalResult(int32 SlotIndex, const FAWValidationResult &Result)
+{
+    SetStatus(Result.bSuccess
+                  ? FString::Printf(TEXT("Slot %d returned to planning."), SlotIndex)
+                  : FString::Printf(TEXT("Slot %d: %s"), SlotIndex, *Result.ErrorMessage),
+              !Result.bSuccess);
+}
+
 void UAWHUDWidget::OnSessionsRefreshed()
 {
     RefreshSessionList();
@@ -614,35 +642,29 @@ void UAWHUDWidget::OnQuit()
 
 void UAWHUDWidget::OnSubmitSlot(int32 SlotIndex)
 {
-    FAWValidationResult Result;
-    if (UAWGameSubsystem *Sub = GetSubsystem())
+    if (AAWPlayerController *PlayerController = Cast<AAWPlayerController>(GetOwningPlayer()))
     {
         const TArray<EAWCommand> Commands = ProgrammingScreenWidget ? ProgrammingScreenWidget->GetCommands(SlotIndex) : TArray<EAWCommand>();
-        Result = Sub->SubmitLocalCommands(SlotIndex, Commands);
-    }
-    else
-    {
-        Result.ErrorMessage = TEXT("Game subsystem unavailable.");
+        PlayerController->SubmitCommands(SlotIndex, Commands);
+        return;
     }
 
-    if (ProgrammingScreenWidget)
-        ProgrammingScreenWidget->ResolveSubmission(SlotIndex, Result.bSuccess);
-    if (!Result.bSuccess)
-        SetStatus(FString::Printf(TEXT("Slot %d: %s"), SlotIndex, *Result.ErrorMessage), true);
-    else
-        SetStatus(FString::Printf(TEXT("Slot %d submitted."), SlotIndex));
+    FAWValidationResult Result;
+    Result.ErrorMessage = TEXT("Player controller unavailable.");
+    OnSubmissionResult(SlotIndex, Result);
 }
 
 void UAWHUDWidget::OnReturnToPlanningSlot(int32 SlotIndex)
 {
-    if (UAWGameSubsystem *Sub = GetSubsystem())
+    if (AAWPlayerController *PlayerController = Cast<AAWPlayerController>(GetOwningPlayer()))
     {
-        const FAWValidationResult Result = Sub->WithdrawLocalCommands(SlotIndex);
-        if (!Result.bSuccess)
-            SetStatus(FString::Printf(TEXT("Slot %d: %s"), SlotIndex, *Result.ErrorMessage), true);
-        else
-            SetStatus(FString::Printf(TEXT("Slot %d returned to planning."), SlotIndex));
+        PlayerController->WithdrawCommands(SlotIndex);
+        return;
     }
+
+    FAWValidationResult Result;
+    Result.ErrorMessage = TEXT("Player controller unavailable.");
+    OnWithdrawalResult(SlotIndex, Result);
 }
 
 void UAWHUDWidget::OnSubmitP1() { OnSubmitSlot(0); }
