@@ -149,6 +149,8 @@ private:
     void InitializeReplayFromGameState();
     /** Render the authoritative round-start arena while players assemble commands. */
     void InitializePlanningArenaFromGameState();
+    /** Reveal a pending terminal result after the visual replay has completed. */
+    void ShowPendingMatchResult();
     bool InitializeReplay(const TArray<EAWCommand> &CommandsA, const TArray<EAWCommand> &CommandsB, int64 Seed,
                           int32 ActionPointsA = Automata::InitialActionPoints,
                           int32 ActionPointsB = Automata::InitialActionPoints,
@@ -220,6 +222,7 @@ private:
     bool bReplayPlaying = false;
     double ReplayAccumulator = 0.0;
     int32 LastProcessedReplayEventStep = INDEX_NONE;
+    bool bMatchResultPending = false;
     bool bSinglePlayer = false;
     EAWAIDifficulty PendingDifficulty = static_cast<EAWAIDifficulty>(1);
 };

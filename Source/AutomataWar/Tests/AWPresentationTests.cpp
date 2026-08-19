@@ -76,6 +76,29 @@ bool FNextRoundAvailability::RunTest(const FString &Parameters)
     return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMatchResultTiming, "AutomataWar.UI.MatchResult.AfterReplay",
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+/** Verify terminal results stay hidden until the completed round replay has finished. */
+bool FMatchResultTiming::RunTest(const FString &Parameters)
+{
+    FAWMatchOutcome Outcome;
+    Outcome.bMatchEnded = true;
+
+    TestFalse(TEXT("Programming cannot reveal a result"),
+              CanRevealMatchResult(EAWMatchPhase::Programming, Outcome, true));
+    TestFalse(TEXT("Simulation cannot reveal a result"),
+              CanRevealMatchResult(EAWMatchPhase::Simulation, Outcome, true));
+    TestFalse(TEXT("Replay must finish before revealing a result"),
+              CanRevealMatchResult(EAWMatchPhase::ReplayAutopsy, Outcome, false));
+    TestTrue(TEXT("Completed terminal replay reveals its result"),
+             CanRevealMatchResult(EAWMatchPhase::ReplayAutopsy, Outcome, true));
+    Outcome.bMatchEnded = false;
+    TestFalse(TEXT("Non-terminal replay has no result popup"),
+              CanRevealMatchResult(EAWMatchPhase::ReplayAutopsy, Outcome, true));
+    return true;
+}
+
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMatchResultLabels, "AutomataWar.UI.MatchResult.Labels",
                                  EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 

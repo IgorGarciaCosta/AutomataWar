@@ -229,6 +229,12 @@ inline bool CanAdvanceToNextRound(EAWMatchPhase Phase, const FAWMatchOutcome &Ou
            !Commands0.IsEmpty() && !Commands1.IsEmpty();
 }
 
+/** Return whether a terminal result may be revealed after the visual replay completes. */
+inline bool CanRevealMatchResult(EAWMatchPhase Phase, const FAWMatchOutcome &Outcome, bool bReplayCompleted)
+{
+    return Phase == EAWMatchPhase::ReplayAutopsy && Outcome.bMatchEnded && bReplayCompleted;
+}
+
 /** Info about a saved replay file. */
 USTRUCT(BlueprintType)
 struct FAWReplayInfo

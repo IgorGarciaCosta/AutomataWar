@@ -245,6 +245,7 @@ void UAWHUDWidget::NativeTick(const FGeometry &MyGeometry, float InDeltaTime)
 
     if (bReplayPlaying && CurrentScreen == EAWScreen::ReplayAutopsy && ReplayController.IsValid() && ReplayController->IsValid())
     {
+        bool bReplayCompleted = false;
         ReplayAccumulator += InDeltaTime * ReplaySpeed;
         const double StepInterval = 1.0 / 10.0;
         while (ReplayAccumulator >= StepInterval)
@@ -253,11 +254,14 @@ void UAWHUDWidget::NativeTick(const FGeometry &MyGeometry, float InDeltaTime)
             if (!ReplayController->StepForward())
             {
                 bReplayPlaying = false;
+                bReplayCompleted = true;
                 break;
             }
         }
         UpdateReplayUI();
         UpdateArenaFromReplay();
+        if (bReplayCompleted)
+            ShowPendingMatchResult();
     }
 }
 
@@ -425,6 +429,7 @@ void UAWHUDWidget::OnPhaseChanged(EAWMatchPhase NewPhase)
     {
     case EAWMatchPhase::Programming:
         bReplayPlaying = false;
+        bMatchResultPending = false;
         if (ReplayAutopsyScreenWidget)
         {
             if (AAWGameState *GS = GetWorld()->GetGameState<AAWGameState>())
@@ -459,36 +464,43 @@ void UAWHUDWidget::OnPhaseChanged(EAWMatchPhase NewPhase)
         InitializeReplayFromGameState();
         if (AAWGameState *GS = GetWorld()->GetGameState<AAWGameState>(); GS && ReplayAutopsyScreenWidget)
         {
+            bMatchResultPending = GS->Outcome.bMatchEnded;
             const bool bCanAdvanceRound = CanAdvanceToNextRound(
                 GS->Phase, GS->Outcome, GS->RevealedCommands0, GS->RevealedCommands1);
             ReplayAutopsyScreenWidget->SetProgrammingMode(false, bCanAdvanceRound);
         }
         ShowScreen(EAWScreen::ReplayAutopsy);
-        if (AAWGameState *GS = GetWorld()->GetGameState<AAWGameState>();
-            GS && GS->Outcome.bMatchEnded && MatchResultPopupWidget)
-        {
-            int32 ViewerSlot = 0;
-            if (APlayerController *PlayerController = GetWorld()->GetFirstPlayerController())
-                if (AAWPlayerState *PlayerState = PlayerController->GetPlayerState<AAWPlayerState>())
-                    ViewerSlot = PlayerState->CommandSlot;
-            const bool bLocalMultiplayer = GetWorld()->GetNetMode() == NM_Standalone && !bSinglePlayer;
-            if (MatchResultScrim)
-                MatchResultScrim->SetVisibility(ESlateVisibility::Visible);
-            MatchResultPopupWidget->ShowResult(
-                GS->Outcome.WinnerSlot, bLocalMultiplayer ? 0 : ViewerSlot,
-                GS->Outcome.EndReason, bLocalMultiplayer);
-            if (MatchResultPopupWidgetPlayerTwo)
-            {
-                if (bLocalMultiplayer)
-                    MatchResultPopupWidgetPlayerTwo->ShowResult(
-                        GS->Outcome.WinnerSlot, 1, GS->Outcome.EndReason, true);
-                else
-                    MatchResultPopupWidgetPlayerTwo->SetVisibility(ESlateVisibility::Collapsed);
-            }
-        }
         break;
     default:
         break;
+    }
+}
+
+void UAWHUDWidget::ShowPendingMatchResult()
+{
+    AAWGameState *GS = GetWorld() ? GetWorld()->GetGameState<AAWGameState>() : nullptr;
+    if (!bMatchResultPending || !GS || !MatchResultPopupWidget ||
+        !CanRevealMatchResult(GS->Phase, GS->Outcome, true))
+        return;
+
+    bMatchResultPending = false;
+    int32 ViewerSlot = 0;
+    if (APlayerController *PlayerController = GetWorld()->GetFirstPlayerController())
+        if (AAWPlayerState *PlayerState = PlayerController->GetPlayerState<AAWPlayerState>())
+            ViewerSlot = PlayerState->CommandSlot;
+    const bool bLocalMultiplayer = GetWorld()->GetNetMode() == NM_Standalone && !bSinglePlayer;
+    if (MatchResultScrim)
+        MatchResultScrim->SetVisibility(ESlateVisibility::Visible);
+    MatchResultPopupWidget->ShowResult(
+        GS->Outcome.WinnerSlot, bLocalMultiplayer ? 0 : ViewerSlot,
+        GS->Outcome.EndReason, bLocalMultiplayer);
+    if (MatchResultPopupWidgetPlayerTwo)
+    {
+        if (bLocalMultiplayer)
+            MatchResultPopupWidgetPlayerTwo->ShowResult(
+                GS->Outcome.WinnerSlot, 1, GS->Outcome.EndReason, true);
+        else
+            MatchResultPopupWidgetPlayerTwo->SetVisibility(ESlateVisibility::Collapsed);
     }
 }
 
@@ -876,9 +888,11 @@ void UAWHUDWidget::OnReplayStep()
 {
     if (ReplayController.IsValid() && ReplayController->IsValid())
     {
-        ReplayController->StepForward();
+        const bool bAdvanced = ReplayController->StepForward();
         UpdateReplayUI();
         UpdateArenaFromReplay();
+        if (!bAdvanced || ReplayController->GetCurrentStep() == ReplayController->GetTotalSteps() - 1)
+            ShowPendingMatchResult();
     }
 }
 
