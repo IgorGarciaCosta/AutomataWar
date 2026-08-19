@@ -9,6 +9,7 @@
 #include "Misc/AutomationTest.h"
 #include "AutomataWar/Core/Replay/AutomataReplay.h"
 #include "AutomataWar/Core/Sim/AutomataSimulation.h"
+#include <algorithm>
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCommandsRunOnce, "AutomataWar.Core.Commands.RunOnce",
                                  EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
@@ -216,6 +217,15 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FActionPointRules, "AutomataWar.Core.ActionPoin
 
 bool FActionPointRules::RunTest(const FString &Parameters)
 {
+    TestEqual(TEXT("Compact arena is half the default dimensions"),
+              GetArenaGridSize(EAWArenaSize::Compact),
+              FIntPoint(Automata::CompactGridWidth, Automata::CompactGridHeight));
+    TestEqual(TEXT("Standard arena retains the default dimensions"),
+              GetArenaGridSize(EAWArenaSize::Standard),
+              FIntPoint(Automata::DefaultGridWidth, Automata::DefaultGridHeight));
+    TestEqual(TEXT("Expanded arena is twice the default dimensions"),
+              GetArenaGridSize(EAWArenaSize::Expanded),
+              FIntPoint(Automata::ExpandedGridWidth, Automata::ExpandedGridHeight));
     TestEqual(TEXT("Move costs 10 AP"), GetActionPointCost(EAWCommand::Move), 10);
     TestEqual(TEXT("Fire costs 20 AP"), GetActionPointCost(EAWCommand::Fire), 20);
     TestEqual(TEXT("Turns cost 5 AP"), GetActionPointCost(EAWCommand::TurnLeft), 5);
@@ -258,6 +268,30 @@ bool FActionPointRules::RunTest(const FString &Parameters)
     TestEqual(TEXT("Standard board spawns accelerators"), AcceleratorCount, Automata::AcceleratorItemCount);
     TestEqual(TEXT("P1 start is never occupied"), Grid[Automata::DefaultGridWidth + 1], Automata::CellType::Empty);
     TestEqual(TEXT("P2 start is never occupied"), Grid[(Automata::DefaultGridHeight - 2) * Automata::DefaultGridWidth + Automata::DefaultGridWidth - 2], Automata::CellType::Empty);
+
+    auto CountArenaContent = [](int32 Width, int32 Height, Automata::CellType Type)
+    {
+        Automata::SimConfig ArenaConfig;
+        ArenaConfig.gridWidth = Width;
+        ArenaConfig.gridHeight = Height;
+        ArenaConfig.seed = 314159;
+        Automata::Simulation ArenaSimulation;
+        ArenaSimulation.RunMatch({EAWCommand::Wait}, {EAWCommand::Wait}, ArenaConfig);
+        return static_cast<int32>(std::count(ArenaSimulation.GetGrid().begin(), ArenaSimulation.GetGrid().end(), Type));
+    };
+    const int32 CompactItems = CountArenaContent(Automata::CompactGridWidth, Automata::CompactGridHeight,
+                                                 Automata::CellType::ActionPointItem);
+    const int32 ExpandedItems = CountArenaContent(Automata::ExpandedGridWidth, Automata::ExpandedGridHeight,
+                                                  Automata::CellType::ActionPointItem);
+    const int32 CompactCover = CountArenaContent(Automata::CompactGridWidth, Automata::CompactGridHeight,
+                                                 Automata::CellType::Cover);
+    const int32 StandardCover = CountArenaContent(Automata::DefaultGridWidth, Automata::DefaultGridHeight,
+                                                  Automata::CellType::Cover);
+    const int32 ExpandedCover = CountArenaContent(Automata::ExpandedGridWidth, Automata::ExpandedGridHeight,
+                                                  Automata::CellType::Cover);
+    TestEqual(TEXT("Compact board scales AP items down"), CompactItems, 3);
+    TestEqual(TEXT("Expanded board scales AP items up"), ExpandedItems, 48);
+    TestTrue(TEXT("Cover count grows with arena size"), CompactCover < StandardCover && StandardCover < ExpandedCover);
     return true;
 }
 

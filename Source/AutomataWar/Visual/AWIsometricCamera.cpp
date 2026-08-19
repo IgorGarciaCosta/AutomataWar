@@ -41,7 +41,6 @@ void AAWIsometricCamera::FrameArena(int32 GridWidth, int32 GridHeight, float Cel
     SetActorLocation(Center + FVector(0.f, 0.f, ArenaSpan * 0.5f));
     SetActorRotation(FRotator(-90.f, 0.f, 0.f));
     EnsureRenderTarget();
-    ArenaCapture->CaptureScene();
 }
 
 void AAWIsometricCamera::EnsureRenderTarget()

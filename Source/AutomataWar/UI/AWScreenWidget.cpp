@@ -95,6 +95,20 @@ void UAWDifficultyScreen::OnNormal() { BroadcastAction(EAWUIAction::DifficultyNo
 void UAWDifficultyScreen::OnHard() { BroadcastAction(EAWUIAction::DifficultyHard); }
 void UAWDifficultyScreen::OnBack() { BroadcastAction(EAWUIAction::BackToMainMenu); }
 
+void UAWArenaSelectionScreen::NativeConstruct()
+{
+    Super::NativeConstruct();
+    BIND_SCREEN_BUTTON("ArenaCompactButton", UAWArenaSelectionScreen, OnCompact);
+    BIND_SCREEN_BUTTON("ArenaStandardButton", UAWArenaSelectionScreen, OnStandard);
+    BIND_SCREEN_BUTTON("ArenaExpandedButton", UAWArenaSelectionScreen, OnExpanded);
+    BIND_SCREEN_BUTTON("ArenaBackButton", UAWArenaSelectionScreen, OnBack);
+}
+
+void UAWArenaSelectionScreen::OnCompact() { BroadcastAction(EAWUIAction::ArenaCompact); }
+void UAWArenaSelectionScreen::OnStandard() { BroadcastAction(EAWUIAction::ArenaStandard); }
+void UAWArenaSelectionScreen::OnExpanded() { BroadcastAction(EAWUIAction::ArenaExpanded); }
+void UAWArenaSelectionScreen::OnBack() { BroadcastAction(EAWUIAction::BackToDifficulty); }
+
 void UAWProgrammingPanelWidget::NativeConstruct()
 {
     Super::NativeConstruct();
@@ -467,6 +481,74 @@ void UAWReplayAutopsyScreen::NativeConstruct()
     BIND_SCREEN_BUTTON("ReplayQuadButton", UAWReplayAutopsyScreen, OnSpeedQuadruple);
     BIND_SCREEN_BUTTON("ReplayBackToMenuButton", UAWReplayAutopsyScreen, OnBackToMenu);
     BIND_SCREEN_BUTTON("NextRoundButton", UAWReplayAutopsyScreen, OnNextRound);
+    for (UAWProgrammingPanelWidget *Panel : {ProgrammingP1PanelWidget.Get(), ProgrammingP2PanelWidget.Get()})
+    {
+        if (!Panel)
+            continue;
+        Panel->OnSubmitted.RemoveAll(this);
+        Panel->OnSubmitted.AddUObject(this, &UAWReplayAutopsyScreen::OnPanelSubmitted);
+        Panel->OnPlanningReturned.RemoveAll(this);
+        Panel->OnPlanningReturned.AddUObject(this, &UAWReplayAutopsyScreen::OnPanelReturned);
+    }
+    SetProgrammingMode(false, false);
+}
+
+UAWProgrammingPanelWidget *UAWReplayAutopsyScreen::GetProgrammingPanel(int32 PlayerIndex) const
+{
+    return PlayerIndex == 0 ? ProgrammingP1PanelWidget.Get() : ProgrammingP2PanelWidget.Get();
+}
+
+TArray<EAWCommand> UAWReplayAutopsyScreen::GetProgrammingCommands(int32 PlayerIndex) const
+{
+    if (const UAWProgrammingPanelWidget *Panel = GetProgrammingPanel(FMath::Clamp(PlayerIndex, 0, 1)))
+        return Panel->GetCommands();
+    return {};
+}
+
+void UAWReplayAutopsyScreen::ResolveProgrammingSubmission(int32 PlayerIndex, bool bAccepted)
+{
+    if (UAWProgrammingPanelWidget *Panel = GetProgrammingPanel(FMath::Clamp(PlayerIndex, 0, 1)))
+        Panel->ResolveSubmission(bAccepted);
+}
+
+void UAWReplayAutopsyScreen::ResetProgrammingForNewRound(int32 ActionPoints0, int32 ActionPoints1)
+{
+    if (ProgrammingP1PanelWidget)
+        ProgrammingP1PanelWidget->ResetForNewRound(Automata::MaxHP, ActionPoints0);
+    if (ProgrammingP2PanelWidget)
+        ProgrammingP2PanelWidget->ResetForNewRound(Automata::MaxHP, ActionPoints1);
+}
+
+void UAWReplayAutopsyScreen::SetProgrammingPlayerStats(int32 PlayerIndex, int32 Health, int32 ActionPoints)
+{
+    if (UAWProgrammingPanelWidget *Panel = GetProgrammingPanel(FMath::Clamp(PlayerIndex, 0, 1)))
+        Panel->SetPlayerStats(Health, ActionPoints);
+}
+
+void UAWReplayAutopsyScreen::SetSinglePlayerMode(bool bSinglePlayer)
+{
+    if (ProgrammingP2PanelWidget)
+        ProgrammingP2PanelWidget->SetAIControlled(bSinglePlayer);
+}
+
+void UAWReplayAutopsyScreen::SetProgrammingMode(bool bProgramming, bool bCanAdvanceRound)
+{
+    for (UAWProgrammingPanelWidget *Panel : {ProgrammingP1PanelWidget.Get(), ProgrammingP2PanelWidget.Get()})
+        if (Panel)
+            Panel->SetVisibility(bProgramming ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
+    for (UAWSimulationDockWidget *Dock : {ReplayP1DockWidget.Get(), ReplayP2DockWidget.Get()})
+        if (Dock)
+            Dock->SetVisibility(bProgramming ? ESlateVisibility::Collapsed : ESlateVisibility::Visible);
+    if (ReplayPlaybackControls)
+        ReplayPlaybackControls->SetIsEnabled(!bProgramming);
+    if (NextRoundButton)
+        NextRoundButton->SetIsEnabled(!bProgramming && bCanAdvanceRound);
+    if (ReplayEyebrow)
+        ReplayEyebrow->SetText(bProgramming ? INVTEXT("MATCH PROGRAMMING") : INVTEXT("POST-MATCH ANALYSIS"));
+    if (ReplayTitle)
+        ReplayTitle->SetText(bProgramming ? INVTEXT("TACTICAL CONSOLE") : INVTEXT("REPLAY AUTOPSY"));
+    if (bProgramming && ReplaySpeedText)
+        ReplaySpeedText->SetText(INVTEXT("PROGRAM BOTH COMBATANTS TO BEGIN"));
 }
 
 void UAWReplayAutopsyScreen::SetSpeed(float Speed)
@@ -502,6 +584,16 @@ void UAWReplayAutopsyScreen::OnSpeedDouble() { BroadcastAction(EAWUIAction::Repl
 void UAWReplayAutopsyScreen::OnSpeedQuadruple() { BroadcastAction(EAWUIAction::ReplaySpeedQuadruple); }
 void UAWReplayAutopsyScreen::OnBackToMenu() { BroadcastAction(EAWUIAction::BackToMainMenu); }
 void UAWReplayAutopsyScreen::OnNextRound() { BroadcastAction(EAWUIAction::NextRound); }
+
+void UAWReplayAutopsyScreen::OnPanelSubmitted(int32 PlayerIndex)
+{
+    BroadcastAction(PlayerIndex == 0 ? EAWUIAction::SubmitP1 : EAWUIAction::SubmitP2);
+}
+
+void UAWReplayAutopsyScreen::OnPanelReturned(int32 PlayerIndex)
+{
+    BroadcastAction(PlayerIndex == 0 ? EAWUIAction::ReturnToPlanningP1 : EAWUIAction::ReturnToPlanningP2);
+}
 
 void UAWMatchResultPopupWidget::NativeConstruct()
 {

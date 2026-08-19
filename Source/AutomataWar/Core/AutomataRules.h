@@ -13,6 +13,10 @@ namespace Automata
 
     inline constexpr int32_t DefaultGridWidth = 16;
     inline constexpr int32_t DefaultGridHeight = 16;
+    inline constexpr int32_t CompactGridWidth = DefaultGridWidth / 2;
+    inline constexpr int32_t CompactGridHeight = DefaultGridHeight / 2;
+    inline constexpr int32_t ExpandedGridWidth = DefaultGridWidth * 2;
+    inline constexpr int32_t ExpandedGridHeight = DefaultGridHeight * 2;
     inline constexpr int32_t MaxHP = 100;
     inline constexpr int32_t MaxCommands = 256;
     inline constexpr int32_t ProjectileDamage = 20;
@@ -33,6 +37,16 @@ namespace Automata
     inline constexpr int32_t ExtraAmmoDamageBonus = 10;
     inline constexpr int32_t PowerUpDurationRounds = 2;
     inline constexpr int32_t TurnModelVersion = 4;
+
+    /** Scale a default-board content count by arena area while retaining at least one item. */
+    inline constexpr int32_t ScaleArenaContentCount(int32_t DefaultCount, int32_t GridWidth, int32_t GridHeight)
+    {
+        if (DefaultCount <= 0 || GridWidth <= 0 || GridHeight <= 0)
+            return 0;
+        const int64_t ScaledCount = static_cast<int64_t>(DefaultCount) * GridWidth * GridHeight /
+                                    (DefaultGridWidth * DefaultGridHeight);
+        return static_cast<int32_t>(ScaledCount > 0 ? ScaledCount : 1);
+    }
 
     /** Cardinal facing values ordered clockwise. */
     enum class Dir : uint8_t
@@ -63,6 +77,10 @@ namespace Automata
         };
         Mix(DefaultGridWidth);
         Mix(DefaultGridHeight);
+        Mix(CompactGridWidth);
+        Mix(CompactGridHeight);
+        Mix(ExpandedGridWidth);
+        Mix(ExpandedGridHeight);
         Mix(MaxHP);
         Mix(MaxCommands);
         Mix(ProjectileDamage);

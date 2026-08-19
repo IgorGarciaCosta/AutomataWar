@@ -27,5 +27,4 @@ public:
     /** Which command slot this player controls (0 or 1). */
     UPROPERTY(Replicated, BlueprintReadOnly, Category = "Match")
     int32 CommandSlot = -1;
-
 };

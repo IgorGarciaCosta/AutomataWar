@@ -39,10 +39,10 @@ public:
     virtual void Logout(AController *Exiting) override;
 
     /** Reset the current standalone world for a fresh local hot-seat match. */
-    void BeginLocalMatch();
+    void BeginLocalMatch(EAWArenaSize ArenaSize = EAWArenaSize::Standard);
 
     /** Reset the standalone world and assign slot 1 to an AI planner. */
-    void BeginSinglePlayerMatch(EAWAIDifficulty Difficulty);
+    void BeginSinglePlayerMatch(EAWAIDifficulty Difficulty, EAWArenaSize ArenaSize);
 
     /**
      * @brief Handle a command-list submission for a given slot.
@@ -78,6 +78,10 @@ public:
     UPROPERTY(BlueprintReadOnly, Category = "AutomataWar|AI")
     EAWAIDifficulty AIDifficulty = EAWAIDifficulty::Normal;
 
+    /** Procedural grid dimensions selected for the current match. */
+    UPROPERTY(BlueprintReadOnly, Category = "AutomataWar|Arena")
+    EAWArenaSize SelectedArenaSize = EAWArenaSize::Standard;
+
 protected:
     /** Transition to a new phase with validation. */
     void SetPhase(EAWMatchPhase NewPhase);
@@ -108,6 +112,9 @@ protected:
 
     /** Final arena placement reused as the next round's starting placement. */
     Automata::RoundState PersistentRoundState;
+
+    /** Stable generation seed for the current match arena. */
+    uint64 MatchArenaSeed = 0;
 
     /** Timer handle for submission deadline. */
     FTimerHandle SubmissionTimerHandle;

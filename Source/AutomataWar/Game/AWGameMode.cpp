@@ -64,10 +64,11 @@ void AAWGameMode::Logout(AController *Exiting)
     Super::Logout(Exiting);
 }
 
-void AAWGameMode::BeginLocalMatch()
+void AAWGameMode::BeginLocalMatch(EAWArenaSize ArenaSize)
 {
     bLocalMatch = true;
     bSinglePlayerMatch = false;
+    SelectedArenaSize = ArenaSize;
     if (AIController)
     {
         AIController->Destroy();
@@ -83,6 +84,25 @@ void AAWGameMode::BeginLocalMatch()
     CommittedProgramCosts[1] = 0;
     PersistentRoundState = {};
 
+    MatchArenaSeed = 0;
+    for (TActorIterator<AAWAPItemSpawner> It(GetWorld()); It; ++It)
+    {
+        MatchArenaSeed = static_cast<uint64>(It->GetSpawnSeed());
+        break;
+    }
+    if (MatchArenaSeed == 0)
+        MatchArenaSeed = static_cast<uint64>(FMath::Rand()) ^ (static_cast<uint64>(FMath::Rand()) << 32);
+
+    const FIntPoint GridSize = GetArenaGridSize(SelectedArenaSize);
+    Automata::SimConfig ArenaConfig;
+    ArenaConfig.gridWidth = GridSize.X;
+    ArenaConfig.gridHeight = GridSize.Y;
+    ArenaConfig.seed = MatchArenaSeed;
+    const TArray<EAWCommand> EmptyCommands;
+    Automata::Simulation ArenaGenerator;
+    ArenaGenerator.RunMatch(EmptyCommands, EmptyCommands, ArenaConfig);
+    PersistentRoundState = ArenaGenerator.GetFinalState();
+
     if (AAWGameState *GS = GetGameState<AAWGameState>())
     {
         GS->RoundNumber = 1;
@@ -90,7 +110,7 @@ void AAWGameMode::BeginLocalMatch()
         GS->RevealedCommands0.Reset();
         GS->RevealedCommands1.Reset();
         GS->AuthoritativeHash = 0;
-        GS->SimSeed = 0;
+        GS->SimSeed = static_cast<int64>(MatchArenaSeed);
         GS->Outcome = FAWMatchOutcome();
         GS->SetActionPoints(0, Automata::InitialActionPoints);
         GS->SetActionPoints(1, Automata::InitialActionPoints);
@@ -102,15 +122,17 @@ void AAWGameMode::BeginLocalMatch()
         GS->SetEffects(1, {});
         GS->ReplayStartEffects0 = {};
         GS->ReplayStartEffects1 = {};
-        GS->ReplayStartArenaState.Reset();
+        const std::vector<uint8_t> EncodedState = Automata::EncodeRoundState(PersistentRoundState);
+        GS->ReplayStartArenaState.Reset(static_cast<int32>(EncodedState.size()));
+        GS->ReplayStartArenaState.Append(EncodedState.data(), static_cast<int32>(EncodedState.size()));
     }
 
     SetPhase(EAWMatchPhase::Programming);
 }
 
-void AAWGameMode::BeginSinglePlayerMatch(EAWAIDifficulty Difficulty)
+void AAWGameMode::BeginSinglePlayerMatch(EAWAIDifficulty Difficulty, EAWArenaSize ArenaSize)
 {
-    BeginLocalMatch();
+    BeginLocalMatch(ArenaSize);
     bSinglePlayerMatch = true;
     AIDifficulty = Difficulty;
     EnsureAIController();
@@ -296,18 +318,25 @@ void AAWGameMode::RunSimulation()
 {
     SetPhase(EAWMatchPhase::Simulation);
 
-    uint64 Seed = 0;
-    for (TActorIterator<AAWAPItemSpawner> It(GetWorld()); It; ++It)
-    {
-        Seed = static_cast<uint64>(It->GetSpawnSeed());
-        break;
-    }
+    uint64 Seed = MatchArenaSeed;
     if (Seed == 0)
         Seed = static_cast<uint64>(FMath::Rand()) ^ (static_cast<uint64>(FMath::Rand()) << 32);
 
     Automata::SimConfig Config;
+    const FIntPoint GridSize = GetArenaGridSize(SelectedArenaSize);
+    Config.gridWidth = GridSize.X;
+    Config.gridHeight = GridSize.Y;
     Config.seed = Seed;
     Config.initialState = PersistentRoundState;
+
+    if (Config.initialState.grid.empty())
+    {
+        const TArray<EAWCommand> EmptyCommands;
+        Automata::Simulation ArenaGenerator;
+        ArenaGenerator.RunMatch(EmptyCommands, EmptyCommands, Config);
+        Config.initialState = ArenaGenerator.GetFinalState();
+        PersistentRoundState = Config.initialState;
+    }
 
     AAWGameState *GS = GetGameState<AAWGameState>();
     if (GS)
@@ -386,7 +415,7 @@ void AAWGameMode::SetPhase(EAWMatchPhase NewPhase)
 void AAWGameMode::AdvanceToNextRound()
 {
     AAWGameState *GS = GetGameState<AAWGameState>();
-    if (!GS || GS->Phase != EAWMatchPhase::ReplayAutopsy)
+    if (!GS || !CanAdvanceToNextRound(GS->Phase, GS->Outcome, GS->RevealedCommands0, GS->RevealedCommands1))
         return;
 
     GS->RoundNumber++;
@@ -401,6 +430,10 @@ void AAWGameMode::AdvanceToNextRound()
     AcceptedCommands[1].Reset();
     CommittedProgramCosts[0] = 0;
     CommittedProgramCosts[1] = 0;
+
+    const std::vector<uint8_t> EncodedState = Automata::EncodeRoundState(PersistentRoundState);
+    GS->ReplayStartArenaState.Reset(static_cast<int32>(EncodedState.size()));
+    GS->ReplayStartArenaState.Append(EncodedState.data(), static_cast<int32>(EncodedState.size()));
 
     SetPhase(EAWMatchPhase::Programming);
 }

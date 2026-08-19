@@ -39,7 +39,7 @@ void UAWHUDWidget::NativeConstruct()
     Super::NativeConstruct();
 
     UAWScreenWidget *Screens[] = {
-        MainMenuScreenWidget, DifficultyScreenWidget, ProgrammingScreenWidget, ReplayAutopsyScreenWidget,
+        MainMenuScreenWidget, DifficultyScreenWidget, ArenaSelectionScreenWidget, ReplayAutopsyScreenWidget,
         ReplayBrowserScreenWidget, LanguageReferenceScreenWidget, MatchResultPopupWidget,
         MatchResultPopupWidgetPlayerTwo};
     for (UAWScreenWidget *Screen : Screens)
@@ -84,9 +84,14 @@ void UAWHUDWidget::NativeConstruct()
         {
             OnSinglePlayerNav();
         }
+        else if (CaptureMode.Equals(TEXT("ArenaSelection"), ESearchCase::IgnoreCase))
+        {
+            OnDifficultySelected(EAWAIDifficulty::Normal);
+        }
         else if (CaptureMode.Equals(TEXT("SinglePlayerReplay"), ESearchCase::IgnoreCase))
         {
-            OnStartSinglePlayer(EAWAIDifficulty::Hard);
+            PendingDifficulty = EAWAIDifficulty::Hard;
+            OnStartSinglePlayer(EAWArenaSize::Standard);
             if (AAWPlayerController *PlayerController = Cast<AAWPlayerController>(GetOwningPlayer()))
                 PlayerController->SubmitCommands(0, {EAWCommand::Wait});
         }
@@ -94,7 +99,7 @@ void UAWHUDWidget::NativeConstruct()
                  CaptureMode.Equals(TEXT("ProgrammingReturned"), ESearchCase::IgnoreCase))
         {
             OnLocalMatch();
-            if (UUserWidget *Panel = Cast<UUserWidget>(ProgrammingScreenWidget->GetWidgetFromName(TEXT("ProgrammingP1PanelWidget"))))
+            if (UUserWidget *Panel = Cast<UUserWidget>(ReplayAutopsyScreenWidget->GetWidgetFromName(TEXT("ProgrammingP1PanelWidget"))))
             {
                 if (UButton *MoveButton = Cast<UButton>(Panel->GetWidgetFromName(TEXT("ProgrammingMoveButton"))))
                     MoveButton->OnClicked.Broadcast();
@@ -199,7 +204,7 @@ void UAWHUDWidget::NativeConstruct()
 void UAWHUDWidget::NativeDestruct()
 {
     UAWScreenWidget *Screens[] = {
-        MainMenuScreenWidget, DifficultyScreenWidget, ProgrammingScreenWidget, ReplayAutopsyScreenWidget,
+        MainMenuScreenWidget, DifficultyScreenWidget, ArenaSelectionScreenWidget, ReplayAutopsyScreenWidget,
         ReplayBrowserScreenWidget, LanguageReferenceScreenWidget, MatchResultPopupWidget,
         MatchResultPopupWidgetPlayerTwo};
     for (UAWScreenWidget *Screen : Screens)
@@ -263,8 +268,6 @@ int32 UAWHUDWidget::GetActiveScreenIndex() const
 
 void UAWHUDWidget::SetArenaRenderTarget(UTextureRenderTarget2D *RenderTarget)
 {
-    if (SimulationScreenWidget)
-        SimulationScreenWidget->SetArenaRenderTarget(RenderTarget);
     if (ReplayAutopsyScreenWidget)
         ReplayAutopsyScreenWidget->SetArenaRenderTarget(RenderTarget);
 }
@@ -304,13 +307,25 @@ void UAWHUDWidget::OnScreenAction(EAWUIAction Action)
         OnSinglePlayerNav();
         break;
     case EAWUIAction::DifficultyEasy:
-        OnStartSinglePlayer(EAWAIDifficulty::Easy);
+        OnDifficultySelected(EAWAIDifficulty::Easy);
         break;
     case EAWUIAction::DifficultyNormal:
-        OnStartSinglePlayer(EAWAIDifficulty::Normal);
+        OnDifficultySelected(EAWAIDifficulty::Normal);
         break;
     case EAWUIAction::DifficultyHard:
-        OnStartSinglePlayer(EAWAIDifficulty::Hard);
+        OnDifficultySelected(EAWAIDifficulty::Hard);
+        break;
+    case EAWUIAction::ArenaCompact:
+        OnStartSinglePlayer(EAWArenaSize::Compact);
+        break;
+    case EAWUIAction::ArenaStandard:
+        OnStartSinglePlayer(EAWArenaSize::Standard);
+        break;
+    case EAWUIAction::ArenaExpanded:
+        OnStartSinglePlayer(EAWArenaSize::Expanded);
+        break;
+    case EAWUIAction::BackToDifficulty:
+        ShowScreen(EAWScreen::Difficulty);
         break;
     case EAWUIAction::LocalMatch:
         OnLocalMatch();
@@ -404,36 +419,45 @@ void UAWHUDWidget::OnPhaseChanged(EAWMatchPhase NewPhase)
     switch (NewPhase)
     {
     case EAWMatchPhase::Programming:
-        if (ProgrammingScreenWidget)
+        bReplayPlaying = false;
+        if (ReplayAutopsyScreenWidget)
         {
             if (AAWGameState *GS = GetWorld()->GetGameState<AAWGameState>())
             {
-                ProgrammingScreenWidget->ResetForNewRound(GS->GetActionPoints(0), GS->GetActionPoints(1));
-                ProgrammingScreenWidget->SetSinglePlayerMode(bSinglePlayer);
+                ReplayAutopsyScreenWidget->ResetProgrammingForNewRound(GS->GetActionPoints(0), GS->GetActionPoints(1));
+                ReplayAutopsyScreenWidget->SetSinglePlayerMode(bSinglePlayer);
             }
-            else
-                ProgrammingScreenWidget->ResetSubmissionState();
+            ReplayAutopsyScreenWidget->SetProgrammingMode(true, false);
         }
-        ShowScreen(EAWScreen::Programming);
+        InitializePlanningArenaFromGameState();
+        ShowScreen(EAWScreen::ReplayAutopsy);
         break;
     case EAWMatchPhase::Simulation:
-        if (SimulationScreenWidget && ProgrammingScreenWidget)
+        if (ReplayAutopsyScreenWidget)
         {
-            SimulationScreenWidget->SetCommands(ProgrammingScreenWidget->GetCommands(0), ProgrammingScreenWidget->GetCommands(1));
+            ReplayAutopsyScreenWidget->SetProgrammingMode(false, false);
             if (AAWGameState *GS = GetWorld()->GetGameState<AAWGameState>())
             {
-                SimulationScreenWidget->SetPlayerDetails(0, FString::Printf(
-                                                                TEXT("HP %d  |  AP %d  |  FACING SOUTH"), Automata::MaxHP, GS->GetActionPoints(0)));
-                SimulationScreenWidget->SetPlayerDetails(1, FString::Printf(
-                                                                TEXT("HP %d  |  AP %d  |  FACING NORTH"), Automata::MaxHP, GS->GetActionPoints(1)));
+                ReplayAutopsyScreenWidget->SetCombatantData(
+                    0, ReplayAutopsyScreenWidget->GetProgrammingCommands(0), INDEX_NONE,
+                    FString::Printf(TEXT("HP %d  |  AP %d  |  FACING SOUTH"), Automata::MaxHP, GS->GetActionPoints(0)));
+                ReplayAutopsyScreenWidget->SetCombatantData(
+                    1, ReplayAutopsyScreenWidget->GetProgrammingCommands(1), INDEX_NONE,
+                    FString::Printf(TEXT("HP %d  |  AP %d  |  FACING NORTH"), Automata::MaxHP, GS->GetActionPoints(1)));
             }
         }
         PlayUISound(AWVisualAssets::SFX_MatchStart);
-        ShowScreen(EAWScreen::Simulation);
+        ShowScreen(EAWScreen::ReplayAutopsy);
         break;
     case EAWMatchPhase::ReplayAutopsy:
         PlayUISound(AWVisualAssets::SFX_MatchEnd);
         InitializeReplayFromGameState();
+        if (AAWGameState *GS = GetWorld()->GetGameState<AAWGameState>(); GS && ReplayAutopsyScreenWidget)
+        {
+            const bool bCanAdvanceRound = CanAdvanceToNextRound(
+                GS->Phase, GS->Outcome, GS->RevealedCommands0, GS->RevealedCommands1);
+            ReplayAutopsyScreenWidget->SetProgrammingMode(false, bCanAdvanceRound);
+        }
         ShowScreen(EAWScreen::ReplayAutopsy);
         if (AAWGameState *GS = GetWorld()->GetGameState<AAWGameState>();
             GS && GS->Outcome.bMatchEnded && MatchResultPopupWidget)
@@ -470,8 +494,8 @@ void UAWHUDWidget::OnErrorReceived(const FString &Message)
 
 void UAWHUDWidget::OnSubmissionResult(int32 SlotIndex, const FAWValidationResult &Result)
 {
-    if (ProgrammingScreenWidget)
-        ProgrammingScreenWidget->ResolveSubmission(SlotIndex, Result.bSuccess);
+    if (ReplayAutopsyScreenWidget)
+        ReplayAutopsyScreenWidget->ResolveProgrammingSubmission(SlotIndex, Result.bSuccess);
     SetStatus(Result.bSuccess
                   ? FString::Printf(TEXT("Slot %d submitted."), SlotIndex)
                   : FString::Printf(TEXT("Slot %d: %s"), SlotIndex, *Result.ErrorMessage),
@@ -521,12 +545,6 @@ void UAWHUDWidget::OnLocalMatch()
     {
         Sub->StartLocalMatch();
     }
-    if (ProgrammingScreenWidget)
-    {
-        ProgrammingScreenWidget->ResetForNewRound(Automata::InitialActionPoints, Automata::InitialActionPoints);
-        ProgrammingScreenWidget->SetSinglePlayerMode(false);
-    }
-    ShowScreen(EAWScreen::Programming);
 }
 
 void UAWHUDWidget::OnSinglePlayerNav()
@@ -534,17 +552,17 @@ void UAWHUDWidget::OnSinglePlayerNav()
     ShowScreen(EAWScreen::Difficulty);
 }
 
-void UAWHUDWidget::OnStartSinglePlayer(EAWAIDifficulty Difficulty)
+void UAWHUDWidget::OnDifficultySelected(EAWAIDifficulty Difficulty)
+{
+    PendingDifficulty = Difficulty;
+    ShowScreen(EAWScreen::ArenaSelection);
+}
+
+void UAWHUDWidget::OnStartSinglePlayer(EAWArenaSize ArenaSize)
 {
     bSinglePlayer = true;
     if (UAWGameSubsystem *Sub = GetSubsystem())
-        Sub->StartSinglePlayerMatch(Difficulty);
-    if (ProgrammingScreenWidget)
-    {
-        ProgrammingScreenWidget->ResetForNewRound(Automata::InitialActionPoints, Automata::InitialActionPoints);
-        ProgrammingScreenWidget->SetSinglePlayerMode(true);
-    }
-    ShowScreen(EAWScreen::Programming);
+        Sub->StartSinglePlayerMatch(PendingDifficulty, ArenaSize);
 }
 
 void UAWHUDWidget::OnHostLAN()
@@ -644,7 +662,9 @@ void UAWHUDWidget::OnSubmitSlot(int32 SlotIndex)
 {
     if (AAWPlayerController *PlayerController = Cast<AAWPlayerController>(GetOwningPlayer()))
     {
-        const TArray<EAWCommand> Commands = ProgrammingScreenWidget ? ProgrammingScreenWidget->GetCommands(SlotIndex) : TArray<EAWCommand>();
+        const TArray<EAWCommand> Commands = ReplayAutopsyScreenWidget
+                                                ? ReplayAutopsyScreenWidget->GetProgrammingCommands(SlotIndex)
+                                                : TArray<EAWCommand>();
         PlayerController->SubmitCommands(SlotIndex, Commands);
         return;
     }
@@ -672,6 +692,11 @@ void UAWHUDWidget::OnSubmitP2() { OnSubmitSlot(1); }
 
 void UAWHUDWidget::OnNextRound()
 {
+    const AAWGameState *GS = GetWorld() ? GetWorld()->GetGameState<AAWGameState>() : nullptr;
+    if (!GS || !CanAdvanceToNextRound(GS->Phase, GS->Outcome, GS->RevealedCommands0, GS->RevealedCommands1))
+        return;
+
+    bReplayPlaying = false;
     if (UAWGameSubsystem *Sub = GetSubsystem())
     {
         Sub->NextRound();
@@ -698,6 +723,45 @@ void UAWHUDWidget::InitializeReplayFromGameState()
     {
         SetStatus(TEXT("Failed to reconstruct simulation for replay."), true);
     }
+}
+
+void UAWHUDWidget::InitializePlanningArenaFromGameState()
+{
+    AAWGameState *GS = GetWorld() ? GetWorld()->GetGameState<AAWGameState>() : nullptr;
+    if (!GS || GS->ReplayStartArenaState.IsEmpty())
+        return;
+
+    Automata::RoundState ArenaState;
+    if (!Automata::DecodeRoundState(GS->ReplayStartArenaState.GetData(), GS->ReplayStartArenaState.Num(), ArenaState))
+    {
+        SetStatus(TEXT("Failed to load the selected arena."), true);
+        return;
+    }
+
+    AAWArenaRenderer *Renderer = FindOrSpawnRenderer();
+    if (!Renderer)
+        return;
+
+    Automata::SimConfig Config;
+    Config.gridWidth = ArenaState.gridWidth;
+    Config.gridHeight = ArenaState.gridHeight;
+    TArray<Automata::CellType> Grid;
+    Grid.Append(ArenaState.grid.data(), static_cast<int32>(ArenaState.grid.size()));
+    Renderer->InitializeArena(Config, Grid, {});
+
+    Automata::StepSnapshot Snapshot;
+    Snapshot.step = INDEX_NONE;
+    Snapshot.obstacleHealth = ArenaState.obstacleHealth;
+    for (int32 RobotIndex = 0; RobotIndex < 2; ++RobotIndex)
+    {
+        Snapshot.robots[RobotIndex].x = ArenaState.robotX[RobotIndex];
+        Snapshot.robots[RobotIndex].y = ArenaState.robotY[RobotIndex];
+        Snapshot.robots[RobotIndex].facing = ArenaState.robotFacing[RobotIndex];
+        Snapshot.robots[RobotIndex].hp = Automata::MaxHP;
+        Snapshot.robots[RobotIndex].actionPoints = GS->GetActionPoints(RobotIndex);
+        Snapshot.robots[RobotIndex].effects = GS->GetEffects(RobotIndex);
+    }
+    Renderer->SetSnapshot(Snapshot);
 }
 
 bool UAWHUDWidget::InitializeReplay(const TArray<EAWCommand> &CommandsA, const TArray<EAWCommand> &CommandsB, int64 Seed,
@@ -901,6 +965,8 @@ void UAWHUDWidget::OnReplayLoad(const FString &Filename)
             ReplayBrowserScreenWidget->SetStatus(TEXT("Failed to resimulate replay."));
         return;
     }
+    if (ReplayAutopsyScreenWidget)
+        ReplayAutopsyScreenWidget->SetProgrammingMode(false, false);
     ShowScreen(EAWScreen::ReplayAutopsy);
 }
 

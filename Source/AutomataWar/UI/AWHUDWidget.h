@@ -13,14 +13,13 @@
 
 class UAWGameSubsystem;
 class AAWArenaRenderer;
+class UAWArenaSelectionScreen;
 class UAWDifficultyScreen;
 class UAWLanguageReferenceScreen;
 class UAWMainMenuScreen;
 class UAWMatchResultPopupWidget;
-class UAWProgrammingScreen;
 class UAWReplayAutopsyScreen;
 class UAWReplayBrowserScreen;
-class UAWSimulationScreen;
 class UBorder;
 class UTextBlock;
 class UTextureRenderTarget2D;
@@ -28,14 +27,13 @@ class UWidgetSwitcher;
 enum class EAWAIDifficulty : uint8;
 enum class EAWUIAction : uint8;
 
-/** Seven stable screen indices owned by the HUD Widget Blueprint switcher. */
+/** Six stable screen indices owned by the HUD Widget Blueprint switcher. */
 UENUM(BlueprintType)
 enum class EAWScreen : uint8
 {
     MainMenu,
     Difficulty,
-    Programming,
-    Simulation,
+    ArenaSelection,
     ReplayAutopsy,
     ReplayBrowser,
     LanguageReference
@@ -97,8 +95,10 @@ private:
     /** Open single-player difficulty selection without changing match state. */
     UFUNCTION()
     void OnSinglePlayerNav();
-    /** Reset the arena and start slot 1 under the selected AI planner. */
-    void OnStartSinglePlayer(EAWAIDifficulty Difficulty);
+    /** Retain the selected AI planner and open procedural arena selection. */
+    void OnDifficultySelected(EAWAIDifficulty Difficulty);
+    /** Reset the selected arena and start slot 1 under the retained AI planner. */
+    void OnStartSinglePlayer(EAWArenaSize ArenaSize);
     UFUNCTION()
     void OnLocalMatch();
     UFUNCTION()
@@ -147,6 +147,8 @@ private:
     UFUNCTION()
     void OnReplaySpeedQuadruple();
     void InitializeReplayFromGameState();
+    /** Render the authoritative round-start arena while players assemble commands. */
+    void InitializePlanningArenaFromGameState();
     bool InitializeReplay(const TArray<EAWCommand> &CommandsA, const TArray<EAWCommand> &CommandsB, int64 Seed,
                           int32 ActionPointsA = Automata::InitialActionPoints,
                           int32 ActionPointsB = Automata::InitialActionPoints,
@@ -191,10 +193,7 @@ private:
     TObjectPtr<UAWDifficultyScreen> DifficultyScreenWidget;
 
     UPROPERTY(meta = (BindWidget))
-    TObjectPtr<UAWProgrammingScreen> ProgrammingScreenWidget;
-
-    UPROPERTY(meta = (BindWidget))
-    TObjectPtr<UAWSimulationScreen> SimulationScreenWidget;
+    TObjectPtr<UAWArenaSelectionScreen> ArenaSelectionScreenWidget;
 
     UPROPERTY(meta = (BindWidget))
     TObjectPtr<UAWReplayAutopsyScreen> ReplayAutopsyScreenWidget;
@@ -222,4 +221,5 @@ private:
     double ReplayAccumulator = 0.0;
     int32 LastProcessedReplayEventStep = INDEX_NONE;
     bool bSinglePlayer = false;
+    EAWAIDifficulty PendingDifficulty = static_cast<EAWAIDifficulty>(1);
 };

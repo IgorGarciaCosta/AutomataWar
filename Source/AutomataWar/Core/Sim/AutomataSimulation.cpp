@@ -187,10 +187,10 @@ namespace Automata
                 EmptyCells.pop_back();
             }
         };
-        SpawnItems(CellType::ActionPointItem, ActionPointItemCount);
-        SpawnItems(CellType::ExtraAmmoItem, ExtraAmmoItemCount);
-        SpawnItems(CellType::ShieldItem, ShieldItemCount);
-        SpawnItems(CellType::AcceleratorItem, AcceleratorItemCount);
+        SpawnItems(CellType::ActionPointItem, ScaleArenaContentCount(ActionPointItemCount, Width, Height));
+        SpawnItems(CellType::ExtraAmmoItem, ScaleArenaContentCount(ExtraAmmoItemCount, Width, Height));
+        SpawnItems(CellType::ShieldItem, ScaleArenaContentCount(ShieldItemCount, Width, Height));
+        SpawnItems(CellType::AcceleratorItem, ScaleArenaContentCount(AcceleratorItemCount, Width, Height));
 
         initialGrid_ = grid_;
         obstacleHealth_.assign(grid_.size(), 0);

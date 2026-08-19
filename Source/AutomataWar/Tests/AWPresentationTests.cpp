@@ -46,12 +46,33 @@ bool FReplayControllerSteps::RunTest(const FString &Parameters)
     return true;
 }
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FHUDScreenCount, "AutomataWar.UI.HUD.ScreenCountIs7",
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FHUDScreenCount, "AutomataWar.UI.HUD.ScreenCountIs6",
                                  EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 
 bool FHUDScreenCount::RunTest(const FString &Parameters)
 {
-    TestEqual(TEXT("EAWScreen count"), static_cast<int32>(EAWScreen::LanguageReference) + 1, 7);
+    TestEqual(TEXT("EAWScreen count"), static_cast<int32>(EAWScreen::LanguageReference) + 1, 6);
+    return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FNextRoundAvailability, "AutomataWar.UI.Replay.NextRoundAvailability",
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+/** Verify Next Round is exposed only after both queues finish a non-terminal round. */
+bool FNextRoundAvailability::RunTest(const FString &Parameters)
+{
+    const TArray<EAWCommand> Commands = {EAWCommand::Wait};
+    FAWMatchOutcome Outcome;
+
+    TestFalse(TEXT("Planning phase cannot advance"),
+              CanAdvanceToNextRound(EAWMatchPhase::Programming, Outcome, Commands, Commands));
+    TestFalse(TEXT("Replay without both revealed queues cannot advance"),
+              CanAdvanceToNextRound(EAWMatchPhase::ReplayAutopsy, Outcome, Commands, {}));
+    TestTrue(TEXT("Completed non-terminal replay can advance"),
+             CanAdvanceToNextRound(EAWMatchPhase::ReplayAutopsy, Outcome, Commands, Commands));
+    Outcome.bMatchEnded = true;
+    TestFalse(TEXT("Terminal match cannot advance"),
+              CanAdvanceToNextRound(EAWMatchPhase::ReplayAutopsy, Outcome, Commands, Commands));
     return true;
 }
 

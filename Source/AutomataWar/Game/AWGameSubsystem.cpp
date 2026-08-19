@@ -36,12 +36,12 @@ void UAWGameSubsystem::StartLocalMatch()
     OnError.Broadcast(TEXT("Local match requires the Automata War arena."));
 }
 
-void UAWGameSubsystem::StartSinglePlayerMatch(EAWAIDifficulty Difficulty)
+void UAWGameSubsystem::StartSinglePlayerMatch(EAWAIDifficulty Difficulty, EAWArenaSize ArenaSize)
 {
     UWorld *World = GetGameInstance() ? GetGameInstance()->GetWorld() : nullptr;
     if (AAWGameMode *GM = World ? World->GetAuthGameMode<AAWGameMode>() : nullptr)
     {
-        GM->BeginSinglePlayerMatch(Difficulty);
+        GM->BeginSinglePlayerMatch(Difficulty, ArenaSize);
         return;
     }
 
@@ -338,4 +338,3 @@ bool UAWGameSubsystem::ImportReplayBase64(const FString &Base64Data, const FStri
 {
     return FAWReplayService::ImportBase64(Base64Data, Filename, OutError);
 }
-

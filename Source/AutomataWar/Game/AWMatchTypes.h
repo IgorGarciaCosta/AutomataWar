@@ -59,6 +59,29 @@ enum class EAWCommand : uint8
     Count UMETA(Hidden)
 };
 
+/** Selectable procedural arena dimensions used when a new match is created. */
+UENUM(BlueprintType)
+enum class EAWArenaSize : uint8
+{
+    Compact UMETA(DisplayName = "Compact 8 x 8"),
+    Standard UMETA(DisplayName = "Standard 16 x 16"),
+    Expanded UMETA(DisplayName = "Expanded 32 x 32")
+};
+
+/** Return the canonical grid dimensions for a selectable arena size. */
+inline FIntPoint GetArenaGridSize(EAWArenaSize ArenaSize)
+{
+    switch (ArenaSize)
+    {
+    case EAWArenaSize::Compact:
+        return {Automata::CompactGridWidth, Automata::CompactGridHeight};
+    case EAWArenaSize::Expanded:
+        return {Automata::ExpandedGridWidth, Automata::ExpandedGridHeight};
+    default:
+        return {Automata::DefaultGridWidth, Automata::DefaultGridHeight};
+    }
+}
+
 /** AP reserved while this command is present in a player's program. */
 inline constexpr int32 GetActionPointCost(EAWCommand Command)
 {
@@ -197,6 +220,14 @@ struct FAWMatchOutcome
     UPROPERTY(BlueprintReadOnly)
     int32 HP1 = 0;
 };
+
+/** Return whether a completed non-terminal round can enter its next programming phase. */
+inline bool CanAdvanceToNextRound(EAWMatchPhase Phase, const FAWMatchOutcome &Outcome,
+                                  TConstArrayView<EAWCommand> Commands0, TConstArrayView<EAWCommand> Commands1)
+{
+    return Phase == EAWMatchPhase::ReplayAutopsy && !Outcome.bMatchEnded &&
+           !Commands0.IsEmpty() && !Commands1.IsEmpty();
+}
 
 /** Info about a saved replay file. */
 USTRUCT(BlueprintType)

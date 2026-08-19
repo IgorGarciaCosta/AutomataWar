@@ -28,6 +28,10 @@ enum class EAWUIAction : uint8
     DifficultyEasy,
     DifficultyNormal,
     DifficultyHard,
+    ArenaCompact,
+    ArenaStandard,
+    ArenaExpanded,
+    BackToDifficulty,
     LocalMatch,
     HostLAN,
     FindLAN,
@@ -139,6 +143,31 @@ private:
     UFUNCTION()
     void OnHard();
     /** Return to the main menu without starting a match. */
+    UFUNCTION()
+    void OnBack();
+};
+
+/** Procedural arena-size selection shown after single-player difficulty. */
+UCLASS(Blueprintable)
+class AUTOMATAWAR_API UAWArenaSelectionScreen : public UAWScreenWidget
+{
+    GENERATED_BODY()
+
+public:
+    /** Bind arena choices and the difficulty-navigation button. */
+    virtual void NativeConstruct() override;
+
+private:
+    /** Select the half-dimension compact arena. */
+    UFUNCTION()
+    void OnCompact();
+    /** Select the default arena dimensions. */
+    UFUNCTION()
+    void OnStandard();
+    /** Select the double-dimension expanded arena. */
+    UFUNCTION()
+    void OnExpanded();
+    /** Return to difficulty selection without starting a match. */
     UFUNCTION()
     void OnBack();
 };
@@ -364,6 +393,18 @@ public:
 
     /** Display the camera-owned arena render target in the center viewport. */
     void SetArenaRenderTarget(UTextureRenderTarget2D *RenderTarget);
+    /** Switch the side bays between editable programs and replay command docks. */
+    void SetProgrammingMode(bool bProgramming, bool bCanAdvanceRound);
+    /** Return the editable command queue for one player slot. */
+    TArray<EAWCommand> GetProgrammingCommands(int32 PlayerIndex) const;
+    /** Accept or reject one panel's submission after authoritative validation. */
+    void ResolveProgrammingSubmission(int32 PlayerIndex, bool bAccepted);
+    /** Clear both queues and restore their current AP balances for a new round. */
+    void ResetProgrammingForNewRound(int32 ActionPoints0, int32 ActionPoints1);
+    /** Replace one programming panel's live HP and AP readout. */
+    void SetProgrammingPlayerStats(int32 PlayerIndex, int32 Health, int32 ActionPoints);
+    /** Toggle player two between local editing and AI read-only presentation. */
+    void SetSinglePlayerMode(bool bSinglePlayer);
     void SetSpeed(float Speed);
     void SetCombatantData(int32 PlayerIndex, const TArray<EAWCommand> &Commands, int32 CurrentCommand, const FString &Details);
 
@@ -390,9 +431,33 @@ private:
     void OnBackToMenu();
     UFUNCTION()
     void OnNextRound();
+    /** Forward a reusable panel submission to the root HUD. */
+    void OnPanelSubmitted(int32 PlayerIndex);
+    /** Forward a reusable panel withdrawal to the root HUD. */
+    void OnPanelReturned(int32 PlayerIndex);
+    /** Resolve one of the two embedded programming panels. */
+    UAWProgrammingPanelWidget *GetProgrammingPanel(int32 PlayerIndex) const;
+
+    UPROPERTY(meta = (BindWidget))
+    TObjectPtr<UTextBlock> ReplayEyebrow;
+
+    UPROPERTY(meta = (BindWidget))
+    TObjectPtr<UTextBlock> ReplayTitle;
 
     UPROPERTY(meta = (BindWidget))
     TObjectPtr<UTextBlock> ReplaySpeedText;
+
+    UPROPERTY(meta = (BindWidget))
+    TObjectPtr<UWidget> ReplayPlaybackControls;
+
+    UPROPERTY(meta = (BindWidget))
+    TObjectPtr<UButton> NextRoundButton;
+
+    UPROPERTY(meta = (BindWidget))
+    TObjectPtr<UAWProgrammingPanelWidget> ProgrammingP1PanelWidget;
+
+    UPROPERTY(meta = (BindWidget))
+    TObjectPtr<UAWProgrammingPanelWidget> ProgrammingP2PanelWidget;
 
     UPROPERTY(meta = (BindWidget))
     TObjectPtr<UAWSimulationDockWidget> ReplayP1DockWidget;

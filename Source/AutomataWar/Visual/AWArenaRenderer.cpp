@@ -5,6 +5,7 @@
 
 #include "AWArenaRenderer.h"
 #include "AWAPItemSpawner.h"
+#include "AWIsometricCamera.h"
 #include "AWTankActor.h"
 #include "AWVisualTypes.h"
 #include "TableObstable.h"
@@ -89,6 +90,11 @@ void AAWArenaRenderer::InitializeArena(const Automata::SimConfig &Config, const 
 {
     BuildFloorGrid(Config.gridWidth, Config.gridHeight);
     SpawnCoverVisuals(Config.gridWidth, Config.gridHeight, Grid);
+    for (TActorIterator<AAWIsometricCamera> It(GetWorld()); It; ++It)
+    {
+        It->FrameArena(Config.gridWidth, Config.gridHeight, AWVisualConfig::CellSize);
+        break;
+    }
     ResolveActionPointItemSpawner();
     if (ActionPointItemSpawner)
         ActionPointItemSpawner->InitializeItems(Config, Grid, Events);
