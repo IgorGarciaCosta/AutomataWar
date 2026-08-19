@@ -2,7 +2,7 @@
 
 /**
  * @file AWArenaRenderer.h
- * @brief Actor that generates the visual 16x16 floor grid, cover objects, robots,
+ * @brief Actor that generates a variable-size floor grid, cover objects, robots,
  *        projectiles, and VFX from simulation snapshots. Purely presentational.
  *
  * Spawned by GameMode or placed in level. Reads simulation state via snapshot arrays;
@@ -59,6 +59,9 @@ public:
 protected:
     /** Build the floor grid mesh. */
     void BuildFloorGrid(int32 Width, int32 Height);
+
+    /** Resize the level-authored table and move decorative actors outside the active grid. */
+    void ResizeArenaPresentation(int32 Width, int32 Height);
 
     /** Spawn cover block visuals. */
     void SpawnCoverVisuals(int32 Width, int32 Height, const TArray<Automata::CellType> &Grid);
@@ -128,6 +131,9 @@ protected:
 
     UPROPERTY(Transient)
     TMap<int32, TObjectPtr<ATableObstable>> Obstacles;
+
+    /** Original dressing transforms retained so repeated replay initialization cannot accumulate offsets. */
+    TMap<TWeakObjectPtr<AActor>, FTransform> AuthoredDressingTransforms;
 
     bool bHasSnapshot = false;
 

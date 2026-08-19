@@ -80,6 +80,11 @@ void UAWHUDWidget::NativeConstruct()
         {
             OnLocalMatch();
         }
+        else if (CaptureMode.Equals(TEXT("ProgrammingExpanded"), ESearchCase::IgnoreCase))
+        {
+            PendingDifficulty = EAWAIDifficulty::Normal;
+            OnStartSinglePlayer(EAWArenaSize::Expanded);
+        }
         else if (CaptureMode.Equals(TEXT("Difficulty"), ESearchCase::IgnoreCase))
         {
             OnSinglePlayerNav();

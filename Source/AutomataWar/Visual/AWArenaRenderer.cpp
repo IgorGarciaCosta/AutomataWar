@@ -24,6 +24,18 @@
 #include "Containers/Set.h"
 #include "Sound/SoundBase.h"
 
+namespace
+{
+    const FName ArenaGroundTag(TEXT("ArenaGround"));
+    const FName ArenaFoundationTag(TEXT("ArenaFoundation"));
+    const FName ArenaLegacyGridTag(TEXT("ArenaLegacyGrid"));
+    const FName ArenaRailSouthTag(TEXT("Rail_South"));
+    const FName ArenaRailNorthTag(TEXT("Rail_North"));
+    const FName ArenaRailWestTag(TEXT("Rail_West"));
+    const FName ArenaRailEastTag(TEXT("Rail_East"));
+    const FName ArenaDressingTag(TEXT("ArenaDressing"));
+}
+
 AAWArenaRenderer::AAWArenaRenderer()
 {
     PrimaryActorTick.bCanEverTick = true;
@@ -88,6 +100,7 @@ void AAWArenaRenderer::BeginPlay()
 void AAWArenaRenderer::InitializeArena(const Automata::SimConfig &Config, const TArray<Automata::CellType> &Grid,
                                        const TArray<Automata::SimEvent> &Events)
 {
+    ResizeArenaPresentation(Config.gridWidth, Config.gridHeight);
     BuildFloorGrid(Config.gridWidth, Config.gridHeight);
     SpawnCoverVisuals(Config.gridWidth, Config.gridHeight, Grid);
     for (TActorIterator<AAWIsometricCamera> It(GetWorld()); It; ++It)
@@ -98,6 +111,65 @@ void AAWArenaRenderer::InitializeArena(const Automata::SimConfig &Config, const 
     ResolveActionPointItemSpawner();
     if (ActionPointItemSpawner)
         ActionPointItemSpawner->InitializeItems(Config, Grid, Events);
+}
+
+void AAWArenaRenderer::ResizeArenaPresentation(int32 Width, int32 Height)
+{
+    if (!GetWorld() || Width <= 0 || Height <= 0)
+        return;
+
+    const float CellSize = AWVisualConfig::CellSize;
+    const FVector ArenaOrigin = GetActorLocation();
+    const FVector ArenaCenter = ArenaOrigin + FVector(Width * CellSize * 0.5f, Height * CellSize * 0.5f, 0.f);
+    const FVector AuthoredCenter = ArenaOrigin + FVector(
+                                                     Automata::DefaultGridWidth * CellSize * 0.5f,
+                                                     Automata::DefaultGridHeight * CellSize * 0.5f, 0.f);
+    const float WidthRatio = static_cast<float>(Width) / Automata::DefaultGridWidth;
+    const float HeightRatio = static_cast<float>(Height) / Automata::DefaultGridHeight;
+    const bool bUseAuthoredGrid = Width == Automata::DefaultGridWidth && Height == Automata::DefaultGridHeight;
+
+    for (TActorIterator<AActor> It(GetWorld()); It; ++It)
+    {
+        AActor *Actor = *It;
+        FVector Location = Actor->GetActorLocation();
+        FVector Scale = Actor->GetActorScale3D();
+
+        if (Actor->ActorHasTag(ArenaGroundTag))
+        {
+            Actor->SetActorLocation(FVector(ArenaCenter.X, ArenaCenter.Y, Location.Z));
+            Actor->SetActorScale3D(FVector(Width * 2.f, Height * 2.f, Scale.Z));
+        }
+        else if (Actor->ActorHasTag(ArenaFoundationTag))
+        {
+            Actor->SetActorLocation(FVector(ArenaCenter.X, ArenaCenter.Y, Location.Z));
+            Actor->SetActorScale3D(FVector(Width + 2.f, Height + 2.f, Scale.Z));
+        }
+        else if (Actor->ActorHasTag(ArenaLegacyGridTag))
+        {
+            Actor->SetActorHiddenInGame(!bUseAuthoredGrid);
+        }
+        else if (Actor->ActorHasTag(ArenaRailSouthTag) || Actor->ActorHasTag(ArenaRailNorthTag))
+        {
+            const bool bNorth = Actor->ActorHasTag(ArenaRailNorthTag);
+            Actor->SetActorLocation(FVector(ArenaCenter.X, ArenaOrigin.Y + (bNorth ? Height * CellSize + 75.f : -75.f), Location.Z));
+            Actor->SetActorScale3D(FVector(Width + 2.f, Scale.Y, Scale.Z));
+        }
+        else if (Actor->ActorHasTag(ArenaRailWestTag) || Actor->ActorHasTag(ArenaRailEastTag))
+        {
+            const bool bEast = Actor->ActorHasTag(ArenaRailEastTag);
+            Actor->SetActorLocation(FVector(ArenaOrigin.X + (bEast ? Width * CellSize + 75.f : -75.f), ArenaCenter.Y, Location.Z));
+            Actor->SetActorScale3D(FVector(Scale.X, Height + 2.f, Scale.Z));
+        }
+        else if (Actor->ActorHasTag(ArenaDressingTag))
+        {
+            const FTransform &AuthoredTransform = AuthoredDressingTransforms.FindOrAdd(Actor, Actor->GetActorTransform());
+            const FVector AuthoredLocation = AuthoredTransform.GetLocation();
+            Actor->SetActorLocation(FVector(
+                ArenaCenter.X + (AuthoredLocation.X - AuthoredCenter.X) * WidthRatio,
+                ArenaCenter.Y + (AuthoredLocation.Y - AuthoredCenter.Y) * HeightRatio,
+                AuthoredLocation.Z));
+        }
+    }
 }
 
 void AAWArenaRenderer::SetSnapshot(const Automata::StepSnapshot &Snapshot)
