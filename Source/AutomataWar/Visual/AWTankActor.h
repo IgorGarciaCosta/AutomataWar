@@ -44,6 +44,12 @@ public:
     /** Show or hide the replay-driven active-turn circle below this tank. */
     void SetActiveIndicator(bool bActive);
 
+    /** Copy a placed tank's visual configuration and render this actor as a cosmetic plan ghost. */
+    void ConfigureAsPlanProjection(const AAWTankActor &SourceTank);
+
+    bool IsPlanProjection() const { return bPlanProjection; }
+    const FLinearColor &GetPlayerColor() const { return PlayerColor; }
+
     /** Return the simulation robot slot represented by this actor. */
     int32 GetRobotIndex() const { return RobotIndex; }
 
@@ -105,4 +111,5 @@ private:
     FVector TargetLocation = FVector::ZeroVector;
     FRotator TargetRotation = FRotator::ZeroRotator;
     bool bHasTarget = false;
+    bool bPlanProjection = false;
 };

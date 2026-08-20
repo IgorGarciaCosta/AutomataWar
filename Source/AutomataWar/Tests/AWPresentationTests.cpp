@@ -11,6 +11,7 @@
 #include "AutomataWar/UI/AWHUDWidget.h"
 #include "AutomataWar/UI/AWScreenWidget.h"
 #include "AutomataWar/UI/AWTypewriterTextBlock.h"
+#include "AutomataWar/Visual/AWPlanVisualizationSubsystem.h"
 #include "AutomataWar/Visual/AWVisualTypes.h"
 #include "Materials/Material.h"
 #include "NiagaraSystem.h"
@@ -44,6 +45,69 @@ bool FReplayControllerSteps::RunTest(const FString &Parameters)
     Controller.SeekToStep(3);
     Controller.StepBackward();
     TestEqual(TEXT("Steps backward"), Controller.GetCurrentStep(), 2);
+    return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FPlanProjectionSteps, "AutomataWar.Visual.PlanProjection.StepsMatchQueue",
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FPlanProjectionSteps::RunTest(const FString &Parameters)
+{
+    Automata::SimConfig Config;
+    Config.gridWidth = 5;
+    Config.gridHeight = 5;
+    Config.initialState.gridWidth = Config.gridWidth;
+    Config.initialState.gridHeight = Config.gridHeight;
+    Config.initialState.grid.assign(25, Automata::CellType::Empty);
+    Config.initialState.obstacleHealth.assign(25, 0);
+    Config.initialState.actionPointItemValues.assign(25, 0);
+    Config.initialState.robotX = {1, 3};
+    Config.initialState.robotY = {1, 3};
+    Config.initialState.robotFacing = {Automata::Dir::East, Automata::Dir::North};
+
+    const TArray<EAWCommand> Commands = {
+        EAWCommand::Move, EAWCommand::TurnRight, EAWCommand::Move,
+        EAWCommand::Fire, EAWCommand::ChargeShield};
+    Automata::RobotState InitialRobot;
+    TArray<Automata::StepSnapshot> Snapshots;
+    TArray<Automata::SimEvent> Events;
+
+    TestTrue(TEXT("Projection builds from round-start state"),
+             UAWPlanVisualizationSubsystem::BuildProjection(
+                 0, Commands, Config, InitialRobot, Snapshots, Events));
+    TestEqual(TEXT("Projection starts at the replicated tank X"), InitialRobot.x, 1);
+    TestEqual(TEXT("Projection starts at the replicated tank Y"), InitialRobot.y, 1);
+    TestEqual(TEXT("Every queued command receives a projection step"), Snapshots.Num(), Commands.Num());
+    if (Snapshots.Num() == Commands.Num())
+    {
+        const Automata::RobotState &FinalRobot = Snapshots.Last().robots[0];
+        TestEqual(TEXT("Projected movement reaches the expected X"), FinalRobot.x, 2);
+        TestEqual(TEXT("Projected movement reaches the expected Y"), FinalRobot.y, 2);
+        TestTrue(TEXT("Projected charge is cosmetic state only"), FinalRobot.effects.bShieldCharged);
+    }
+
+    const TArray<EAWCommand> ShortenedCommands = {
+        EAWCommand::Move, EAWCommand::TurnRight, EAWCommand::Move};
+    TestTrue(TEXT("Projection rebuilds after removing commands"),
+             UAWPlanVisualizationSubsystem::BuildProjection(
+                 0, ShortenedCommands, Config, InitialRobot, Snapshots, Events));
+    TestEqual(TEXT("Rollback removes projection steps"), Snapshots.Num(), ShortenedCommands.Num());
+    TestFalse(TEXT("Rollback removes charged shield state"),
+              Snapshots.IsEmpty() ? true : Snapshots.Last().robots[0].effects.bShieldCharged);
+    TestFalse(TEXT("Rollback removes firing cosmetics"),
+              Events.ContainsByPredicate([](const Automata::SimEvent &Event)
+                                         { return Event.type == Automata::EventType::Fire; }));
+
+    Config.startingRobot = 0;
+    const TArray<EAWCommand> PlayerTwoCommands = {EAWCommand::TurnLeft, EAWCommand::Move};
+    TestTrue(TEXT("Slot 2 projection builds when slot 1 owns initiative"),
+             UAWPlanVisualizationSubsystem::BuildProjection(
+                 1, PlayerTwoCommands, Config, InitialRobot, Snapshots, Events));
+    TestEqual(TEXT("Empty opponent queue adds no projection steps"),
+              Snapshots.Num(), PlayerTwoCommands.Num());
+    TestFalse(TEXT("Every slot 2 snapshot belongs to slot 2"),
+              Snapshots.ContainsByPredicate([](const Automata::StepSnapshot &Snapshot)
+                                            { return Snapshot.robots[1].currentCommand == INDEX_NONE; }));
     return true;
 }
 
@@ -152,11 +216,13 @@ bool FVFXAssetContract::RunTest(const FString &Parameters)
 {
     UNiagaraSystem *Muzzle = LoadObject<UNiagaraSystem>(nullptr, AWVisualAssets::NS_MuzzleFlash);
     UNiagaraSystem *Impact = LoadObject<UNiagaraSystem>(nullptr, AWVisualAssets::NS_Impact);
+    UMaterial *EffectMaterial = LoadObject<UMaterial>(nullptr, AWVisualAssets::M_Effect);
     UMaterial *ShieldMaterial = LoadObject<UMaterial>(nullptr, AWVisualAssets::M_ShieldEnergy);
     TestNotNull(TEXT("Muzzle system exists"), Muzzle);
     TestNotNull(TEXT("Impact system exists"), Impact);
+    TestNotNull(TEXT("Plan hologram material exists"), EffectMaterial);
     TestNotNull(TEXT("Shield energy material exists"), ShieldMaterial);
-    if (!Muzzle || !Impact || !ShieldMaterial)
+    if (!Muzzle || !Impact || !EffectMaterial || !ShieldMaterial)
         return false;
 
     AddInfo(FString::Printf(TEXT("Muzzle source IsLooping=%s; runtime lifespan cap=%.2fs"),
@@ -167,6 +233,8 @@ bool FVFXAssetContract::RunTest(const FString &Parameters)
     TestFalse(TEXT("Impact explosion and smoke system is finite"), Impact->IsLooping());
     TestTrue(TEXT("Impact smoke remains visible after projectile arrival"),
              AWVisualConfig::ImpactVFXLifespan >= 1.f);
+    TestTrue(TEXT("Plan hologram supports the tank's skeletal cannon"),
+             EffectMaterial->GetUsageByFlag(MATUSAGE_SkeletalMesh));
 
     UMetaData *MetaData = Impact->GetOutermost()->GetMetaData();
     TestEqual(TEXT("Impact uses the SimpleExplosion source"),

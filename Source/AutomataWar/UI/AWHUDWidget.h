@@ -12,6 +12,7 @@
 #include "AWHUDWidget.generated.h"
 
 class UAWGameSubsystem;
+class UAWPlanVisualizationSubsystem;
 class AAWArenaRenderer;
 class UAWArenaSelectionScreen;
 class UAWDifficultyScreen;
@@ -121,6 +122,7 @@ private:
 
     void OnSubmitSlot(int32 Slot);
     void OnReturnToPlanningSlot(int32 Slot);
+    void OnProgrammingCommandsChanged(int32 Slot);
     UFUNCTION()
     void OnSubmitP1();
     UFUNCTION()
@@ -150,6 +152,7 @@ private:
     void InitializeReplayFromGameState();
     /** Render the authoritative round-start arena while players assemble commands. */
     void InitializePlanningArenaFromGameState();
+    bool BuildPlanningSimConfig(Automata::SimConfig &OutConfig) const;
     /** Reveal a pending terminal result after the visual replay has completed. */
     void ShowPendingMatchResult();
     bool InitializeReplay(const TArray<EAWCommand> &CommandsA, const TArray<EAWCommand> &CommandsB, int64 Seed,
@@ -183,6 +186,7 @@ private:
     void SetAudioContext(EAWAudioContext Context) const;
 
     UAWGameSubsystem *GetSubsystem() const;
+    UAWPlanVisualizationSubsystem *GetPlanVisualizationSubsystem() const;
     AAWArenaRenderer *FindOrSpawnRenderer();
 
     UPROPERTY(meta = (BindWidget))

@@ -56,6 +56,20 @@ public:
     /** Reset visuals to initial state. */
     void ResetVisuals();
 
+    /** Rebuild one player's local-only tank ghost, movement trail, and firing vectors. */
+    void UpdatePlanProjection(int32 RobotIndex, const Automata::RobotState &InitialRobot,
+                              const TArray<Automata::StepSnapshot> &Snapshots,
+                              const TArray<Automata::SimEvent> &Events, int32 AnimatedStep);
+
+    /** Hide or restore a retained plan without discarding its queue-derived geometry. */
+    void SetPlanProjectionVisible(int32 RobotIndex, bool bVisible);
+
+    /** Destroy one retained plan projection. */
+    void ClearPlanProjection(int32 RobotIndex);
+
+    /** Destroy every retained plan projection before replay or a new arena is initialized. */
+    void ClearAllPlanProjections();
+
 protected:
     /** Build the floor grid mesh. */
     void BuildFloorGrid(int32 Width, int32 Height);
@@ -68,6 +82,7 @@ protected:
 
     /** Trigger muzzle flash VFX on a tank's cannon socket. */
     void TriggerMuzzleFlash(int32 RobotIdx);
+    void TriggerMuzzleFlash(AAWTankActor *Tank);
 
     /** Trigger impact VFX at position. */
     void TriggerImpact(FVector WorldPos);
@@ -108,6 +123,12 @@ protected:
 
     /** Resolve or create the actor that owns AP pickup visuals. */
     void ResolveActionPointItemSpawner();
+
+    AAWTankActor *EnsurePlanProjectionTank(int32 RobotIndex);
+    UStaticMeshComponent *CreatePlanBeam(const FVector &Start, const FVector &End,
+                                         const FLinearColor &Color, float Opacity);
+    void SetPlanProjectionShield(int32 RobotIndex, bool bActive);
+    void ClearPlanProjectionGeometry(int32 RobotIndex);
 
     UPROPERTY(VisibleAnywhere, Category = "Arena")
     TObjectPtr<UProceduralMeshComponent> FloorMesh;
@@ -157,4 +178,10 @@ protected:
     TWeakObjectPtr<UStaticMeshComponent> ShieldEffects[2];
     bool PendingFinalShieldState[2] = {false, false};
     bool bHasPendingFinalShieldState = false;
+
+    TWeakObjectPtr<AAWTankActor> PlanProjectionTanks[2];
+    TArray<TWeakObjectPtr<UStaticMeshComponent>> PlanTrailComponents[2];
+    TArray<TWeakObjectPtr<UStaticMeshComponent>> PlanAimComponents[2];
+    TWeakObjectPtr<UStaticMeshComponent> PlanShieldEffects[2];
+    bool bPlanProjectionVisible[2] = {false, false};
 };

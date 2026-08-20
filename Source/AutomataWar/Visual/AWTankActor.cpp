@@ -55,16 +55,31 @@ void AAWTankActor::BeginPlay()
     ApplyVisualConfiguration();
     BuildActiveIndicator();
 
-    if (UMaterialInterface *RobotMaterial = LoadObject<UMaterialInterface>(nullptr, AWVisualAssets::M_Robot))
+    const TCHAR *MaterialPath = bPlanProjection ? AWVisualAssets::M_Effect : AWVisualAssets::M_Robot;
+    if (UMaterialInterface *RobotMaterial = LoadObject<UMaterialInterface>(nullptr, MaterialPath))
     {
         DynamicMaterial = UMaterialInstanceDynamic::Create(RobotMaterial, this);
-        DynamicMaterial->SetVectorParameterValue(TEXT("BaseColor"), PlayerColor);
-        DynamicMaterial->SetVectorParameterValue(TEXT("EmissiveColor"), PlayerColor * 2.f);
+        if (bPlanProjection)
+        {
+            DynamicMaterial->SetVectorParameterValue(TEXT("EmissiveColor"), PlayerColor * 7.f);
+            DynamicMaterial->SetScalarParameterValue(TEXT("Opacity"), 0.3f);
+        }
+        else
+        {
+            DynamicMaterial->SetVectorParameterValue(TEXT("BaseColor"), PlayerColor);
+            DynamicMaterial->SetVectorParameterValue(TEXT("EmissiveColor"), PlayerColor * 2.f);
+        }
         for (UMeshComponent *Mesh : {static_cast<UMeshComponent *>(TankMesh), static_cast<UMeshComponent *>(CannonMesh)})
         {
             const int32 MaterialSlots = FMath::Max(Mesh->GetNumMaterials(), 1);
             for (int32 Slot = 0; Slot < MaterialSlots; ++Slot)
                 Mesh->SetMaterial(Slot, DynamicMaterial);
+            if (bPlanProjection)
+            {
+                Mesh->SetCastShadow(false);
+                Mesh->SetReceivesDecals(false);
+                Mesh->SetTranslucentSortPriority(20);
+            }
         }
     }
 
@@ -75,6 +90,17 @@ void AAWTankActor::BeginPlay()
         IndicatorMaterial->SetScalarParameterValue(TEXT("Opacity"), 0.85f);
         ActiveIndicator->SetMaterial(0, IndicatorMaterial);
     }
+}
+
+void AAWTankActor::ConfigureAsPlanProjection(const AAWTankActor &SourceTank)
+{
+    RobotIndex = SourceTank.RobotIndex;
+    TankAsset = SourceTank.TankAsset;
+    CannonAsset = SourceTank.CannonAsset;
+    MeshTransform = SourceTank.MeshTransform;
+    CannonTransform = SourceTank.CannonTransform;
+    PlayerColor = SourceTank.PlayerColor;
+    bPlanProjection = true;
 }
 
 void AAWTankActor::Tick(float DeltaTime)

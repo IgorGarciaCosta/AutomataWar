@@ -228,6 +228,7 @@ void UAWProgrammingPanelWidget::SetAIControlled(bool bInAIControlled)
     if (ProgrammingReturnToPlanningButton)
         ProgrammingReturnToPlanningButton->SetVisibility(bAIControlled ? ESlateVisibility::Collapsed : ESlateVisibility::Visible);
     RefreshCommands();
+    OnCommandsChanged.Broadcast(PlayerIndex);
 }
 
 void UAWProgrammingPanelWidget::ResetForNewRound(int32 Health, int32 ActionPoints)
@@ -235,6 +236,7 @@ void UAWProgrammingPanelWidget::ResetForNewRound(int32 Health, int32 ActionPoint
     Commands.Reset();
     SetPlayerStats(Health, ActionPoints);
     ResetSubmissionState();
+    OnCommandsChanged.Broadcast(PlayerIndex);
 }
 
 void UAWProgrammingPanelWidget::AddCommand(EAWCommand Command)
@@ -246,6 +248,7 @@ void UAWProgrammingPanelWidget::AddCommand(EAWCommand Command)
         Commands.Add(Command);
         AvailableActionPoints -= Cost;
         RefreshCommands();
+        OnCommandsChanged.Broadcast(PlayerIndex);
     }
 }
 
@@ -321,6 +324,7 @@ void UAWProgrammingPanelWidget::OnRemove()
         AvailableActionPoints += GetActionPointCost(Commands.Last());
         Commands.Pop();
         RefreshCommands();
+        OnCommandsChanged.Broadcast(PlayerIndex);
     }
 }
 
@@ -496,6 +500,8 @@ void UAWReplayAutopsyScreen::NativeConstruct()
         Panel->OnSubmitted.AddUObject(this, &UAWReplayAutopsyScreen::OnPanelSubmitted);
         Panel->OnPlanningReturned.RemoveAll(this);
         Panel->OnPlanningReturned.AddUObject(this, &UAWReplayAutopsyScreen::OnPanelReturned);
+        Panel->OnCommandsChanged.RemoveAll(this);
+        Panel->OnCommandsChanged.AddUObject(this, &UAWReplayAutopsyScreen::OnPanelCommandsChanged);
     }
     SetProgrammingMode(false, false);
 }
@@ -600,6 +606,11 @@ void UAWReplayAutopsyScreen::OnPanelSubmitted(int32 PlayerIndex)
 void UAWReplayAutopsyScreen::OnPanelReturned(int32 PlayerIndex)
 {
     BroadcastAction(PlayerIndex == 0 ? EAWUIAction::ReturnToPlanningP1 : EAWUIAction::ReturnToPlanningP2);
+}
+
+void UAWReplayAutopsyScreen::OnPanelCommandsChanged(int32 PlayerIndex)
+{
+    OnProgrammingCommandsChanged.Broadcast(PlayerIndex);
 }
 
 void UAWMatchResultPopupWidget::NativeConstruct()

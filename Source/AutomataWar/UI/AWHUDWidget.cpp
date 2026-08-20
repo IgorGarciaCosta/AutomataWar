@@ -10,6 +10,7 @@
 #include "AutomataWar/Game/AWPlayerController.h"
 #include "AutomataWar/Core/Replay/AutomataReplay.h"
 #include "AutomataWar/Visual/AWArenaRenderer.h"
+#include "AutomataWar/Visual/AWPlanVisualizationSubsystem.h"
 #include "AutomataWar/Visual/AWVisualTypes.h"
 #include "Components/Border.h"
 #include "Components/Button.h"
@@ -47,6 +48,12 @@ void UAWHUDWidget::NativeConstruct()
     {
         if (Screen)
             Screen->OnAction.AddUObject(this, &UAWHUDWidget::OnScreenAction);
+    }
+    if (ReplayAutopsyScreenWidget)
+    {
+        ReplayAutopsyScreenWidget->OnProgrammingCommandsChanged.RemoveAll(this);
+        ReplayAutopsyScreenWidget->OnProgrammingCommandsChanged.AddUObject(
+            this, &UAWHUDWidget::OnProgrammingCommandsChanged);
     }
 
     PopulateLanguageReference();
@@ -100,6 +107,29 @@ void UAWHUDWidget::NativeConstruct()
             OnStartSinglePlayer(EAWArenaSize::Standard);
             if (AAWPlayerController *PlayerController = Cast<AAWPlayerController>(GetOwningPlayer()))
                 PlayerController->SubmitCommands(0, {EAWCommand::Wait});
+        }
+        else if (CaptureMode.Equals(TEXT("PlanProjection"), ESearchCase::IgnoreCase) ||
+                 CaptureMode.Equals(TEXT("PlanProjectionRemoved"), ESearchCase::IgnoreCase))
+        {
+            OnLocalMatch();
+            if (UUserWidget *Panel = Cast<UUserWidget>(ReplayAutopsyScreenWidget->GetWidgetFromName(TEXT("ProgrammingP1PanelWidget"))))
+            {
+                const TCHAR *Buttons[] = {
+                    TEXT("ProgrammingMoveButton"), TEXT("ProgrammingTurnLeftButton"),
+                    TEXT("ProgrammingMoveButton"), TEXT("ProgrammingFireButton"),
+                    TEXT("ProgrammingChargeShieldButton")};
+                for (const TCHAR *ButtonName : Buttons)
+                    if (UButton *Button = Cast<UButton>(Panel->GetWidgetFromName(ButtonName)))
+                        Button->OnClicked.Broadcast();
+
+                if (CaptureMode.Equals(TEXT("PlanProjectionRemoved"), ESearchCase::IgnoreCase))
+                    if (UButton *RemoveButton = Cast<UButton>(Panel->GetWidgetFromName(TEXT("ProgrammingRemoveActionButton"))))
+                    {
+                        RemoveButton->OnClicked.Broadcast();
+                        RemoveButton->OnClicked.Broadcast();
+                    }
+            }
+            ScreenshotDelay = 1.2f;
         }
         else if (CaptureMode.Equals(TEXT("ProgrammingSubmitted"), ESearchCase::IgnoreCase) ||
                  CaptureMode.Equals(TEXT("ProgrammingReturned"), ESearchCase::IgnoreCase))
@@ -218,6 +248,10 @@ void UAWHUDWidget::NativeDestruct()
         if (Screen)
             Screen->OnAction.RemoveAll(this);
     }
+    if (ReplayAutopsyScreenWidget)
+        ReplayAutopsyScreenWidget->OnProgrammingCommandsChanged.RemoveAll(this);
+    if (UAWPlanVisualizationSubsystem *PlanVisualization = GetPlanVisualizationSubsystem())
+        PlanVisualization->ClearAllPlans();
 
     if (UWorld *World = GetWorld())
     {
@@ -297,6 +331,11 @@ UAWGameSubsystem *UAWHUDWidget::GetSubsystem() const
         return GI->GetSubsystem<UAWGameSubsystem>();
     }
     return nullptr;
+}
+
+UAWPlanVisualizationSubsystem *UAWHUDWidget::GetPlanVisualizationSubsystem() const
+{
+    return GetWorld() ? GetWorld()->GetSubsystem<UAWPlanVisualizationSubsystem>() : nullptr;
 }
 
 void UAWHUDWidget::ShowScreen(EAWScreen Screen)
@@ -457,6 +496,8 @@ void UAWHUDWidget::OnPhaseChanged(EAWMatchPhase NewPhase)
     case EAWMatchPhase::Programming:
         bReplayPlaying = false;
         bMatchResultPending = false;
+        if (UAWPlanVisualizationSubsystem *PlanVisualization = GetPlanVisualizationSubsystem())
+            PlanVisualization->ClearAllPlans();
         SetAudioContext(EAWAudioContext::Planning);
         if (ReplayAutopsyScreenWidget)
         {
@@ -471,6 +512,8 @@ void UAWHUDWidget::OnPhaseChanged(EAWMatchPhase NewPhase)
         ShowScreen(EAWScreen::ReplayAutopsy);
         break;
     case EAWMatchPhase::Simulation:
+        if (UAWPlanVisualizationSubsystem *PlanVisualization = GetPlanVisualizationSubsystem())
+            PlanVisualization->ClearAllPlans();
         SetAudioContext(EAWAudioContext::Combat);
         if (ReplayAutopsyScreenWidget)
         {
@@ -489,6 +532,8 @@ void UAWHUDWidget::OnPhaseChanged(EAWMatchPhase NewPhase)
         ShowScreen(EAWScreen::ReplayAutopsy);
         break;
     case EAWMatchPhase::ReplayAutopsy:
+        if (UAWPlanVisualizationSubsystem *PlanVisualization = GetPlanVisualizationSubsystem())
+            PlanVisualization->ClearAllPlans();
         SetAudioContext(EAWAudioContext::Replay);
         PlayUISound(AWVisualAssets::SFX_MatchEnd);
         InitializeReplayFromGameState();
@@ -543,6 +588,9 @@ void UAWHUDWidget::OnSubmissionResult(int32 SlotIndex, const FAWValidationResult
 {
     if (ReplayAutopsyScreenWidget)
         ReplayAutopsyScreenWidget->ResolveProgrammingSubmission(SlotIndex, Result.bSuccess);
+    if (!Result.bSuccess)
+        if (UAWPlanVisualizationSubsystem *PlanVisualization = GetPlanVisualizationSubsystem())
+            PlanVisualization->ShowPlan(SlotIndex);
     SetStatus(Result.bSuccess
                   ? FString::Printf(TEXT("Slot %d submitted."), SlotIndex)
                   : FString::Printf(TEXT("Slot %d: %s"), SlotIndex, *Result.ErrorMessage),
@@ -551,6 +599,13 @@ void UAWHUDWidget::OnSubmissionResult(int32 SlotIndex, const FAWValidationResult
 
 void UAWHUDWidget::OnWithdrawalResult(int32 SlotIndex, const FAWValidationResult &Result)
 {
+    if (UAWPlanVisualizationSubsystem *PlanVisualization = GetPlanVisualizationSubsystem())
+    {
+        if (Result.bSuccess)
+            PlanVisualization->ShowPlan(SlotIndex);
+        else
+            PlanVisualization->HidePlan(SlotIndex);
+    }
     SetStatus(Result.bSuccess
                   ? FString::Printf(TEXT("Slot %d returned to planning."), SlotIndex)
                   : FString::Printf(TEXT("Slot %d: %s"), SlotIndex, *Result.ErrorMessage),
@@ -707,6 +762,8 @@ void UAWHUDWidget::OnQuit()
 
 void UAWHUDWidget::OnSubmitSlot(int32 SlotIndex)
 {
+    if (UAWPlanVisualizationSubsystem *PlanVisualization = GetPlanVisualizationSubsystem())
+        PlanVisualization->HidePlan(SlotIndex);
     if (AAWPlayerController *PlayerController = Cast<AAWPlayerController>(GetOwningPlayer()))
     {
         const TArray<EAWCommand> Commands = ReplayAutopsyScreenWidget
@@ -723,6 +780,8 @@ void UAWHUDWidget::OnSubmitSlot(int32 SlotIndex)
 
 void UAWHUDWidget::OnReturnToPlanningSlot(int32 SlotIndex)
 {
+    if (UAWPlanVisualizationSubsystem *PlanVisualization = GetPlanVisualizationSubsystem())
+        PlanVisualization->ShowPlan(SlotIndex);
     if (AAWPlayerController *PlayerController = Cast<AAWPlayerController>(GetOwningPlayer()))
     {
         PlayerController->WithdrawCommands(SlotIndex);
@@ -732,6 +791,29 @@ void UAWHUDWidget::OnReturnToPlanningSlot(int32 SlotIndex)
     FAWValidationResult Result;
     Result.ErrorMessage = TEXT("Player controller unavailable.");
     OnWithdrawalResult(SlotIndex, Result);
+}
+
+void UAWHUDWidget::OnProgrammingCommandsChanged(int32 SlotIndex)
+{
+    if (!ReplayAutopsyScreenWidget)
+        return;
+
+    UAWPlanVisualizationSubsystem *PlanVisualization = GetPlanVisualizationSubsystem();
+    AAWArenaRenderer *Renderer = FindOrSpawnRenderer();
+    if (!PlanVisualization || !Renderer)
+        return;
+    PlanVisualization->SetRenderer(Renderer);
+
+    const TArray<EAWCommand> Commands = ReplayAutopsyScreenWidget->GetProgrammingCommands(SlotIndex);
+    if (Commands.IsEmpty())
+    {
+        PlanVisualization->ClearPlan(SlotIndex);
+        return;
+    }
+
+    Automata::SimConfig Config;
+    if (!BuildPlanningSimConfig(Config) || !PlanVisualization->UpdatePlan(SlotIndex, Commands, Config))
+        SetStatus(TEXT("Failed to reconstruct the current plan."), true);
 }
 
 void UAWHUDWidget::OnSubmitP1() { OnSubmitSlot(0); }
@@ -809,6 +891,30 @@ void UAWHUDWidget::InitializePlanningArenaFromGameState()
         Snapshot.robots[RobotIndex].effects = GS->GetEffects(RobotIndex);
     }
     Renderer->SetSnapshot(Snapshot);
+    if (UAWPlanVisualizationSubsystem *PlanVisualization = GetPlanVisualizationSubsystem())
+        PlanVisualization->SetRenderer(Renderer);
+}
+
+bool UAWHUDWidget::BuildPlanningSimConfig(Automata::SimConfig &OutConfig) const
+{
+    const AAWGameState *GS = GetWorld() ? GetWorld()->GetGameState<AAWGameState>() : nullptr;
+    if (!GS || GS->ReplayStartArenaState.IsEmpty())
+        return false;
+
+    Automata::RoundState ArenaState;
+    if (!Automata::DecodeRoundState(
+            GS->ReplayStartArenaState.GetData(), GS->ReplayStartArenaState.Num(), ArenaState))
+        return false;
+
+    OutConfig = {};
+    OutConfig.gridWidth = ArenaState.gridWidth;
+    OutConfig.gridHeight = ArenaState.gridHeight;
+    OutConfig.seed = static_cast<uint64>(GS->SimSeed);
+    OutConfig.startingRobot = GS->RoundStartingSlot;
+    OutConfig.initialActionPoints = {GS->GetActionPoints(0), GS->GetActionPoints(1)};
+    OutConfig.initialEffects = {GS->GetEffects(0), GS->GetEffects(1)};
+    OutConfig.initialState = MoveTemp(ArenaState);
+    return true;
 }
 
 bool UAWHUDWidget::InitializeReplay(const TArray<EAWCommand> &CommandsA, const TArray<EAWCommand> &CommandsB, int64 Seed,

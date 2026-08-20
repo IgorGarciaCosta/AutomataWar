@@ -196,6 +196,9 @@ public:
     /** Raised when the submitted program is reopened for editing. */
     FAWProgrammingPanelEvent OnPlanningReturned;
 
+    /** Raised after any queue mutation, including a round reset. */
+    FAWProgrammingPanelEvent OnCommandsChanged;
+
     /** @return The command queue currently shown by this panel. */
     const TArray<EAWCommand> &GetCommands() const { return Commands; }
 
@@ -398,6 +401,9 @@ class AUTOMATAWAR_API UAWReplayAutopsyScreen : public UAWScreenWidget
 public:
     virtual void NativeConstruct() override;
 
+    /** Raised when either embedded programming queue changes. */
+    FAWProgrammingPanelEvent OnProgrammingCommandsChanged;
+
     /** Display the camera-owned arena render target in the center viewport. */
     void SetArenaRenderTarget(UTextureRenderTarget2D *RenderTarget);
     /** Switch the side bays between editable programs and replay command docks. */
@@ -442,6 +448,8 @@ private:
     void OnPanelSubmitted(int32 PlayerIndex);
     /** Forward a reusable panel withdrawal to the root HUD. */
     void OnPanelReturned(int32 PlayerIndex);
+    /** Forward queue edits so the root HUD can rebuild local plan visualization. */
+    void OnPanelCommandsChanged(int32 PlayerIndex);
     /** Resolve one of the two embedded programming panels. */
     UAWProgrammingPanelWidget *GetProgrammingPanel(int32 PlayerIndex) const;
 
