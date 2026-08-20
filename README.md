@@ -4,17 +4,17 @@ Automata War is a small 1v1 tank game made in C++ with Unreal Engine 5.5. Instea
 
 ## Commands
 
-Commands are relative to the tank's current facing:
+Each turn is an AP-budgeted queue built from seven commands. Movement, firing, and turning are relative to the tank's current facing:
 
-| Command         | Effect                                                                  |
-| --------------- | ----------------------------------------------------------------------- |
-| `MOVE`          | Move one cell forward. Walls, cover, and the other tank block movement. |
-| `FIRE`          | Fire straight ahead. The first tank or obstacle in the line is hit.     |
-| `TURN LEFT`     | Rotate 90 degrees left from the tank's point of view.                   |
-| `TURN RIGHT`    | Rotate 90 degrees right from the tank's point of view.                  |
-| `WAIT`          | Hold position for one command step.                                     |
-| `CHARGE SHIELD` | Spend 20 AP to reduce the next incoming hit by 50%.                     |
-| `ACCELERATE`    | Spend 30 AP so the next move crosses up to two cells.                   |
+| Command         | AP | Effect                                                                  |
+| --------------- | ---: | ----------------------------------------------------------------------- |
+| `MOVE`          | 10 | Move one cell forward. Walls, cover, and the other tank block movement. |
+| `FIRE`          | 20 | Fire straight ahead. The first tank or obstacle in the line is hit.     |
+| `TURN LEFT`     |  5 | Rotate 90 degrees left from the tank's point of view.                   |
+| `TURN RIGHT`    |  5 | Rotate 90 degrees right from the tank's point of view.                  |
+| `WAIT`          |  0 | Hold position for one command step.                                     |
+| `CHARGE SHIELD` | 20 | Reduce the next incoming hit by 50%.                                    |
+| `ACCELERATE`    | 30 | Make the next move cross up to two cells.                               |
 
 Commands run once, in order, with exactly one tank acting per replay step. The round starter executes its entire queue without yielding; then the other tank executes its entire queue. After both turns finish, a player loses when their remaining AP is below the cheapest positive-cost command. If both players reach that state together, higher HP wins. Destroying a tank ends the match immediately.
 
