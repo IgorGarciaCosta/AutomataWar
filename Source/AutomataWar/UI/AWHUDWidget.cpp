@@ -1,6 +1,7 @@
 #include "AWHUDWidget.h"
 #include "AWScreenWidget.h"
 #include "AWUITypes.h"
+#include "AutomataWar/Audio/AWAudioSubsystem.h"
 #include "AutomataWar/Game/AWGameSubsystem.h"
 #include "AutomataWar/Game/AWGameState.h"
 #include "AutomataWar/Game/AWGameMode.h"
@@ -255,6 +256,7 @@ void UAWHUDWidget::NativeTick(const FGeometry &MyGeometry, float InDeltaTime)
             {
                 bReplayPlaying = false;
                 bReplayCompleted = true;
+                SetAudioContext(EAWAudioContext::Replay);
                 break;
             }
         }
@@ -281,6 +283,13 @@ void UAWHUDWidget::SetArenaRenderTarget(UTextureRenderTarget2D *RenderTarget)
         ReplayAutopsyScreenWidget->SetArenaRenderTarget(RenderTarget);
 }
 
+void UAWHUDWidget::SetAudioContext(EAWAudioContext Context) const
+{
+    if (UGameInstance *GameInstance = GetGameInstance())
+        if (UAWAudioSubsystem *AudioSubsystem = GameInstance->GetSubsystem<UAWAudioSubsystem>())
+            AudioSubsystem->SetContext(Context);
+}
+
 UAWGameSubsystem *UAWHUDWidget::GetSubsystem() const
 {
     if (UGameInstance *GI = GetGameInstance())
@@ -293,6 +302,20 @@ UAWGameSubsystem *UAWHUDWidget::GetSubsystem() const
 void UAWHUDWidget::ShowScreen(EAWScreen Screen)
 {
     CurrentScreen = Screen;
+    switch (Screen)
+    {
+    case EAWScreen::MainMenu:
+    case EAWScreen::Difficulty:
+    case EAWScreen::ArenaSelection:
+        SetAudioContext(EAWAudioContext::Frontend);
+        break;
+    case EAWScreen::ReplayBrowser:
+    case EAWScreen::LanguageReference:
+        SetAudioContext(EAWAudioContext::Terminal);
+        break;
+    default:
+        break;
+    }
     if (ScreenSwitcher)
     {
         ScreenSwitcher->SetActiveWidgetIndex(static_cast<int32>(Screen));
@@ -434,6 +457,7 @@ void UAWHUDWidget::OnPhaseChanged(EAWMatchPhase NewPhase)
     case EAWMatchPhase::Programming:
         bReplayPlaying = false;
         bMatchResultPending = false;
+        SetAudioContext(EAWAudioContext::Planning);
         if (ReplayAutopsyScreenWidget)
         {
             if (AAWGameState *GS = GetWorld()->GetGameState<AAWGameState>())
@@ -447,6 +471,7 @@ void UAWHUDWidget::OnPhaseChanged(EAWMatchPhase NewPhase)
         ShowScreen(EAWScreen::ReplayAutopsy);
         break;
     case EAWMatchPhase::Simulation:
+        SetAudioContext(EAWAudioContext::Combat);
         if (ReplayAutopsyScreenWidget)
         {
             ReplayAutopsyScreenWidget->SetProgrammingMode(false, false);
@@ -464,6 +489,7 @@ void UAWHUDWidget::OnPhaseChanged(EAWMatchPhase NewPhase)
         ShowScreen(EAWScreen::ReplayAutopsy);
         break;
     case EAWMatchPhase::ReplayAutopsy:
+        SetAudioContext(EAWAudioContext::Replay);
         PlayUISound(AWVisualAssets::SFX_MatchEnd);
         InitializeReplayFromGameState();
         if (AAWGameState *GS = GetWorld()->GetGameState<AAWGameState>(); GS && ReplayAutopsyScreenWidget)
@@ -791,6 +817,7 @@ bool UAWHUDWidget::InitializeReplay(const TArray<EAWCommand> &CommandsA, const T
                                     int32 StartingSlot, const TArray<uint8> &InitialState)
 {
     bReplayPlaying = false;
+    SetAudioContext(EAWAudioContext::Replay);
     ReplayAccumulator = 0.0;
     LastProcessedReplayEventStep = INDEX_NONE;
     ReplaySpeed = .1f;
@@ -885,8 +912,13 @@ void UAWHUDWidget::OnReplayPlay()
 {
     bReplayPlaying = true;
     ReplayAccumulator = 0.0;
+    SetAudioContext(EAWAudioContext::Combat);
 }
-void UAWHUDWidget::OnReplayPause() { bReplayPlaying = false; }
+void UAWHUDWidget::OnReplayPause()
+{
+    bReplayPlaying = false;
+    SetAudioContext(EAWAudioContext::Replay);
+}
 
 void UAWHUDWidget::OnReplayStep()
 {

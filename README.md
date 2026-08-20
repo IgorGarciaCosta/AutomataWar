@@ -49,7 +49,7 @@ Single player is selected from the main menu, followed by Easy, Normal, or Hard 
 
 Pickup state is canonical and included in replay inputs. Timed effects count the collection round as their first active round.
 
-The UI uses a shared AW-80 phosphor-terminal style, including a software cursor and terminal button sounds. Tank movement is intentionally silent.
+The UI uses a shared AW-80 phosphor-terminal style, including a software cursor and terminal button sounds. A project-authored layered score carries the setup flow, planning, replay analysis, and combat while preserving headroom for effects. Tank movement is intentionally silent.
 
 Terminal results use reason-specific messages stored in `/Game/UI/Data/E_MatchResultMessage`. Local multiplayer displays one result popup for each player's viewpoint.
 
@@ -75,6 +75,7 @@ flowchart LR
 - `Core/Sim`: Runs the seven commands and owns canonical integer state and pickup effects.
 - `Core/Replay`: Stores command bytes and handles step-by-step replay navigation.
 - `AI/`: Generates deterministic, AP-budgeted single-player command queues.
+- `Audio/`: Owns persistent terminal ambience and context-driven music crossfades.
 - `Game/` and `Net/`: Handle submissions, replication, sessions, replay storage, and desync checks.
 - `UI/` and `Visual/`: Contain the UMG screens and the presentation-only arena actors.
 

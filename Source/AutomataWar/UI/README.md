@@ -6,7 +6,8 @@ Designer-authored UMG presentation for Automata War with native C++ behavior.
 
 - `AWUITypes.h/cpp` — Log category, color palette, asset soft paths
 - `AWScreenWidget.h/cpp` — Typed screens, command queues, button bindings, and semantic UI events
-- `AWHUDWidget.h/cpp` — Root coordinator for navigation, game state, and screen data
+- `AWHUDWidget.h/cpp` — Root coordinator for navigation, game state, screen data, and high-level audio context requests
+- `Audio/AWAudioSubsystem.h/cpp` — Persistent owner of music assets, components, gain staging, and crossfades
 - `WBP_AWHUD` — Responsive shell, status bar, and six-screen switcher
 - `Content/UI/Screens` — Independently editable screen Widget Blueprints and reusable simulation dock
 

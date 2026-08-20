@@ -78,6 +78,11 @@ Required Unreal notices:
 
 The following project-authored assets are stored as Unreal content. Imported third-party meshes remain itemized above.
 
+- `Content/Audio/Ambience/S_AWTerminalHum.uasset`
+- `Content/Audio/Ambience/S_AWFrontend.uasset`
+- `Content/Audio/Ambience/S_AWPlanning.uasset`
+- `Content/Audio/Ambience/S_AWReplay.uasset`
+- `Content/Audio/Ambience/S_AWCombat.uasset`
 - `Content/Art/Materials/M_ArenaCell.uasset`
 - `Content/Art/Materials/M_Robot.uasset`
 - `Content/Art/Materials/M_Cover.uasset`

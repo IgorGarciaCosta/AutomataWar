@@ -25,6 +25,7 @@ class UTextBlock;
 class UTextureRenderTarget2D;
 class UWidgetSwitcher;
 enum class EAWAIDifficulty : uint8;
+enum class EAWAudioContext : uint8;
 enum class EAWUIAction : uint8;
 
 /** Six stable screen indices owned by the HUD Widget Blueprint switcher. */
@@ -178,6 +179,8 @@ private:
 
     void SetStatus(const FString &Msg, bool bError = false);
     void PlayUISound(const TCHAR *AssetPath) const;
+    /** Forward a high-level presentation context to the game-instance audio owner. */
+    void SetAudioContext(EAWAudioContext Context) const;
 
     UAWGameSubsystem *GetSubsystem() const;
     AAWArenaRenderer *FindOrSpawnRenderer();
