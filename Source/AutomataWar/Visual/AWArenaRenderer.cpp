@@ -585,7 +585,7 @@ void AAWArenaRenderer::SpawnCoverVisuals(int32 Width, int32 Height, const TArray
     if (!ObstacleClass)
         return;
 
-    // CoverIdx drives deterministic color and shape variation.
+    // CoverIdx drives deterministic color and silhouette variation.
     int32 CoverIdx = 0;
     for (int32 Y = 0; Y < Height; ++Y)
     {
@@ -605,16 +605,16 @@ void AAWArenaRenderer::SpawnCoverVisuals(int32 Width, int32 Height, const TArray
                 switch (CoverIdx % 4)
                 {
                 case 0:
-                    CoverColor = FLinearColor(0.15f, 0.12f, 0.08f);
+                    CoverColor = FLinearColor(0.28f, 0.10f, 0.035f);
                     break;
                 case 1:
-                    CoverColor = FLinearColor(0.08f, 0.12f, 0.15f);
+                    CoverColor = FLinearColor(0.04f, 0.16f, 0.26f);
                     break;
                 case 2:
-                    CoverColor = FLinearColor(0.12f, 0.08f, 0.12f);
+                    CoverColor = FLinearColor(0.24f, 0.055f, 0.14f);
                     break;
                 default:
-                    CoverColor = FLinearColor(0.10f, 0.14f, 0.10f);
+                    CoverColor = FLinearColor(0.08f, 0.22f, 0.07f);
                     break;
                 }
 
@@ -623,7 +623,7 @@ void AAWArenaRenderer::SpawnCoverVisuals(int32 Width, int32 Height, const TArray
                 SpawnParameters.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
                 if (ATableObstable *Obstacle = GetWorld()->SpawnActor<ATableObstable>(ObstacleClass, Pos, FRotator::ZeroRotator, SpawnParameters))
                 {
-                    Obstacle->InitializeObstacle(CellIdx, CoverColor);
+                    Obstacle->InitializeObstacle(CellIdx, CoverColor, CoverIdx);
                     Obstacles.Add(CellIdx, Obstacle);
                 }
 

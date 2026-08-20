@@ -23,8 +23,8 @@ public:
 
     virtual void OnConstruction(const FTransform &Transform) override;
 
-    /** Configure the grid identity and deterministic color selected by the arena renderer. */
-    void InitializeObstacle(int32 InCellIndex, const FLinearColor &InColor);
+    /** Configure the grid identity and deterministic visual variant selected by the arena renderer. */
+    void InitializeObstacle(int32 InCellIndex, const FLinearColor &InColor, int32 InVisualVariant);
 
     /** Mirror canonical obstacle health from the current replay snapshot. */
     void SetHealth(int32 NewHealth);

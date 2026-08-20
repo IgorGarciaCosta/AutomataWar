@@ -52,9 +52,20 @@ void ATableObstable::BeginPlay()
     RefreshHealthWidget();
 }
 
-void ATableObstable::InitializeObstacle(int32 InCellIndex, const FLinearColor &InColor)
+void ATableObstable::InitializeObstacle(int32 InCellIndex, const FLinearColor &InColor, int32 InVisualVariant)
 {
     CellIndex = InCellIndex;
+
+    const int32 VisualVariant = FMath::Abs(InVisualVariant) % 4;
+    const FVector VariantScales[] = {
+        FVector(0.82f, 0.82f, 0.56f),
+        FVector(0.88f, 0.48f, 0.52f),
+        FVector(0.48f, 0.88f, 0.52f),
+        FVector(0.62f, 0.62f, 0.72f)};
+    const FVector &Scale = VariantScales[VisualVariant];
+    ObstacleMesh->SetRelativeScale3D(Scale);
+    ObstacleMesh->SetRelativeLocation(FVector(0.f, 0.f, Scale.Z * 50.f));
+    HealthWidget->SetRelativeLocation(FVector(0.f, 0.f, Scale.Z * 100.f + 20.f));
 
     if (ObstacleMaterial)
     {

@@ -35,8 +35,8 @@ AAWItem::AAWItem()
 
     ItemLight = CreateDefaultSubobject<UPointLightComponent>(TEXT("ItemLight"));
     ItemLight->SetupAttachment(SceneRoot);
-    ItemLight->SetIntensity(900.f);
-    ItemLight->SetAttenuationRadius(115.f);
+    ItemLight->SetIntensity(160.f);
+    ItemLight->SetAttenuationRadius(72.f);
     ItemLight->bEditableWhenInherited = true;
 
     PickupEffectPath = AWVisualAssets::NS_ActionPointPickup;
