@@ -11,7 +11,6 @@
 #include "CoreMinimal.h"
 #include "Subsystems/GameInstanceSubsystem.h"
 #include "Interfaces/OnlineSessionInterface.h"
-#include "AutomataWar/AI/AWAIController.h"
 #include "AWMatchTypes.h"
 #include "AWGameSubsystem.generated.h"
 
@@ -34,13 +33,13 @@ public:
 
     // ─── Local Match ─────────────────────────────────────────────────────────
 
-    /** Start a local hot-seat match (two command slots, one process). */
+    /** Start a local hot-seat match with the selected difficulty and arena. */
     UFUNCTION(BlueprintCallable, Category = "AutomataWar|Local")
-    void StartLocalMatch();
+    void StartLocalMatch(EAWDifficulty Difficulty, EAWArenaSize ArenaSize);
 
     /** Start a local match with the selected AI difficulty and procedural arena size. */
     UFUNCTION(BlueprintCallable, Category = "AutomataWar|Local")
-    void StartSinglePlayerMatch(EAWAIDifficulty Difficulty, EAWArenaSize ArenaSize);
+    void StartSinglePlayerMatch(EAWDifficulty Difficulty, EAWArenaSize ArenaSize);
 
     /** Advance to next round (local or host). */
     UFUNCTION(BlueprintCallable, Category = "AutomataWar|Match")

@@ -10,15 +10,6 @@
 #include "AutomataWar/Game/AWMatchTypes.h"
 #include "AWAIController.generated.h"
 
-/** Planning depth used by the single-player opponent. */
-UENUM(BlueprintType)
-enum class EAWAIDifficulty : uint8
-{
-    Easy UMETA(DisplayName = "Easy"),
-    Normal UMETA(DisplayName = "Normal"),
-    Hard UMETA(DisplayName = "Hard")
-};
-
 /**
  * Server-owned planner for the single-player command slot.
  *
@@ -42,5 +33,5 @@ public:
      * @param AvailableActionPoints Maximum total queue cost.
      * @param Seed Stable value used to vary left/right routing.
      */
-    static TArray<EAWCommand> GenerateCommandQueue(EAWAIDifficulty Difficulty, int32 AvailableActionPoints, int32 Seed);
+    static TArray<EAWCommand> GenerateCommandQueue(EAWDifficulty Difficulty, int32 AvailableActionPoints, int32 Seed);
 };

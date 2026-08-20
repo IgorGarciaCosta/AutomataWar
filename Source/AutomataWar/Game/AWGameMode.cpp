@@ -64,7 +64,7 @@ void AAWGameMode::Logout(AController *Exiting)
     Super::Logout(Exiting);
 }
 
-void AAWGameMode::BeginLocalMatch(EAWArenaSize ArenaSize)
+void AAWGameMode::BeginLocalMatch(EAWDifficulty Difficulty, EAWArenaSize ArenaSize)
 {
     bLocalMatch = true;
     bSinglePlayerMatch = false;
@@ -105,6 +105,7 @@ void AAWGameMode::BeginLocalMatch(EAWArenaSize ArenaSize)
 
     if (AAWGameState *GS = GetGameState<AAWGameState>())
     {
+        const int32 StartingActionPoints = GetStartingActionPoints(Difficulty);
         GS->RoundNumber = 1;
         GS->SubmissionTimeRemaining = -1.f;
         GS->RevealedCommands0.Reset();
@@ -112,12 +113,12 @@ void AAWGameMode::BeginLocalMatch(EAWArenaSize ArenaSize)
         GS->AuthoritativeHash = 0;
         GS->SimSeed = static_cast<int64>(MatchArenaSeed);
         GS->Outcome = FAWMatchOutcome();
-        GS->SetActionPoints(0, Automata::InitialActionPoints);
-        GS->SetActionPoints(1, Automata::InitialActionPoints);
+        GS->SetActionPoints(0, StartingActionPoints);
+        GS->SetActionPoints(1, StartingActionPoints);
         GS->RoundStartingSlot = ChooseRoundStartingSlot(
             GS->RoundNumber, GS->GetActionPoints(0), GS->GetActionPoints(1), FMath::RandRange(0, 1));
-        GS->ReplayStartActionPoints0 = Automata::InitialActionPoints;
-        GS->ReplayStartActionPoints1 = Automata::InitialActionPoints;
+        GS->ReplayStartActionPoints0 = StartingActionPoints;
+        GS->ReplayStartActionPoints1 = StartingActionPoints;
         GS->SetEffects(0, {});
         GS->SetEffects(1, {});
         GS->ReplayStartEffects0 = {};
@@ -130,9 +131,9 @@ void AAWGameMode::BeginLocalMatch(EAWArenaSize ArenaSize)
     SetPhase(EAWMatchPhase::Programming);
 }
 
-void AAWGameMode::BeginSinglePlayerMatch(EAWAIDifficulty Difficulty, EAWArenaSize ArenaSize)
+void AAWGameMode::BeginSinglePlayerMatch(EAWDifficulty Difficulty, EAWArenaSize ArenaSize)
 {
-    BeginLocalMatch(ArenaSize);
+    BeginLocalMatch(Difficulty, ArenaSize);
     bSinglePlayerMatch = true;
     AIDifficulty = Difficulty;
     EnsureAIController();

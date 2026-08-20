@@ -17,7 +17,7 @@ void UAWGameSubsystem::Deinitialize()
 
 // --- Local Match ------------------------------------------------------------
 
-void UAWGameSubsystem::StartLocalMatch()
+void UAWGameSubsystem::StartLocalMatch(EAWDifficulty Difficulty, EAWArenaSize ArenaSize)
 {
     UGameInstance *GI = GetGameInstance();
     if (!GI)
@@ -29,14 +29,14 @@ void UAWGameSubsystem::StartLocalMatch()
 
     if (AAWGameMode *GM = World->GetAuthGameMode<AAWGameMode>())
     {
-        GM->BeginLocalMatch();
+        GM->BeginLocalMatch(Difficulty, ArenaSize);
         return;
     }
 
     OnError.Broadcast(TEXT("Local match requires the Automata War arena."));
 }
 
-void UAWGameSubsystem::StartSinglePlayerMatch(EAWAIDifficulty Difficulty, EAWArenaSize ArenaSize)
+void UAWGameSubsystem::StartSinglePlayerMatch(EAWDifficulty Difficulty, EAWArenaSize ArenaSize)
 {
     UWorld *World = GetGameInstance() ? GetGameInstance()->GetWorld() : nullptr;
     if (AAWGameMode *GM = World ? World->GetAuthGameMode<AAWGameMode>() : nullptr)

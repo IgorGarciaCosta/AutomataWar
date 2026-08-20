@@ -38,7 +38,7 @@ Both players use the same `WBP_AWProgrammingPanel` layout. It has:
 
 Commands are selected with buttons rather than typed as free-form text.
 
-Single player is selected from the main menu, followed by Easy, Normal, or Hard difficulty. The server-owned `AAWAIController` generates slot 1's queue and submits it through the same validation path as human players.
+Single player and Local Versus both select Easy, Normal, or Hard difficulty, then an 8×8, 16×16, or 32×32 procedural arena. Difficulty gives both combatants 150, 100, or 75 starting AP respectively; in single player it also selects the AI planning depth. The server-owned `AAWAIController` generates slot 1's queue and submits it through the same validation path as human players.
 
 ## Pickups
 

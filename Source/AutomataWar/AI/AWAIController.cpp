@@ -6,20 +6,20 @@ AAWAIController::AAWAIController()
     bWantsPlayerState = false;
 }
 
-TArray<EAWCommand> AAWAIController::GenerateCommandQueue(EAWAIDifficulty Difficulty, int32 AvailableActionPoints, int32 Seed)
+TArray<EAWCommand> AAWAIController::GenerateCommandQueue(EAWDifficulty Difficulty, int32 AvailableActionPoints, int32 Seed)
 {
     const EAWCommand Turn = (Seed & 1) == 0 ? EAWCommand::TurnLeft : EAWCommand::TurnRight;
     TArray<EAWCommand> Plan;
     switch (Difficulty)
     {
-    case EAWAIDifficulty::Easy:
+    case EAWDifficulty::Easy:
         Plan = {EAWCommand::Move, EAWCommand::Wait, Turn, EAWCommand::Fire};
         break;
-    case EAWAIDifficulty::Normal:
+    case EAWDifficulty::Normal:
         Plan = {EAWCommand::ChargeShield, EAWCommand::Move, EAWCommand::Move,
                 Turn, EAWCommand::Fire, EAWCommand::Wait};
         break;
-    case EAWAIDifficulty::Hard:
+    case EAWDifficulty::Hard:
         Plan = {EAWCommand::ChargeShield, EAWCommand::Accelerate, EAWCommand::Move,
                 Turn, EAWCommand::Move, EAWCommand::Fire, EAWCommand::Wait};
         break;

@@ -38,11 +38,12 @@ public:
     /** Convert an online disconnect into a deterministic forfeit and clean logout. */
     virtual void Logout(AController *Exiting) override;
 
-    /** Reset the current standalone world for a fresh local hot-seat match. */
-    void BeginLocalMatch(EAWArenaSize ArenaSize = EAWArenaSize::Standard);
+    /** Reset the standalone world with the selected difficulty and arena. */
+    void BeginLocalMatch(EAWDifficulty Difficulty = EAWDifficulty::Normal,
+                         EAWArenaSize ArenaSize = EAWArenaSize::Standard);
 
-    /** Reset the standalone world and assign slot 1 to an AI planner. */
-    void BeginSinglePlayerMatch(EAWAIDifficulty Difficulty, EAWArenaSize ArenaSize);
+    /** Reset the standalone world and assign slot 1 to the selected AI planner. */
+    void BeginSinglePlayerMatch(EAWDifficulty Difficulty, EAWArenaSize ArenaSize);
 
     /**
      * @brief Handle a command-list submission for a given slot.
@@ -76,7 +77,7 @@ public:
 
     /** Selected planning depth for the current single-player match. */
     UPROPERTY(BlueprintReadOnly, Category = "AutomataWar|AI")
-    EAWAIDifficulty AIDifficulty = EAWAIDifficulty::Normal;
+    EAWDifficulty AIDifficulty = EAWDifficulty::Normal;
 
     /** Procedural grid dimensions selected for the current match. */
     UPROPERTY(BlueprintReadOnly, Category = "AutomataWar|Arena")

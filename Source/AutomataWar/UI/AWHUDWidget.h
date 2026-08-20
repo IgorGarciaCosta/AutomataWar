@@ -25,7 +25,6 @@ class UBorder;
 class UTextBlock;
 class UTextureRenderTarget2D;
 class UWidgetSwitcher;
-enum class EAWAIDifficulty : uint8;
 enum class EAWAudioContext : uint8;
 enum class EAWUIAction : uint8;
 
@@ -97,10 +96,14 @@ private:
     /** Open single-player difficulty selection without changing match state. */
     UFUNCTION()
     void OnSinglePlayerNav();
-    /** Retain the selected AI planner and open procedural arena selection. */
-    void OnDifficultySelected(EAWAIDifficulty Difficulty);
-    /** Reset the selected arena and start slot 1 under the retained AI planner. */
-    void OnStartSinglePlayer(EAWArenaSize ArenaSize);
+    /** Retain the selected match preset and open procedural arena selection. */
+    void OnDifficultySelected(EAWDifficulty Difficulty);
+    /** Start the selected local or single-player mode on an arena. */
+    void OnStartMatch(EAWArenaSize ArenaSize);
+    /** Start local-versus directly for completed setup and capture tooling. */
+    void StartLocalMatch(EAWDifficulty Difficulty = EAWDifficulty::Normal,
+                         EAWArenaSize ArenaSize = EAWArenaSize::Standard);
+    /** Open local-versus difficulty selection without changing match state. */
     UFUNCTION()
     void OnLocalMatch();
     UFUNCTION()
@@ -231,5 +234,5 @@ private:
     int32 LastProcessedReplayEventStep = INDEX_NONE;
     bool bMatchResultPending = false;
     bool bSinglePlayer = false;
-    EAWAIDifficulty PendingDifficulty = static_cast<EAWAIDifficulty>(1);
+    EAWDifficulty PendingDifficulty = EAWDifficulty::Normal;
 };

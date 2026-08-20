@@ -59,6 +59,29 @@ enum class EAWCommand : uint8
     Count UMETA(Hidden)
 };
 
+/** Match challenge preset controlling starting AP and single-player AI depth. */
+UENUM(BlueprintType)
+enum class EAWDifficulty : uint8
+{
+    Easy UMETA(DisplayName = "Easy"),
+    Normal UMETA(DisplayName = "Normal"),
+    Hard UMETA(DisplayName = "Hard")
+};
+
+/** Return the symmetric starting AP budget for a match difficulty preset. */
+inline constexpr int32 GetStartingActionPoints(EAWDifficulty Difficulty)
+{
+    switch (Difficulty)
+    {
+    case EAWDifficulty::Easy:
+        return Automata::InitialActionPoints * 3 / 2;
+    case EAWDifficulty::Hard:
+        return Automata::InitialActionPoints * 3 / 4;
+    default:
+        return Automata::InitialActionPoints;
+    }
+}
+
 /** Selectable procedural arena dimensions used when a new match is created. */
 UENUM(BlueprintType)
 enum class EAWArenaSize : uint8

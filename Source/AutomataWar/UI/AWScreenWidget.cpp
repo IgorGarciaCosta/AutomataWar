@@ -91,6 +91,16 @@ void UAWMainMenuScreen::OnQuit() { BroadcastAction(EAWUIAction::Quit); }
 void UAWDifficultyScreen::NativeConstruct()
 {
     Super::NativeConstruct();
+    if (UTextBlock *Eyebrow = Cast<UTextBlock>(GetWidgetFromName(TEXT("SelectDifficultyEyebrow"))))
+        Eyebrow->SetText(FText::FromString(TEXT("MATCH SETUP")));
+    if (UTextBlock *Subtitle = Cast<UTextBlock>(GetWidgetFromName(TEXT("SelectDifficultySubtitle"))))
+        Subtitle->SetText(FText::FromString(TEXT("CHOOSE STARTING AP; SOLO ALSO SETS AI DEPTH.")));
+    if (UTextBlock *EasyDetail = Cast<UTextBlock>(GetWidgetFromName(TEXT("DifficultyEasyDetail"))))
+        EasyDetail->SetText(FText::FromString(TEXT("150 AP // BASIC AI IN SOLO")));
+    if (UTextBlock *NormalDetail = Cast<UTextBlock>(GetWidgetFromName(TEXT("DifficultyNormalDetail"))))
+        NormalDetail->SetText(FText::FromString(TEXT("100 AP // BALANCED AI IN SOLO")));
+    if (UTextBlock *HardDetail = Cast<UTextBlock>(GetWidgetFromName(TEXT("DifficultyHardDetail"))))
+        HardDetail->SetText(FText::FromString(TEXT("75 AP // DEEP AI IN SOLO")));
     BIND_SCREEN_BUTTON("DifficultyEasyButton", UAWDifficultyScreen, OnEasy);
     BIND_SCREEN_BUTTON("DifficultyNormalButton", UAWDifficultyScreen, OnNormal);
     BIND_SCREEN_BUTTON("DifficultyHardButton", UAWDifficultyScreen, OnHard);

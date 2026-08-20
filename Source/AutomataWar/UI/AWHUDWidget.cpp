@@ -86,32 +86,43 @@ void UAWHUDWidget::NativeConstruct()
         FParse::Value(FCommandLine::Get(), TEXT("AutomataCaptureDelay="), ScreenshotDelay);
         if (CaptureMode.Equals(TEXT("Programming"), ESearchCase::IgnoreCase))
         {
-            OnLocalMatch();
+            StartLocalMatch();
         }
         else if (CaptureMode.Equals(TEXT("ProgrammingExpanded"), ESearchCase::IgnoreCase))
         {
-            PendingDifficulty = EAWAIDifficulty::Normal;
-            OnStartSinglePlayer(EAWArenaSize::Expanded);
+            bSinglePlayer = true;
+            PendingDifficulty = EAWDifficulty::Normal;
+            OnStartMatch(EAWArenaSize::Expanded);
         }
         else if (CaptureMode.Equals(TEXT("Difficulty"), ESearchCase::IgnoreCase))
         {
             OnSinglePlayerNav();
         }
+        else if (CaptureMode.Equals(TEXT("LocalVersusDifficulty"), ESearchCase::IgnoreCase))
+        {
+            OnLocalMatch();
+        }
+        else if (CaptureMode.Equals(TEXT("LocalVersusArena"), ESearchCase::IgnoreCase))
+        {
+            OnLocalMatch();
+            OnDifficultySelected(EAWDifficulty::Normal);
+        }
         else if (CaptureMode.Equals(TEXT("ArenaSelection"), ESearchCase::IgnoreCase))
         {
-            OnDifficultySelected(EAWAIDifficulty::Normal);
+            OnDifficultySelected(EAWDifficulty::Normal);
         }
         else if (CaptureMode.Equals(TEXT("SinglePlayerReplay"), ESearchCase::IgnoreCase))
         {
-            PendingDifficulty = EAWAIDifficulty::Hard;
-            OnStartSinglePlayer(EAWArenaSize::Standard);
+            bSinglePlayer = true;
+            PendingDifficulty = EAWDifficulty::Hard;
+            OnStartMatch(EAWArenaSize::Standard);
             if (AAWPlayerController *PlayerController = Cast<AAWPlayerController>(GetOwningPlayer()))
                 PlayerController->SubmitCommands(0, {EAWCommand::Wait});
         }
         else if (CaptureMode.Equals(TEXT("PlanProjection"), ESearchCase::IgnoreCase) ||
                  CaptureMode.Equals(TEXT("PlanProjectionRemoved"), ESearchCase::IgnoreCase))
         {
-            OnLocalMatch();
+            StartLocalMatch();
             if (UUserWidget *Panel = Cast<UUserWidget>(ReplayAutopsyScreenWidget->GetWidgetFromName(TEXT("ProgrammingP1PanelWidget"))))
             {
                 const TCHAR *Buttons[] = {
@@ -134,7 +145,7 @@ void UAWHUDWidget::NativeConstruct()
         else if (CaptureMode.Equals(TEXT("ProgrammingSubmitted"), ESearchCase::IgnoreCase) ||
                  CaptureMode.Equals(TEXT("ProgrammingReturned"), ESearchCase::IgnoreCase))
         {
-            OnLocalMatch();
+            StartLocalMatch();
             if (UUserWidget *Panel = Cast<UUserWidget>(ReplayAutopsyScreenWidget->GetWidgetFromName(TEXT("ProgrammingP1PanelWidget"))))
             {
                 if (UButton *MoveButton = Cast<UButton>(Panel->GetWidgetFromName(TEXT("ProgrammingMoveButton"))))
@@ -160,7 +171,7 @@ void UAWHUDWidget::NativeConstruct()
         }
         else if (CaptureMode.Equals(TEXT("Replay"), ESearchCase::IgnoreCase))
         {
-            OnLocalMatch();
+            StartLocalMatch();
             if (AAWPlayerController *PlayerController = Cast<AAWPlayerController>(GetOwningPlayer()))
             {
                 PlayerController->SubmitCommands(0, {EAWCommand::Fire, EAWCommand::Move, EAWCommand::Fire});
@@ -170,7 +181,7 @@ void UAWHUDWidget::NativeConstruct()
         else if (CaptureMode.Equals(TEXT("MatchResult"), ESearchCase::IgnoreCase) ||
                  CaptureMode.Equals(TEXT("MatchResultReturn"), ESearchCase::IgnoreCase))
         {
-            OnLocalMatch();
+            StartLocalMatch();
             ShowScreen(EAWScreen::ReplayAutopsy);
             if (MatchResultScrim)
                 MatchResultScrim->SetVisibility(ESlateVisibility::Visible);
@@ -196,7 +207,7 @@ void UAWHUDWidget::NativeConstruct()
         else if (CaptureMode.Equals(TEXT("MuzzleVFX"), ESearchCase::IgnoreCase) ||
                  CaptureMode.Equals(TEXT("ImpactVFX"), ESearchCase::IgnoreCase))
         {
-            OnLocalMatch();
+            StartLocalMatch();
             if (AAWPlayerController *PlayerController = Cast<AAWPlayerController>(GetOwningPlayer()))
             {
                 PlayerController->SubmitCommands(0, {EAWCommand::Fire});
@@ -205,7 +216,7 @@ void UAWHUDWidget::NativeConstruct()
         }
         else if (CaptureMode.Equals(TEXT("ShieldVFX"), ESearchCase::IgnoreCase))
         {
-            OnLocalMatch();
+            StartLocalMatch();
             if (AAWPlayerController *PlayerController = Cast<AAWPlayerController>(GetOwningPlayer()))
             {
                 PlayerController->SubmitCommands(0, {EAWCommand::ChargeShield});
@@ -382,22 +393,22 @@ void UAWHUDWidget::OnScreenAction(EAWUIAction Action)
         OnSinglePlayerNav();
         break;
     case EAWUIAction::DifficultyEasy:
-        OnDifficultySelected(EAWAIDifficulty::Easy);
+        OnDifficultySelected(EAWDifficulty::Easy);
         break;
     case EAWUIAction::DifficultyNormal:
-        OnDifficultySelected(EAWAIDifficulty::Normal);
+        OnDifficultySelected(EAWDifficulty::Normal);
         break;
     case EAWUIAction::DifficultyHard:
-        OnDifficultySelected(EAWAIDifficulty::Hard);
+        OnDifficultySelected(EAWDifficulty::Hard);
         break;
     case EAWUIAction::ArenaCompact:
-        OnStartSinglePlayer(EAWArenaSize::Compact);
+        OnStartMatch(EAWArenaSize::Compact);
         break;
     case EAWUIAction::ArenaStandard:
-        OnStartSinglePlayer(EAWArenaSize::Standard);
+        OnStartMatch(EAWArenaSize::Standard);
         break;
     case EAWUIAction::ArenaExpanded:
-        OnStartSinglePlayer(EAWArenaSize::Expanded);
+        OnStartMatch(EAWArenaSize::Expanded);
         break;
     case EAWUIAction::BackToDifficulty:
         ShowScreen(EAWScreen::Difficulty);
@@ -643,28 +654,37 @@ void UAWHUDWidget::PlayUISound(const TCHAR *AssetPath) const
 void UAWHUDWidget::OnLocalMatch()
 {
     bSinglePlayer = false;
-    if (UAWGameSubsystem *Sub = GetSubsystem())
-    {
-        Sub->StartLocalMatch();
-    }
+    ShowScreen(EAWScreen::Difficulty);
 }
 
 void UAWHUDWidget::OnSinglePlayerNav()
 {
+    bSinglePlayer = true;
     ShowScreen(EAWScreen::Difficulty);
 }
 
-void UAWHUDWidget::OnDifficultySelected(EAWAIDifficulty Difficulty)
+void UAWHUDWidget::OnDifficultySelected(EAWDifficulty Difficulty)
 {
     PendingDifficulty = Difficulty;
     ShowScreen(EAWScreen::ArenaSelection);
 }
 
-void UAWHUDWidget::OnStartSinglePlayer(EAWArenaSize ArenaSize)
+void UAWHUDWidget::OnStartMatch(EAWArenaSize ArenaSize)
 {
-    bSinglePlayer = true;
     if (UAWGameSubsystem *Sub = GetSubsystem())
-        Sub->StartSinglePlayerMatch(PendingDifficulty, ArenaSize);
+    {
+        if (bSinglePlayer)
+            Sub->StartSinglePlayerMatch(PendingDifficulty, ArenaSize);
+        else
+            Sub->StartLocalMatch(PendingDifficulty, ArenaSize);
+    }
+}
+
+void UAWHUDWidget::StartLocalMatch(EAWDifficulty Difficulty, EAWArenaSize ArenaSize)
+{
+    bSinglePlayer = false;
+    if (UAWGameSubsystem *Sub = GetSubsystem())
+        Sub->StartLocalMatch(Difficulty, ArenaSize);
 }
 
 void UAWHUDWidget::OnHostLAN()
