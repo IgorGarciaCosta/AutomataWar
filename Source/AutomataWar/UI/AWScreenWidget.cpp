@@ -178,7 +178,6 @@ void UAWProgrammingPanelWidget::NativeTick(const FGeometry &MyGeometry, float In
         ProgrammingPanelContent->SetVisibility(ESlateVisibility::Hidden);
         ProgrammingShutdownLine->SetVisibility(ESlateVisibility::Collapsed);
         ProgrammingReturnLayer->SetVisibility(ESlateVisibility::Visible);
-        OnSubmitted.Broadcast(PlayerIndex);
     }
     else if (PowerTransitionDirection < 0 && PowerTransitionAlpha <= 0.f)
     {
@@ -345,6 +344,7 @@ void UAWProgrammingPanelWidget::OnSubmit()
 
     bAwaitingSubmissionResult = true;
     StartPowerTransition(true);
+    OnSubmitted.Broadcast(PlayerIndex);
 }
 
 void UAWProgrammingPanelWidget::OnReturnToPlanning()

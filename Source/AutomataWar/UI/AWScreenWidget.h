@@ -190,7 +190,7 @@ public:
     virtual void NativeTick(const FGeometry &MyGeometry, float InDeltaTime) override;
     virtual void SynchronizeProperties() override;
 
-    /** Raised after the power-off transition completes. */
+    /** Raised when this panel requests authoritative command submission. */
     FAWProgrammingPanelEvent OnSubmitted;
 
     /** Raised when the submitted program is reopened for editing. */
@@ -253,6 +253,7 @@ private:
     void OnAccelerate();
     UFUNCTION()
     void OnRemove();
+    /** Request submission immediately, then play the cosmetic power-off transition. */
     UFUNCTION()
     void OnSubmit();
     UFUNCTION()
