@@ -14,6 +14,9 @@
 #include "AutomataWar/Visual/AWPlanVisualizationSubsystem.h"
 #include "AutomataWar/Visual/AWVisualTypes.h"
 #include "Materials/Material.h"
+#include "NiagaraEmitter.h"
+#include "NiagaraEmitterHandle.h"
+#include "NiagaraSpriteRendererProperties.h"
 #include "NiagaraSystem.h"
 #include "UObject/MetaData.h"
 #include "UObject/Package.h"
@@ -215,18 +218,22 @@ bool FMatchResultLabels::RunTest(const FString &Parameters)
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FVFXAssetContract, "AutomataWar.Visual.VFX.AssetContract",
                                  EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 
-/** Verify production VFX assets and the hard lifetime bound for looping muzzle systems. */
+/** Verify production VFX assets, finite effects, and required material usage flags. */
 bool FVFXAssetContract::RunTest(const FString &Parameters)
 {
     UNiagaraSystem *Muzzle = LoadObject<UNiagaraSystem>(nullptr, AWVisualAssets::NS_MuzzleFlash);
     UNiagaraSystem *Impact = LoadObject<UNiagaraSystem>(nullptr, AWVisualAssets::NS_Impact);
+    UNiagaraSystem *Pickup = LoadObject<UNiagaraSystem>(nullptr, AWVisualAssets::NS_PickupEffect);
     UMaterial *EffectMaterial = LoadObject<UMaterial>(nullptr, AWVisualAssets::M_Effect);
     UMaterial *ShieldMaterial = LoadObject<UMaterial>(nullptr, AWVisualAssets::M_ShieldEnergy);
+    UMaterial *PickupMaterial = LoadObject<UMaterial>(nullptr, AWVisualAssets::M_PickupEffect);
     TestNotNull(TEXT("Muzzle system exists"), Muzzle);
     TestNotNull(TEXT("Impact system exists"), Impact);
+    TestNotNull(TEXT("Pickup system exists"), Pickup);
     TestNotNull(TEXT("Plan hologram material exists"), EffectMaterial);
     TestNotNull(TEXT("Shield energy material exists"), ShieldMaterial);
-    if (!Muzzle || !Impact || !EffectMaterial || !ShieldMaterial)
+    TestNotNull(TEXT("Pickup sprite material exists"), PickupMaterial);
+    if (!Muzzle || !Impact || !Pickup || !EffectMaterial || !ShieldMaterial || !PickupMaterial)
         return false;
 
     AddInfo(FString::Printf(TEXT("Muzzle source IsLooping=%s; runtime lifespan cap=%.2fs"),
@@ -235,15 +242,29 @@ bool FVFXAssetContract::RunTest(const FString &Parameters)
     TestTrue(TEXT("A looping muzzle source is forcibly bounded to one short flash"),
              !Muzzle->IsLooping() || AWVisualConfig::MuzzleFlashLifespan <= 0.2f);
     TestFalse(TEXT("Impact explosion and smoke system is finite"), Impact->IsLooping());
+    TestFalse(TEXT("Pickup sparkle runs once"), Pickup->IsLooping());
     TestTrue(TEXT("Impact smoke remains visible after projectile arrival"),
              AWVisualConfig::ImpactVFXLifespan >= 1.f);
     TestTrue(TEXT("Plan hologram supports the tank's skeletal cannon"),
              EffectMaterial->GetUsageByFlag(MATUSAGE_SkeletalMesh));
+    TestTrue(TEXT("Pickup material supports Niagara sprites"),
+             PickupMaterial->GetUsageByFlag(MATUSAGE_NiagaraSprites));
+
+    bool bUsesPickupMaterial = false;
+    for (const FNiagaraEmitterHandle &Handle : Pickup->GetEmitterHandles())
+        if (const FVersionedNiagaraEmitterData *EmitterData = Handle.GetEmitterData())
+            for (const UNiagaraRendererProperties *Renderer : EmitterData->GetRenderers())
+                if (const UNiagaraSpriteRendererProperties *Sprite = Cast<UNiagaraSpriteRendererProperties>(Renderer))
+                    bUsesPickupMaterial |= Sprite->Material == PickupMaterial;
+    TestTrue(TEXT("Pickup system renders the Kenney star material"), bUsesPickupMaterial);
 
     UMetaData *MetaData = Impact->GetOutermost()->GetMetaData();
     TestEqual(TEXT("Impact uses the SimpleExplosion source"),
               FString(MetaData->GetValue(Impact, TEXT("AutomataWar.SourcePackage"))),
               FString(TEXT("/Niagara/DefaultAssets/Templates/Systems/SimpleExplosion.SimpleExplosion")));
+    TestEqual(TEXT("Pickup uses the radial burst source"),
+              FString(Pickup->GetOutermost()->GetMetaData()->GetValue(Pickup, TEXT("AutomataWar.SourcePackage"))),
+              FString(TEXT("/Niagara/DefaultAssets/Templates/Systems/RadialBurst.RadialBurst")));
     TestTrue(TEXT("Shield shell is translucent"), ShieldMaterial->GetBlendMode() == BLEND_Translucent);
     TestTrue(TEXT("Shield shell is unlit energy"),
              ShieldMaterial->GetShadingModels().HasShadingModel(MSM_Unlit));

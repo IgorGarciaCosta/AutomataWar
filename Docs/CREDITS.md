@@ -1,6 +1,6 @@
 # Third-Party Credits
 
-Original asset-pack acquisition date: **2026-08-01**. Additional UI variants were selected from the same CC0 pack on **2026-08-13**. The external muzzle package and pickup meshes were added on **2026-08-16**.
+Original asset-pack acquisition date: **2026-08-01**. Additional UI variants were selected from the same CC0 pack on **2026-08-13**. The external muzzle package and pickup meshes were added on **2026-08-16**. The pickup sparkle texture was added on **2026-08-20**.
 
 No asset with unclear, non-commercial, or no-derivatives terms is included. Project-authored C++ code, materials, procedural layouts, screenshots, and mesh assemblies are not third-party assets.
 
@@ -55,6 +55,8 @@ The following free authored Niagara packages retain their original folders. The 
 | ---------------------- | -------------------------- | -------------------------------------------------------------------------------- | ------------------------------------------------ | --------------------------------------- |
 | `Content/MuzzleFlash/` | Muzzle Flash by Kopo Study | [Fab listing](https://www.fab.com/listings/435b3bcb-d7f5-467d-99aa-2edc97a6c5fd) | [Fab Standard License](https://www.fab.com/eula) | `Content/Art/VFX/NS_MuzzleFlash.uasset` |
 
+The pickup sparkle uses `PNG (Transparent)/star_01.png` from Kenney's [Particle Pack](https://kenney.nl/assets/particle-pack), released under [Creative Commons CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/).
+
 ## Unreal Engine Content
 
 The following assets are Epic-provided Unreal Engine 5.5 Licensed Technology used under the [Unreal Engine EULA](https://www.unrealengine.com/eula/unreal).
@@ -64,7 +66,7 @@ The following assets are Epic-provided Unreal Engine 5.5 Licensed Technology use
 | Arena foundation, rails, walls, barrels, cover, and effects | `/Engine/BasicShapes/Cube`, `/Engine/BasicShapes/Cylinder`, `/Engine/BasicShapes/Sphere` | Level references and runtime components; engine meshes are not copied.      |
 | Editor-authored sky                                         | `/Engine/EngineSky/BP_Sky_Sphere`, `/Engine/EngineSky/SM_SkySphere`                      | Level reference only; engine assets are not copied into this repository.    |
 | Projectile trail                                            | `/Niagara/DefaultAssets/Templates/Systems/AttributeReaderTrails`                         | `Content/Art/VFX/NS_ProjectileTrail.uasset`                                 |
-| Shield pickup burst                                         | `/Niagara/DefaultAssets/Templates/Systems/RadialBurst`                                   | `Content/Art/VFX/NS_Shield.uasset`                                          |
+| One-shot pickup sparkle                                     | `/Niagara/DefaultAssets/Templates/Systems/RadialBurst`                                   | `Content/Art/VFX/NS_PickupEffect.uasset`                                    |
 | Projectile impact and destruction smoke                     | `/Niagara/DefaultAssets/Templates/Systems/SimpleExplosion`                               | `Content/Art/VFX/NS_Impact.uasset`, `Content/Art/VFX/NS_Destruction.uasset` |
 | Active shield shell                                         | `/Engine/BasicShapes/Sphere`                                                             | Runtime mesh using `Content/Art/Materials/M_ShieldEnergy.uasset`            |
 
@@ -95,6 +97,9 @@ The following project-authored assets are stored as Unreal content. Imported thi
 - `Content/Art/Materials/M_Industrial.uasset`
 - `Content/Art/VFX/NS_MuzzleFlash.uasset`
 - `Content/Art/VFX/NS_Impact.uasset`
+- `Content/Art/VFX/NS_PickupEffect.uasset`
+- `Content/Art/VFX/M_PickupEffect.uasset`
+- `Content/Art/VFX/T_PickupStar.uasset`
 - `Content/Blueprints/BP_AWPlayer.uasset`
 - `Content/Blueprints/BP_AWPlayerController.uasset`
 - `Content/Blueprints/BP_AWGameMode.uasset`

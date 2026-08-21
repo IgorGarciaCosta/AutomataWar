@@ -58,9 +58,12 @@ void AAWArenaRenderer::InitializeArena(const Automata::SimConfig &Config,
                                        const TArray<Automata::SimEvent> &Events)
 {
     ClearAllPlanProjections();
+    ArenaGridWidth = Config.gridWidth;
+    InitialObstacleHealth = Config.initialState.obstacleHealth;
     ResizeArenaPresentation(Config.gridWidth, Config.gridHeight);
     BuildFloorGrid(Config.gridWidth, Config.gridHeight);
     SpawnCoverVisuals(Config.gridWidth, Config.gridHeight, Grid);
+    ResetDamagePresentation();
     for (TActorIterator<AAWIsometricCamera> It(GetWorld()); It; ++It)
     {
         It->FrameArena(Config.gridWidth, Config.gridHeight, AWVisualConfig::CellSize);
@@ -136,11 +139,6 @@ void AAWArenaRenderer::ResizeArenaPresentation(int32 Width, int32 Height)
 void AAWArenaRenderer::SetSnapshot(const Automata::StepSnapshot &Snapshot)
 {
     CombatEffects->SetSnapshot(Snapshot);
-    for (const TPair<int32, TObjectPtr<ATableObstable>> &Entry : Obstacles)
-        if (Entry.Value && Entry.Key >= 0 &&
-            static_cast<size_t>(Entry.Key) < Snapshot.obstacleHealth.size())
-            Entry.Value->SetHealth(Snapshot.obstacleHealth[static_cast<size_t>(Entry.Key)]);
-
     ResolveTankActors();
     if (PlayerOneTank)
         PlayerOneTank->SetTargetTransform(
@@ -162,6 +160,36 @@ void AAWArenaRenderer::SetSnapshot(const Automata::StepSnapshot &Snapshot)
         ActionPointItemSpawner->SetReplayStep(Snapshot.step);
 }
 
+void AAWArenaRenderer::ResetDamagePresentation()
+{
+    CombatEffects->ResetDamagePresentation({Automata::MaxHP, Automata::MaxHP});
+    for (const TPair<int32, TObjectPtr<ATableObstable>> &Entry : Obstacles)
+    {
+        if (!Entry.Value)
+            continue;
+        const int32 Health = Entry.Key >= 0 &&
+                                     static_cast<size_t>(Entry.Key) < InitialObstacleHealth.size()
+                                 ? InitialObstacleHealth[static_cast<size_t>(Entry.Key)]
+                                 : Entry.Value->GetMaxHealth();
+        Entry.Value->SetHealth(Health);
+    }
+}
+
+void AAWArenaRenderer::ResetDamagePresentation(const Automata::StepSnapshot &Snapshot)
+{
+    CombatEffects->ResetDamagePresentation(
+        {Snapshot.robots[0].hp, Snapshot.robots[1].hp});
+    for (const TPair<int32, TObjectPtr<ATableObstable>> &Entry : Obstacles)
+        if (Entry.Value && Entry.Key >= 0 &&
+            static_cast<size_t>(Entry.Key) < Snapshot.obstacleHealth.size())
+            Entry.Value->SetHealth(Snapshot.obstacleHealth[static_cast<size_t>(Entry.Key)]);
+}
+
+int32 AAWArenaRenderer::GetPresentedRobotHealth(int32 RobotIndex) const
+{
+    return CombatEffects ? CombatEffects->GetPresentedRobotHealth(RobotIndex) : 0;
+}
+
 void AAWArenaRenderer::ProcessEvents(const TArray<Automata::SimEvent> &Events, int32 FromStep, int32 ToStep)
 {
     CombatEffects->ProcessEvents(Events, FromStep, ToStep);
@@ -169,7 +197,7 @@ void AAWArenaRenderer::ProcessEvents(const TArray<Automata::SimEvent> &Events, i
 
 void AAWArenaRenderer::ResetVisuals()
 {
-    CombatEffects->ResetEffects();
+    ResetDamagePresentation();
     ResolveTankActors();
     if (PlayerOneTank)
         PlayerOneTank->ResetVisual();
@@ -177,9 +205,6 @@ void AAWArenaRenderer::ResetVisuals()
         PlayerTwoTank->ResetVisual();
     if (ActionPointItemSpawner)
         ActionPointItemSpawner->SetReplayStep(INDEX_NONE);
-    for (const TPair<int32, TObjectPtr<ATableObstable>> &Entry : Obstacles)
-        if (Entry.Value)
-            Entry.Value->ResetHealth();
 }
 
 void AAWArenaRenderer::UpdatePlanProjection(int32 RobotIndex, const Automata::RobotState &InitialRobot,

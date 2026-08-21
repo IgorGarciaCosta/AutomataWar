@@ -13,6 +13,8 @@ class UWidget;
 class UWidgetBlueprint;
 class UWidgetTree;
 class UUserDefinedEnum;
+class UNiagaraSystem;
+class UMaterialInterface;
 
 /** Minimal editor bridge for authoring Widget Blueprint trees. */
 UCLASS()
@@ -42,4 +44,8 @@ public:
     /** Replace a Content Browser enum's entries with the supplied display messages. */
     UFUNCTION(BlueprintCallable, Category = "AutomataWar|Editor")
     static bool SetUserDefinedEnumDisplayNames(UUserDefinedEnum *Enum, const TArray<FString> &DisplayNames);
+
+    /** Apply a sprite material to every renderer in a non-looping Niagara system. */
+    UFUNCTION(BlueprintCallable, Category = "AutomataWar|Editor")
+    static bool ConfigureOneShotNiagaraSprites(UNiagaraSystem *System, UMaterialInterface *Material);
 };

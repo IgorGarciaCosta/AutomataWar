@@ -9,6 +9,9 @@
 
 #include "AWScreenWidget.h"
 #include "AutomataWar/Game/AWPlayerController.h"
+#include "AutomataWar/Visual/AWArenaRenderer.h"
+#include "AutomataWar/Visual/AWItem.h"
+#include "AutomataWar/Visual/AWVisualTypes.h"
 #include "Components/Border.h"
 #include "Components/Button.h"
 #include "Misc/CommandLine.h"
@@ -165,6 +168,24 @@ void UAWHUDWidget::RunCaptureMode()
         {
             PlayerController->SubmitCommands(0, {EAWCommand::ChargeShield});
             PlayerController->SubmitCommands(1, {EAWCommand::Wait});
+        }
+    }
+    else if (CaptureMode.Equals(TEXT("PickupVFX"), ESearchCase::IgnoreCase))
+    {
+        StartLocalMatch();
+        AAWArenaRenderer *Renderer = FindOrSpawnRenderer();
+        UClass *ItemClass = LoadClass<AAWItem>(nullptr, TEXT("/Game/Blueprints/Items/BP_ActionPointItem.BP_ActionPointItem_C"));
+        if (Renderer && ItemClass)
+        {
+            const FVector ArenaCenter(8.f * AWVisualConfig::CellSize, 8.f * AWVisualConfig::CellSize, 42.f);
+            AAWItem *Item = GetWorld()->SpawnActor<AAWItem>(
+                ItemClass, Renderer->GetActorLocation() + ArenaCenter, FRotator::ZeroRotator);
+            FTimerHandle PickupTimer;
+            GetWorld()->GetTimerManager().SetTimer(
+                PickupTimer,
+                FTimerDelegate::CreateWeakLambda(Item, [Item]()
+                                                 { Item->SetCollected(true, true); }),
+                FMath::Max(0.05f, ScreenshotDelay - 0.15f), false);
         }
     }
 

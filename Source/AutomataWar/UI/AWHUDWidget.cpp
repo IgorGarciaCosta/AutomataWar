@@ -117,24 +117,27 @@ void UAWHUDWidget::NativeTick(const FGeometry &MyGeometry, float InDeltaTime)
 {
     Super::NativeTick(MyGeometry, InDeltaTime);
 
-    if (bReplayPlaying && CurrentScreen == EAWScreen::ReplayAutopsy && ReplayController.IsValid() && ReplayController->IsValid())
+    if (CurrentScreen == EAWScreen::ReplayAutopsy && ReplayController.IsValid() && ReplayController->IsValid())
     {
         bool bReplayCompleted = false;
-        ReplayAccumulator += InDeltaTime * ReplaySpeed;
-        const double StepInterval = 1.0 / 10.0;
-        while (ReplayAccumulator >= StepInterval)
+        if (bReplayPlaying)
         {
-            ReplayAccumulator -= StepInterval;
-            if (!ReplayController->StepForward())
+            ReplayAccumulator += InDeltaTime * ReplaySpeed;
+            const double StepInterval = 1.0 / 10.0;
+            while (ReplayAccumulator >= StepInterval)
             {
-                bReplayPlaying = false;
-                bReplayCompleted = true;
-                SetAudioContext(EAWAudioContext::Replay);
-                break;
+                ReplayAccumulator -= StepInterval;
+                if (!ReplayController->StepForward())
+                {
+                    bReplayPlaying = false;
+                    bReplayCompleted = true;
+                    SetAudioContext(EAWAudioContext::Replay);
+                    break;
+                }
             }
+            UpdateArenaFromReplay();
         }
         UpdateReplayUI();
-        UpdateArenaFromReplay();
         if (bReplayCompleted)
             ShowPendingMatchResult();
     }
@@ -809,8 +812,8 @@ bool UAWHUDWidget::InitializeReplay(const FAWResolvedRound &Round)
         Renderer->InitializeArena(ReplayController->GetConfig(), Grid, Events);
     }
 
-    UpdateReplayUI();
     UpdateArenaFromReplay();
+    UpdateReplayUI();
     return true;
 }
 
@@ -823,10 +826,12 @@ void UAWHUDWidget::UpdateReplayUI()
         ReplayAutopsyScreenWidget->SetSpeed(ReplaySpeed);
 
     const auto &Snap = ReplayController->GetCurrentSnapshot();
+    AAWArenaRenderer *Renderer = FindOrSpawnRenderer();
     auto FormatDetails = [&](int32 Idx) -> FString
     {
         const auto &R = Snap.robots[Idx];
-        return FString::Printf(TEXT("HP %d  |  AP %d  |  FACING %s"), R.hp, R.actionPoints, FacingName(R.facing));
+        const int32 Health = Renderer ? Renderer->GetPresentedRobotHealth(Idx) : R.hp;
+        return FString::Printf(TEXT("HP %d  |  AP %d  |  FACING %s"), Health, R.actionPoints, FacingName(R.facing));
     };
     if (ReplayAutopsyScreenWidget)
     {
@@ -847,6 +852,16 @@ void UAWHUDWidget::UpdateArenaFromReplay()
         return;
 
     int32 Step = ReplayController->GetCurrentStep();
+    const bool bRestarted = LastProcessedReplayEventStep == INDEX_NONE && Step == 0;
+    const bool bMovedBackward = LastProcessedReplayEventStep != INDEX_NONE &&
+                                Step < LastProcessedReplayEventStep;
+    if (bRestarted || bMovedBackward)
+    {
+        if (Step > 0)
+            Renderer->ResetDamagePresentation(ReplayController->GetSnapshot(Step - 1));
+        else
+            Renderer->ResetDamagePresentation();
+    }
     Renderer->SetSnapshot(ReplayController->GetCurrentSnapshot());
 
     if (Step == LastProcessedReplayEventStep)
@@ -895,8 +910,8 @@ void UAWHUDWidget::OnReplayStep()
     if (ReplayController.IsValid() && ReplayController->IsValid())
     {
         const bool bAdvanced = ReplayController->StepForward();
-        UpdateReplayUI();
         UpdateArenaFromReplay();
+        UpdateReplayUI();
         if (!bAdvanced || ReplayController->GetCurrentStep() == ReplayController->GetTotalSteps() - 1)
             ShowPendingMatchResult();
     }
@@ -907,8 +922,8 @@ void UAWHUDWidget::OnReplayStepBack()
     if (ReplayController.IsValid() && ReplayController->IsValid())
     {
         ReplayController->StepBackward();
-        UpdateReplayUI();
         UpdateArenaFromReplay();
+        UpdateReplayUI();
     }
 }
 
@@ -924,8 +939,9 @@ void UAWHUDWidget::OnReplayStart()
     if (ReplayController.IsValid() && ReplayController->IsValid())
     {
         ReplayController->SeekToStep(0);
-        UpdateReplayUI();
+        LastProcessedReplayEventStep = INDEX_NONE;
         UpdateArenaFromReplay();
+        UpdateReplayUI();
     }
 }
 void UAWHUDWidget::OnReplaySpeedQuarter() { OnReplaySetSpeed(0.25f); }

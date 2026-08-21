@@ -26,6 +26,8 @@ namespace Automata
         bool StepBackward();
 
         const StepSnapshot &GetCurrentSnapshot() const { return snapshots_[currentStep_]; }
+        /** Return a clamped snapshot for deterministic replay presentation navigation. */
+        const StepSnapshot &GetSnapshot(int32_t Step) const;
         std::vector<SimEvent> GetEventsForStep(int32_t Step) const;
         std::vector<SimEvent> GetEventsInRange(int32_t FromStep, int32_t ToStep) const;
         const MatchResult &GetResult() const { return result_; }

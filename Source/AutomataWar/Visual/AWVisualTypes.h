@@ -18,14 +18,14 @@ namespace AWVisualAssets
     inline const TCHAR *M_Cover = TEXT("/Game/Art/Materials/M_Cover.M_Cover");
     inline const TCHAR *M_Effect = TEXT("/Game/Art/Materials/M_Effect.M_Effect");
     inline const TCHAR *M_ShieldEnergy = TEXT("/Game/Art/Materials/M_ShieldEnergy.M_ShieldEnergy");
+    inline const TCHAR *M_PickupEffect = TEXT("/Game/Art/VFX/M_PickupEffect.M_PickupEffect");
 
     // ─── Niagara ─────────────────────────────────────────────────────────────
     inline const TCHAR *NS_MuzzleFlash = TEXT("/Game/Art/VFX/NS_MuzzleFlash.NS_MuzzleFlash");
     inline const TCHAR *NS_Impact = TEXT("/Game/Art/VFX/NS_Impact.NS_Impact");
     inline const TCHAR *NS_Destruction = TEXT("/Game/Art/VFX/NS_Destruction.NS_Destruction");
     inline const TCHAR *NS_ProjectileTrail = TEXT("/Game/Art/VFX/NS_ProjectileTrail.NS_ProjectileTrail");
-    inline const TCHAR *NS_Shield = TEXT("/Game/Art/VFX/NS_Shield.NS_Shield");
-    inline const TCHAR *NS_ActionPointPickup = TEXT("/Game/Art/VFX/NS_Shield.NS_Shield");
+    inline const TCHAR *NS_PickupEffect = TEXT("/Game/Art/VFX/NS_PickupEffect.NS_PickupEffect");
 
     // ─── SFX ─────────────────────────────────────────────────────────────────
     inline const TCHAR *SFX_Fire = TEXT("/Game/Audio/SFX/S_Fire.S_Fire");
@@ -36,9 +36,9 @@ namespace AWVisualAssets
     inline const TCHAR *SFX_ActionPointPickup = TEXT("/Game/Audio/SFX/S_Shield.S_Shield");
 
     /** Total count of material asset paths (for test validation). */
-    inline constexpr int32 MaterialAssetCount = 5;
+    inline constexpr int32 MaterialAssetCount = 6;
     /** Total count of all soft-path assets. */
-    inline constexpr int32 TotalAssetPathCount = 17;
+    inline constexpr int32 TotalAssetPathCount = 16;
 }
 
 /** Visual config constants. */

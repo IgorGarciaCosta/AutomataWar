@@ -43,6 +43,15 @@ public:
     /** Set the current step snapshot for interpolation display. */
     void SetSnapshot(const Automata::StepSnapshot &Snapshot);
 
+    /** Restore replay-visible damage to the initialized round state and cancel in-flight effects. */
+    void ResetDamagePresentation();
+
+    /** Restore replay-visible damage to a prior snapshot and cancel in-flight effects. */
+    void ResetDamagePresentation(const Automata::StepSnapshot &Snapshot);
+
+    /** Return tank health after projectile arrivals rather than canonical step execution. */
+    int32 GetPresentedRobotHealth(int32 RobotIndex) const;
+
     /** Reconcile shield visuals with effects after end-of-round duration decay. */
     void SetFinalEffects(const std::array<FAWRobotEffects, 2> &FinalEffects);
 
@@ -121,6 +130,12 @@ protected:
 
     UPROPERTY(Transient)
     TMap<int32, TObjectPtr<ATableObstable>> Obstacles;
+
+    /** Width used to translate shot coordinates into obstacle map indices. */
+    int32 ArenaGridWidth = 0;
+
+    /** Round-start cover health used when replay navigation returns to step zero. */
+    std::vector<int32_t> InitialObstacleHealth;
 
     /** Original dressing transforms retained so repeated replay initialization cannot accumulate offsets. */
     TMap<TWeakObjectPtr<AActor>, FTransform> AuthoredDressingTransforms;

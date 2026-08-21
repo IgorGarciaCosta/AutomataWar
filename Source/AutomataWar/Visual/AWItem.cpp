@@ -39,7 +39,7 @@ AAWItem::AAWItem()
     ItemLight->SetAttenuationRadius(72.f);
     ItemLight->bEditableWhenInherited = true;
 
-    PickupEffectPath = AWVisualAssets::NS_ActionPointPickup;
+    PickupEffectPath = AWVisualAssets::NS_PickupEffect;
 }
 
 void AAWItem::BeginPlay()

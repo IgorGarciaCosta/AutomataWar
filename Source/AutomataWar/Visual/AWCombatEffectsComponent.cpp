@@ -7,6 +7,8 @@
 #include "AWArenaRenderer.h"
 #include "AWTankActor.h"
 #include "AWVisualTypes.h"
+#include "TableObstable.h"
+#include "AutomataWar/Core/AutomataRules.h"
 #include "Components/PointLightComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Engine/StaticMesh.h"
@@ -22,6 +24,7 @@
 UAWCombatEffectsComponent::UAWCombatEffectsComponent()
 {
     PrimaryComponentTick.bCanEverTick = true;
+    PresentedRobotHealth.fill(Automata::MaxHP);
 }
 
 void UAWCombatEffectsComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
@@ -47,11 +50,12 @@ void UAWCombatEffectsComponent::TickComponent(
         if (Alpha < 1.f)
             continue;
 
+        const bool bDestroyedTarget = ApplyProjectileDamage(Projectile);
         if (Projectile.bShielded)
             SetShieldActive(Projectile.TargetRobot, Projectile.bShieldRemainsActive);
         TriggerImpact(Projectile.End);
         PlaySFX(AWVisualAssets::SFX_Impact, Projectile.End);
-        if (Projectile.bDestroyedTarget)
+        if (bDestroyedTarget)
         {
             TriggerDestruction(Projectile.End);
             PlaySFX(AWVisualAssets::SFX_Destroy, Projectile.End);
@@ -80,6 +84,20 @@ void UAWCombatEffectsComponent::SetSnapshot(const Automata::StepSnapshot &Snapsh
     bHasPendingFinalShieldState = false;
     for (int32 RobotIndex = 0; RobotIndex < 2; ++RobotIndex)
         SetShieldActive(RobotIndex, HasActiveShield(Snapshot.robots[RobotIndex].effects));
+}
+
+void UAWCombatEffectsComponent::ResetDamagePresentation(
+    const std::array<int32, 2> &RobotHealth)
+{
+    ResetEffects();
+    PresentedRobotHealth = RobotHealth;
+}
+
+int32 UAWCombatEffectsComponent::GetPresentedRobotHealth(int32 RobotIndex) const
+{
+    return RobotIndex >= 0 && RobotIndex < 2
+               ? PresentedRobotHealth[RobotIndex]
+               : 0;
 }
 
 void UAWCombatEffectsComponent::ProcessEvents(
@@ -116,9 +134,15 @@ void UAWCombatEffectsComponent::ProcessEvents(
         case Automata::EventType::ShotBlocked:
         {
             const FVector Start = ShotStarts.FindRef(Event.robot);
+            const int32 TargetCell = Event.paramB * Renderer->ArenaGridWidth + Event.paramA;
+            const int32 Damage = Automata::ProjectileDamage +
+                                 (Robot.effects.ExtraAmmoRounds > 0
+                                      ? Automata::ExtraAmmoDamageBonus
+                                      : 0);
             SpawnProjectile(Start.IsNearlyZero() ? Position : Start,
                             Renderer->GridToWorld(Event.paramA, Event.paramB),
-                            INDEX_NONE, false, false);
+                            INDEX_NONE, Renderer->Obstacles.Contains(TargetCell) ? TargetCell : INDEX_NONE,
+                            Damage, false);
             break;
         }
         case Automata::EventType::ShieldCharged:
@@ -137,8 +161,8 @@ void UAWCombatEffectsComponent::ProcessEvents(
                     ? Renderer->GridToWorld(CurrentSnapshot.robots[Shooter].x,
                                             CurrentSnapshot.robots[Shooter].y)
                     : Start,
-                Position, Event.robot, ShieldedTargets.Contains(Event.robot),
-                CurrentSnapshot.robots[Event.robot].hp <= 0);
+                Position, Event.robot, INDEX_NONE, Event.paramA,
+                ShieldedTargets.Contains(Event.robot));
             break;
         }
         default:
@@ -280,8 +304,28 @@ void UAWCombatEffectsComponent::ApplyPendingFinalShieldState()
     bHasPendingFinalShieldState = false;
 }
 
+bool UAWCombatEffectsComponent::ApplyProjectileDamage(const FProjectileVisual &Projectile)
+{
+    if (Projectile.TargetRobot >= 0 && Projectile.TargetRobot < 2)
+    {
+        const bool bWasAlive = PresentedRobotHealth[Projectile.TargetRobot] > 0;
+        PresentedRobotHealth[Projectile.TargetRobot] = FMath::Max(
+            0, PresentedRobotHealth[Projectile.TargetRobot] - Projectile.Damage);
+        return bWasAlive && PresentedRobotHealth[Projectile.TargetRobot] == 0;
+    }
+
+    AAWArenaRenderer *Renderer = GetRenderer();
+    ATableObstable *Obstacle = Renderer
+                                   ? Renderer->Obstacles.FindRef(Projectile.TargetObstacleCell)
+                                   : nullptr;
+    if (Obstacle)
+        Obstacle->SetHealth(Obstacle->GetHealth() - Projectile.Damage);
+    return false;
+}
+
 void UAWCombatEffectsComponent::SpawnProjectile(
-    FVector Start, FVector End, int32 TargetRobot, bool bShielded, bool bDestroyedTarget)
+    FVector Start, FVector End, int32 TargetRobot, int32 TargetObstacleCell,
+    int32 Damage, bool bShielded)
 {
     AAWArenaRenderer *Renderer = GetRenderer();
     UStaticMesh *Sphere = LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Sphere.Sphere"));
@@ -330,10 +374,11 @@ void UAWCombatEffectsComponent::SpawnProjectile(
         FVector::Distance(Start, End) / AWVisualConfig::ProjectileSpeed,
         AWVisualConfig::ProjectileMinDuration, AWVisualConfig::ProjectileMaxDuration);
     Projectile.TargetRobot = TargetRobot;
+    Projectile.TargetObstacleCell = TargetObstacleCell;
+    Projectile.Damage = Damage;
     Projectile.bShielded = bShielded;
     Projectile.bShieldRemainsActive = TargetRobot >= 0 && TargetRobot < 2 &&
                                       HasActiveShield(CurrentSnapshot.robots[TargetRobot].effects);
-    Projectile.bDestroyedTarget = bDestroyedTarget;
     Projectiles.Add(Projectile);
     UpdateBeam(Beam, Start, Start);
 }

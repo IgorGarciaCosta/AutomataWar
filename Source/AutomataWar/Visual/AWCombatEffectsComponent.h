@@ -38,6 +38,12 @@ public:
     /** Retain the current canonical snapshot and reconcile active shield visuals. */
     void SetSnapshot(const Automata::StepSnapshot &Snapshot);
 
+    /** Cancel transient effects and restore the replay-visible tank health baseline. */
+    void ResetDamagePresentation(const std::array<int32, 2> &RobotHealth);
+
+    /** Return health after projectile arrivals rather than ahead-of-animation simulation state. */
+    int32 GetPresentedRobotHealth(int32 RobotIndex) const;
+
     /** Process replay events in the requested inclusive step range. */
     void ProcessEvents(const TArray<Automata::SimEvent> &Events, int32 FromStep, int32 ToStep);
 
@@ -68,7 +74,7 @@ private:
 
     /** Begin a projectile whose deterministic gameplay result is already known. */
     void SpawnProjectile(FVector Start, FVector End, int32 TargetRobot,
-                         bool bShielded, bool bDestroyedTarget);
+                         int32 TargetObstacleCell, int32 Damage, bool bShielded);
 
     /** Resize and orient a beam component between two world-space points. */
     static void UpdateBeam(UStaticMeshComponent *Beam, const FVector &Start, const FVector &End);
@@ -94,12 +100,17 @@ private:
         float Elapsed = 0.f;
         float Duration = 0.f;
         int32 TargetRobot = INDEX_NONE;
+        int32 TargetObstacleCell = INDEX_NONE;
+        int32 Damage = 0;
         bool bShielded = false;
         bool bShieldRemainsActive = false;
-        bool bDestroyedTarget = false;
     };
 
+    /** Apply one projectile's known damage when its presentation reaches the target. */
+    bool ApplyProjectileDamage(const FProjectileVisual &Projectile);
+
     Automata::StepSnapshot CurrentSnapshot;
+    std::array<int32, 2> PresentedRobotHealth;
     TArray<FProjectileVisual> Projectiles;
     TWeakObjectPtr<UStaticMeshComponent> ShieldEffects[2];
     bool PendingFinalShieldState[2] = {false, false};

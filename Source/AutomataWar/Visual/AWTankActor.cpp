@@ -72,14 +72,11 @@ void AAWTankActor::ApplyTankMaterial()
         if (bPlanProjection)
         {
             DynamicMaterial->SetVectorParameterValue(TEXT("EmissiveColor"), PlayerColor * 2.5f);
-            DynamicMaterial->SetScalarParameterValue(TEXT("Opacity"), 0.26f);
         }
         else
         {
             DynamicMaterial->SetVectorParameterValue(TEXT("BaseColor"), PlayerColor);
             DynamicMaterial->SetVectorParameterValue(TEXT("EmissiveColor"), PlayerColor * 0.45f);
-            DynamicMaterial->SetScalarParameterValue(TEXT("Metallic"), 0.28f);
-            DynamicMaterial->SetScalarParameterValue(TEXT("Roughness"), 0.52f);
         }
         for (UMeshComponent *Mesh : {static_cast<UMeshComponent *>(TankMesh), static_cast<UMeshComponent *>(CannonMesh)})
         {

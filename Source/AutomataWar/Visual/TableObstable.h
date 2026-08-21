@@ -26,7 +26,7 @@ public:
     /** Configure the grid identity and deterministic visual variant selected by the arena renderer. */
     void InitializeObstacle(int32 InCellIndex, const FLinearColor &InColor, int32 InVisualVariant);
 
-    /** Mirror canonical obstacle health from the current replay snapshot. */
+    /** Apply replay-visible health when a projectile arrives or navigation restores a snapshot. */
     void SetHealth(int32 NewHealth);
 
     /** Restore the initial visible state. */

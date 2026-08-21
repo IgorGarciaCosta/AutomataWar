@@ -54,6 +54,11 @@ namespace Automata
         return true;
     }
 
+    const StepSnapshot &FAWReplayController::GetSnapshot(int32_t Step) const
+    {
+        return snapshots_[static_cast<size_t>(std::clamp(Step, 0, GetTotalSteps() - 1))];
+    }
+
     std::vector<SimEvent> FAWReplayController::GetEventsForStep(int32_t Step) const
     {
         std::vector<SimEvent> Result;

@@ -4,6 +4,11 @@
 #include "Components/Widget.h"
 #include "Engine/UserDefinedEnum.h"
 #include "Kismet2/EnumEditorUtils.h"
+#include "Materials/MaterialInterface.h"
+#include "NiagaraEmitter.h"
+#include "NiagaraEmitterHandle.h"
+#include "NiagaraSpriteRendererProperties.h"
+#include "NiagaraSystem.h"
 #include "WidgetBlueprint.h"
 
 UWidgetTree *UAWWidgetBlueprintLibrary::GetWidgetTree(UWidgetBlueprint *Blueprint)
@@ -69,4 +74,41 @@ bool UAWWidgetBlueprintLibrary::SetUserDefinedEnumDisplayNames(UUserDefinedEnum 
         if (!FEnumEditorUtils::SetEnumeratorDisplayName(Enum, Index, FText::FromString(DisplayNames[Index])))
             return false;
     return true;
+}
+
+bool UAWWidgetBlueprintLibrary::ConfigureOneShotNiagaraSprites(
+    UNiagaraSystem *System, UMaterialInterface *Material)
+{
+    if (!System || !Material || System->IsLooping())
+        return false;
+
+    System->Modify();
+    int32 UpdatedRenderers = 0;
+    for (FNiagaraEmitterHandle &Handle : System->GetEmitterHandles())
+    {
+        FVersionedNiagaraEmitter Instance = Handle.GetInstance();
+        FVersionedNiagaraEmitterData *EmitterData = Instance.GetEmitterData();
+        if (!EmitterData)
+            continue;
+
+        for (UNiagaraRendererProperties *Renderer : EmitterData->GetRenderers())
+        {
+            UNiagaraSpriteRendererProperties *SpriteRenderer = Cast<UNiagaraSpriteRendererProperties>(Renderer);
+            if (!SpriteRenderer)
+                continue;
+
+            SpriteRenderer->Modify();
+            SpriteRenderer->Material = Material;
+            SpriteRenderer->PostEditChange();
+            ++UpdatedRenderers;
+        }
+    }
+
+    if (UpdatedRenderers == 0)
+        return false;
+
+    System->RequestCompile(true);
+    System->PollForCompilationComplete();
+    System->PostEditChange();
+    return !System->IsLooping();
 }

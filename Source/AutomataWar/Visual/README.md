@@ -27,7 +27,7 @@ C++ presentation-only visuals for Automata War. Reads simulation snapshots; neve
 - Audio: soft-path references; silent when assets absent
 - Interpolation uses frame delta purely for visual smoothness
 - `AAWArenaRenderer` does not tick; only its transient combat-effects component ticks while presentation is active
-- Projectile gameplay resolves instantly in Core; presentation animates a slower bolt, Niagara trail, and growing beam before impact feedback
+- Projectile gameplay resolves instantly in Core; presented tank and cover damage waits for the slower bolt, Niagara trail, and growing beam to reach the target
 - Active shields use a state-owned emissive energy sphere and vanish on one-shot absorption or timed-effect expiry
 - `NS_Destruction` supplies the larger destruction burst, layered with short-lived orange lights
 - The active-tank annulus is procedural, collision-free, and follows the snapshot's sole active command
