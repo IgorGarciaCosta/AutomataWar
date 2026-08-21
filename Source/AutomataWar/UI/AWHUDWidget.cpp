@@ -23,6 +23,16 @@
 
 namespace
 {
+    /** Decode the authoritative HP baseline stored for a round. */
+    std::array<int32, 2> GetRoundInitialHealth(const FAWResolvedRound &Round)
+    {
+        Automata::RoundState State;
+        return Automata::DecodeRoundState(
+                   Round.InitialArenaState.GetData(), Round.InitialArenaState.Num(), State)
+                   ? State.robotHP
+                   : std::array<int32, 2>{Automata::MaxHP, Automata::MaxHP};
+    }
+
     const TCHAR *FacingName(Automata::Dir Direction)
     {
         static const TCHAR *Names[] = {TEXT("NORTH"), TEXT("EAST"), TEXT("SOUTH"), TEXT("WEST")};
@@ -345,7 +355,9 @@ void UAWHUDWidget::OnPhaseChanged(EAWMatchPhase NewPhase)
         {
             if (AAWGameState *GS = GetWorld()->GetGameState<AAWGameState>())
             {
-                ReplayAutopsyScreenWidget->ResetProgrammingForNewRound(GS->GetActionPoints(0), GS->GetActionPoints(1));
+                const std::array<int32, 2> Health = GetRoundInitialHealth(GS->ResolvedRound);
+                ReplayAutopsyScreenWidget->ResetProgrammingForNewRound(
+                    Health[0], GS->GetActionPoints(0), Health[1], GS->GetActionPoints(1));
                 ReplayAutopsyScreenWidget->SetSinglePlayerMode(bSinglePlayer);
             }
             ReplayAutopsyScreenWidget->SetProgrammingMode(true, false);
@@ -362,12 +374,13 @@ void UAWHUDWidget::OnPhaseChanged(EAWMatchPhase NewPhase)
             ReplayAutopsyScreenWidget->SetProgrammingMode(false, false);
             if (AAWGameState *GS = GetWorld()->GetGameState<AAWGameState>())
             {
+                const std::array<int32, 2> Health = GetRoundInitialHealth(GS->ResolvedRound);
                 ReplayAutopsyScreenWidget->SetCombatantData(
                     0, ReplayAutopsyScreenWidget->GetProgrammingCommands(0), INDEX_NONE,
-                    FString::Printf(TEXT("HP %d  |  AP %d  |  FACING SOUTH"), Automata::MaxHP, GS->GetActionPoints(0)));
+                    FString::Printf(TEXT("HP %d  |  AP %d  |  FACING SOUTH"), Health[0], GS->GetActionPoints(0)));
                 ReplayAutopsyScreenWidget->SetCombatantData(
                     1, ReplayAutopsyScreenWidget->GetProgrammingCommands(1), INDEX_NONE,
-                    FString::Printf(TEXT("HP %d  |  AP %d  |  FACING NORTH"), Automata::MaxHP, GS->GetActionPoints(1)));
+                    FString::Printf(TEXT("HP %d  |  AP %d  |  FACING NORTH"), Health[1], GS->GetActionPoints(1)));
             }
         }
         PlayUISound(AWVisualAssets::SFX_MatchStart);
@@ -737,6 +750,11 @@ void UAWHUDWidget::InitializePlanningArenaFromGameState()
         return;
     }
 
+    if (ReplayAutopsyScreenWidget)
+        for (int32 RobotIndex = 0; RobotIndex < 2; ++RobotIndex)
+            ReplayAutopsyScreenWidget->SetProgrammingPlayerStats(
+                RobotIndex, ArenaState.robotHP[RobotIndex], GS->GetActionPoints(RobotIndex));
+
     AAWArenaRenderer *Renderer = FindOrSpawnRenderer();
     if (!Renderer)
         return;
@@ -744,6 +762,7 @@ void UAWHUDWidget::InitializePlanningArenaFromGameState()
     Automata::SimConfig Config;
     Config.gridWidth = ArenaState.gridWidth;
     Config.gridHeight = ArenaState.gridHeight;
+    Config.initialState = ArenaState;
     TArray<Automata::CellType> Grid;
     Grid.Append(ArenaState.grid.data(), static_cast<int32>(ArenaState.grid.size()));
     Renderer->InitializeArena(Config, Grid, {});
@@ -756,7 +775,7 @@ void UAWHUDWidget::InitializePlanningArenaFromGameState()
         Snapshot.robots[RobotIndex].x = ArenaState.robotX[RobotIndex];
         Snapshot.robots[RobotIndex].y = ArenaState.robotY[RobotIndex];
         Snapshot.robots[RobotIndex].facing = ArenaState.robotFacing[RobotIndex];
-        Snapshot.robots[RobotIndex].hp = Automata::MaxHP;
+        Snapshot.robots[RobotIndex].hp = ArenaState.robotHP[RobotIndex];
         Snapshot.robots[RobotIndex].actionPoints = GS->GetActionPoints(RobotIndex);
         Snapshot.robots[RobotIndex].effects = GS->GetEffects(RobotIndex);
     }

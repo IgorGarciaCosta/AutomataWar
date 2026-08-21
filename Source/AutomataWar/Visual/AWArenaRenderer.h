@@ -137,6 +137,9 @@ protected:
     /** Round-start cover health used when replay navigation returns to step zero. */
     std::vector<int32_t> InitialObstacleHealth;
 
+    /** Round-start tank health used when replay navigation returns to step zero. */
+    std::array<int32_t, 2> InitialRobotHealth = {Automata::MaxHP, Automata::MaxHP};
+
     /** Original dressing transforms retained so repeated replay initialization cannot accumulate offsets. */
     TMap<TWeakObjectPtr<AActor>, FTransform> AuthoredDressingTransforms;
 };

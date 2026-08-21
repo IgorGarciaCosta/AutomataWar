@@ -11,7 +11,8 @@ namespace Automata
 
     namespace
     {
-        constexpr uint8_t RoundStateVersion = 1;
+        constexpr uint8_t LegacyRoundStateVersion = 1;
+        constexpr uint8_t RoundStateVersion = 2;
 
         void WriteStateU16(std::vector<uint8_t> &Out, uint16_t Value)
         {
@@ -37,7 +38,7 @@ namespace Automata
             return {};
 
         std::vector<uint8_t> Bytes;
-        Bytes.reserve(5 + CellCount * 3 + 10);
+        Bytes.reserve(5 + CellCount * 3 + 14);
         Bytes.push_back(RoundStateVersion);
         WriteStateU16(Bytes, static_cast<uint16_t>(State.gridWidth));
         WriteStateU16(Bytes, static_cast<uint16_t>(State.gridHeight));
@@ -58,11 +59,13 @@ namespace Automata
         for (int32_t RobotIndex = 0; RobotIndex < 2; ++RobotIndex)
         {
             if (State.robotX[RobotIndex] < 0 || State.robotX[RobotIndex] > 65535 ||
-                State.robotY[RobotIndex] < 0 || State.robotY[RobotIndex] > 65535)
+                State.robotY[RobotIndex] < 0 || State.robotY[RobotIndex] > 65535 ||
+                State.robotHP[RobotIndex] < 0 || State.robotHP[RobotIndex] > MaxHP)
                 return {};
             WriteStateU16(Bytes, static_cast<uint16_t>(State.robotX[RobotIndex]));
             WriteStateU16(Bytes, static_cast<uint16_t>(State.robotY[RobotIndex]));
             Bytes.push_back(static_cast<uint8_t>(State.robotFacing[RobotIndex]));
+            WriteStateU16(Bytes, static_cast<uint16_t>(State.robotHP[RobotIndex]));
         }
         return Bytes;
     }
@@ -72,14 +75,17 @@ namespace Automata
         OutState = {};
         if (Size == 0)
             return true;
-        if (!Data || Size < 15 || Data[0] != RoundStateVersion)
+        if (!Data || Size < 15 ||
+            (Data[0] != LegacyRoundStateVersion && Data[0] != RoundStateVersion))
             return false;
 
+        const uint8_t Version = Data[0];
         RoundState State;
         State.gridWidth = ReadStateU16(Data + 1);
         State.gridHeight = ReadStateU16(Data + 3);
         const size_t CellCount = static_cast<size_t>(State.gridWidth) * static_cast<size_t>(State.gridHeight);
-        if (State.gridWidth <= 0 || State.gridHeight <= 0 || Size != 5 + CellCount * 3 + 10)
+        const size_t RobotStateSize = Version == RoundStateVersion ? 14 : 10;
+        if (State.gridWidth <= 0 || State.gridHeight <= 0 || Size != 5 + CellCount * 3 + RobotStateSize)
             return false;
 
         const uint8_t *Cursor = Data + 5;
@@ -117,6 +123,13 @@ namespace Automata
                 return false;
             State.robotFacing[RobotIndex] = static_cast<Dir>(Cursor[4]);
             Cursor += 5;
+            if (Version == RoundStateVersion)
+            {
+                State.robotHP[RobotIndex] = ReadStateU16(Cursor);
+                Cursor += 2;
+                if (State.robotHP[RobotIndex] > MaxHP)
+                    return false;
+            }
 
             const int32_t X = State.robotX[RobotIndex];
             const int32_t Y = State.robotY[RobotIndex];
@@ -232,7 +245,8 @@ namespace Automata
                 return false;
             const CellType Cell = State.grid[static_cast<size_t>(Y * Config.gridWidth + X)];
             if (Cell == CellType::Wall || Cell == CellType::Cover ||
-                static_cast<uint8_t>(State.robotFacing[RobotIndex]) > static_cast<uint8_t>(Dir::West))
+                static_cast<uint8_t>(State.robotFacing[RobotIndex]) > static_cast<uint8_t>(Dir::West) ||
+                State.robotHP[RobotIndex] < 0 || State.robotHP[RobotIndex] > MaxHP)
                 return false;
         }
         if (State.robotX[0] == State.robotX[1] && State.robotY[0] == State.robotY[1])
@@ -250,6 +264,7 @@ namespace Automata
             robots_[RobotIndex].x = State.robotX[RobotIndex];
             robots_[RobotIndex].y = State.robotY[RobotIndex];
             robots_[RobotIndex].facing = State.robotFacing[RobotIndex];
+            robots_[RobotIndex].hp = State.robotHP[RobotIndex];
         }
         return true;
     }
@@ -266,6 +281,7 @@ namespace Automata
             finalState_.robotX[RobotIndex] = robots_[RobotIndex].x;
             finalState_.robotY[RobotIndex] = robots_[RobotIndex].y;
             finalState_.robotFacing[RobotIndex] = robots_[RobotIndex].facing;
+            finalState_.robotHP[RobotIndex] = robots_[RobotIndex].hp;
         }
     }
 

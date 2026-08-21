@@ -39,7 +39,7 @@ namespace Automata
         FAWRobotEffects effects;
     };
 
-    /** Arena occupancy and tank placement carried from one round into the next. */
+    /** Arena occupancy, tank placement, and tank health carried from one round into the next. */
     struct RoundState
     {
         int32_t gridWidth = 0;
@@ -50,6 +50,8 @@ namespace Automata
         std::array<int32_t, 2> robotX = {};
         std::array<int32_t, 2> robotY = {};
         std::array<Dir, 2> robotFacing = {Dir::South, Dir::North};
+        /** Remaining health at the round boundary. */
+        std::array<int32_t, 2> robotHP = {MaxHP, MaxHP};
     };
 
     /** Encode round carryover for replication and replay storage. */
@@ -159,7 +161,9 @@ namespace Automata
 
         void InitGrid(int32_t Width, int32_t Height, Xorshift64 &Rng);
         void SpawnRobots(int32_t Width, int32_t Height, const SimConfig &Config);
+        /** Restore every persistent arena and robot field before a subsequent round. */
         bool RestoreState(const RoundState &State, const SimConfig &Config);
+        /** Capture every field required to continue the match in a subsequent round. */
         void CaptureFinalState();
         void ExecuteCommand(int32_t RobotIndex, EAWCommand Command, int32_t Step);
         /** Move one or two cells, stopping at the first blocker and collecting each crossed item. */

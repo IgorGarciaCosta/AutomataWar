@@ -9,6 +9,7 @@
 #include "Misc/AutomationTest.h"
 #include "AutomataWar/Core/Replay/AutomataReplay.h"
 #include "AutomataWar/Core/Sim/AutomataSimulation.h"
+#include "AutomataWar/Game/AWMatchTypes.h"
 #include <algorithm>
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCommandsRunOnce, "AutomataWar.Core.Commands.RunOnce",
@@ -187,7 +188,8 @@ bool FRoundStatePersists::RunTest(const FString &Parameters)
     FirstConfig.gridHeight = 4;
 
     Automata::Simulation First;
-    First.RunMatch({EAWCommand::TurnLeft, EAWCommand::Move}, {EAWCommand::Wait}, FirstConfig);
+    First.RunMatch({EAWCommand::Move, EAWCommand::TurnLeft, EAWCommand::Fire},
+                   {EAWCommand::Wait}, FirstConfig);
 
     const std::vector<uint8_t> EncodedState = Automata::EncodeRoundState(First.GetFinalState());
     Automata::RoundState RestoredState;
@@ -201,11 +203,14 @@ bool FRoundStatePersists::RunTest(const FString &Parameters)
 
     const Automata::StepSnapshot &FirstFinal = First.GetSnapshots().back();
     const Automata::StepSnapshot &SecondStart = Second.GetSnapshots().front();
+    TestEqual(TEXT("The first round damages player two"),
+              FirstFinal.robots[1].hp, Automata::MaxHP - Automata::ProjectileDamage);
     for (int32 RobotIndex = 0; RobotIndex < 2; ++RobotIndex)
     {
         TestEqual(TEXT("Tank X carries into the next round"), SecondStart.robots[RobotIndex].x, FirstFinal.robots[RobotIndex].x);
         TestEqual(TEXT("Tank Y carries into the next round"), SecondStart.robots[RobotIndex].y, FirstFinal.robots[RobotIndex].y);
         TestEqual(TEXT("Tank facing carries into the next round"), SecondStart.robots[RobotIndex].facing, FirstFinal.robots[RobotIndex].facing);
+        TestEqual(TEXT("Tank HP carries into the next round"), SecondStart.robots[RobotIndex].hp, FirstFinal.robots[RobotIndex].hp);
     }
     TestTrue(TEXT("The first round collected an item"), First.GetGrid() != First.GetFinalState().grid);
     TestTrue(TEXT("Collected items remain absent in the next round"), Second.GetGrid() == First.GetFinalState().grid);

@@ -316,7 +316,8 @@ public:
     FString GetCommandText(int32 PlayerIndex) const;
     void ResolveSubmission(int32 PlayerIndex, bool bAccepted);
     void ResetSubmissionState();
-    void ResetForNewRound(int32 ActionPoints0, int32 ActionPoints1);
+    /** Clear both queues and restore each player's current HP and AP balances. */
+    void ResetForNewRound(int32 Health0, int32 ActionPoints0, int32 Health1, int32 ActionPoints1);
     void SetPlayerStats(int32 PlayerIndex, int32 Health, int32 ActionPoints);
     /** Toggle slot 1 between local-player editing and AI read-only presentation. */
     void SetSinglePlayerMode(bool bSinglePlayer);
@@ -412,8 +413,9 @@ public:
     TArray<EAWCommand> GetProgrammingCommands(int32 PlayerIndex) const;
     /** Accept or reject one panel's submission after authoritative validation. */
     void ResolveProgrammingSubmission(int32 PlayerIndex, bool bAccepted);
-    /** Clear both queues and restore their current AP balances for a new round. */
-    void ResetProgrammingForNewRound(int32 ActionPoints0, int32 ActionPoints1);
+    /** Clear both queues and restore each player's current HP and AP balances. */
+    void ResetProgrammingForNewRound(int32 Health0, int32 ActionPoints0,
+                                     int32 Health1, int32 ActionPoints1);
     /** Replace one programming panel's live HP and AP readout. */
     void SetProgrammingPlayerStats(int32 PlayerIndex, int32 Health, int32 ActionPoints);
     /** Toggle player two between local editing and AI read-only presentation. */

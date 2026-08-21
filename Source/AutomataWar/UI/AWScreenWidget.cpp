@@ -405,12 +405,13 @@ void UAWProgrammingScreen::ResetSubmissionState()
         ProgrammingP2PanelWidget->ResetSubmissionState();
 }
 
-void UAWProgrammingScreen::ResetForNewRound(int32 ActionPoints0, int32 ActionPoints1)
+void UAWProgrammingScreen::ResetForNewRound(
+    int32 Health0, int32 ActionPoints0, int32 Health1, int32 ActionPoints1)
 {
     if (ProgrammingP1PanelWidget)
-        ProgrammingP1PanelWidget->ResetForNewRound(Automata::MaxHP, ActionPoints0);
+        ProgrammingP1PanelWidget->ResetForNewRound(Health0, ActionPoints0);
     if (ProgrammingP2PanelWidget)
-        ProgrammingP2PanelWidget->ResetForNewRound(Automata::MaxHP, ActionPoints1);
+        ProgrammingP2PanelWidget->ResetForNewRound(Health1, ActionPoints1);
 }
 
 void UAWProgrammingScreen::SetPlayerStats(int32 PlayerIndex, int32 Health, int32 ActionPoints)
@@ -534,12 +535,13 @@ void UAWReplayAutopsyScreen::ResolveProgrammingSubmission(int32 PlayerIndex, boo
         Panel->ResolveSubmission(bAccepted);
 }
 
-void UAWReplayAutopsyScreen::ResetProgrammingForNewRound(int32 ActionPoints0, int32 ActionPoints1)
+void UAWReplayAutopsyScreen::ResetProgrammingForNewRound(
+    int32 Health0, int32 ActionPoints0, int32 Health1, int32 ActionPoints1)
 {
     if (ProgrammingP1PanelWidget)
-        ProgrammingP1PanelWidget->ResetForNewRound(Automata::MaxHP, ActionPoints0);
+        ProgrammingP1PanelWidget->ResetForNewRound(Health0, ActionPoints0);
     if (ProgrammingP2PanelWidget)
-        ProgrammingP2PanelWidget->ResetForNewRound(Automata::MaxHP, ActionPoints1);
+        ProgrammingP2PanelWidget->ResetForNewRound(Health1, ActionPoints1);
 }
 
 void UAWReplayAutopsyScreen::SetProgrammingPlayerStats(int32 PlayerIndex, int32 Health, int32 ActionPoints)

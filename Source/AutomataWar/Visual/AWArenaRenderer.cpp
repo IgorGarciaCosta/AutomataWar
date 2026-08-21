@@ -60,6 +60,7 @@ void AAWArenaRenderer::InitializeArena(const Automata::SimConfig &Config,
     ClearAllPlanProjections();
     ArenaGridWidth = Config.gridWidth;
     InitialObstacleHealth = Config.initialState.obstacleHealth;
+    InitialRobotHealth = Config.initialState.robotHP;
     ResizeArenaPresentation(Config.gridWidth, Config.gridHeight);
     BuildFloorGrid(Config.gridWidth, Config.gridHeight);
     SpawnCoverVisuals(Config.gridWidth, Config.gridHeight, Grid);
@@ -162,7 +163,7 @@ void AAWArenaRenderer::SetSnapshot(const Automata::StepSnapshot &Snapshot)
 
 void AAWArenaRenderer::ResetDamagePresentation()
 {
-    CombatEffects->ResetDamagePresentation({Automata::MaxHP, Automata::MaxHP});
+    CombatEffects->ResetDamagePresentation(InitialRobotHealth);
     for (const TPair<int32, TObjectPtr<ATableObstable>> &Entry : Obstacles)
     {
         if (!Entry.Value)
