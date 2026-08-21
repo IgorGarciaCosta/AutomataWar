@@ -17,11 +17,11 @@ namespace Automata
     inline constexpr int32_t CompactGridHeight = DefaultGridHeight / 2;
     inline constexpr int32_t ExpandedGridWidth = DefaultGridWidth * 2;
     inline constexpr int32_t ExpandedGridHeight = DefaultGridHeight * 2;
-    inline constexpr int32_t MaxHP = 100;
+    inline constexpr int32_t MaxHP = 500;
     inline constexpr int32_t MaxCommands = 256;
     inline constexpr int32_t ProjectileDamage = 20;
-    inline constexpr int32_t ObstacleMaxHealth = 60;
-    inline constexpr int32_t InitialActionPoints = 100;
+    inline constexpr int32_t ObstacleMaxHealth = 20;
+    inline constexpr int32_t InitialActionPoints = 500;
     inline constexpr int32_t MoveActionPointCost = 10;
     inline constexpr int32_t FireActionPointCost = 20;
     inline constexpr int32_t TurnActionPointCost = 5;
