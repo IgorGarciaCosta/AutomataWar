@@ -49,12 +49,22 @@ void AAWTankActor::BeginPlay()
 {
     Super::BeginPlay();
 
+    InitializeTransformState();
+    ApplyVisualConfiguration();
+    BuildActiveIndicator();
+    ApplyTankMaterial();
+    ApplyIndicatorMaterial();
+}
+
+void AAWTankActor::InitializeTransformState()
+{
     AuthoredTransform = GetActorTransform();
     TargetLocation = GetActorLocation();
     TargetRotation = GetActorRotation();
-    ApplyVisualConfiguration();
-    BuildActiveIndicator();
+}
 
+void AAWTankActor::ApplyTankMaterial()
+{
     const TCHAR *MaterialPath = bPlanProjection ? AWVisualAssets::M_Effect : AWVisualAssets::M_Robot;
     if (UMaterialInterface *RobotMaterial = LoadObject<UMaterialInterface>(nullptr, MaterialPath))
     {
@@ -84,7 +94,10 @@ void AAWTankActor::BeginPlay()
             }
         }
     }
+}
 
+void AAWTankActor::ApplyIndicatorMaterial()
+{
     if (UMaterialInterface *EffectMaterial = LoadObject<UMaterialInterface>(nullptr, AWVisualAssets::M_Effect))
     {
         IndicatorMaterial = UMaterialInstanceDynamic::Create(EffectMaterial, this);

@@ -95,6 +95,15 @@ protected:
     FLinearColor PlayerColor = FLinearColor(0.f, 0.8f, 1.f);
 
 private:
+    /** Capture the level-authored transform as the initial movement state. */
+    void InitializeTransformState();
+
+    /** Create and apply the player-colored material to the tank and cannon meshes. */
+    void ApplyTankMaterial();
+
+    /** Create and apply the player-colored effect material to the active indicator. */
+    void ApplyIndicatorMaterial();
+
     /** Build a flat annulus once; visibility and pulse are updated at runtime. */
     void BuildActiveIndicator();
 
