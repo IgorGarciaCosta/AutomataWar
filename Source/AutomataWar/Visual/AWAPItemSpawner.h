@@ -17,14 +17,11 @@ class AUTOMATAWAR_API AAWAPItemSpawner : public AActor
 public:
     AAWAPItemSpawner();
 
-    virtual void BeginPlay() override;
     virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
     void InitializeItems(const Automata::SimConfig &Config, const TArray<Automata::CellType> &Grid,
                          const TArray<Automata::SimEvent> &Events);
     void SetReplayStep(int32 Step);
-
-    int64 GetSpawnSeed() const { return SpawnSeed; }
 
 private:
     struct FItemState
@@ -53,10 +50,6 @@ private:
 
     UPROPERTY(EditDefaultsOnly, Category = "Action Points")
     float ItemHeight = 42.f;
-
-    /** Zero chooses a random match seed when the spawner begins play. */
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Action Points", meta = (AllowPrivateAccess = "true", ClampMin = "0"))
-    int64 SpawnSeed = 0;
 
     TMap<int32, FItemState> Items;
     int32 LastReplayStep = INDEX_NONE;

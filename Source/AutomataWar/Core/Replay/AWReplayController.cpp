@@ -4,19 +4,16 @@
 namespace Automata
 {
 
-    bool FAWReplayController::Initialize(const TArray<EAWCommand> &CommandsA, const TArray<EAWCommand> &CommandsB, uint64_t Seed,
-                                         int32_t InitialActionPointsA, int32_t InitialActionPointsB,
-                                         const FAWRobotEffects &InitialEffectsA, const FAWRobotEffects &InitialEffectsB,
-                                         int32_t StartingRobot, TConstArrayView<uint8> InitialState)
+    bool FAWReplayController::Initialize(const ReplayData &Data)
     {
         bValid_ = false;
-        commandsA_ = CommandsA;
-        commandsB_ = CommandsB;
-        config_.seed = Seed;
-        config_.startingRobot = StartingRobot == 1 ? 1 : 0;
-        config_.initialActionPoints = {InitialActionPointsA, InitialActionPointsB};
-        config_.initialEffects = {InitialEffectsA, InitialEffectsB};
-        if (!DecodeRoundState(InitialState.GetData(), static_cast<size_t>(InitialState.Num()), config_.initialState))
+        commandsA_ = Data.commandsA;
+        commandsB_ = Data.commandsB;
+        config_.seed = Data.seed;
+        config_.startingRobot = Data.startingRobot == 1 ? 1 : 0;
+        config_.initialActionPoints = {Data.initialActionPointsA, Data.initialActionPointsB};
+        config_.initialEffects = {Data.initialEffectsA, Data.initialEffectsB};
+        if (!DecodeRoundState(Data.initialState.data(), Data.initialState.size(), config_.initialState))
             return false;
         if (!config_.initialState.grid.empty())
         {

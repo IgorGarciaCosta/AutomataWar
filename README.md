@@ -38,7 +38,7 @@ Both players use the same `WBP_AWProgrammingPanel` layout. It has:
 
 Commands are selected with buttons rather than typed as free-form text.
 
-Single player and Local Versus both select Easy, Normal, or Hard difficulty, then an 8×8, 16×16, or 32×32 procedural arena. Difficulty gives both combatants 150, 100, or 75 starting AP respectively; in single player it also selects the AI planning depth. The server-owned `AAWAIController` generates slot 1's queue and submits it through the same validation path as human players.
+Single player and Local Versus both select Easy, Normal, or Hard difficulty, then an 8×8, 16×16, or 32×32 procedural arena. Difficulty gives both combatants 150, 100, or 75 starting AP respectively; in single player it also selects the AI planning depth. The stateless `AutomataAI` planner generates slot 1's queue, and the server submits it through the same validation path as human players.
 
 ## Pickups
 
@@ -74,10 +74,11 @@ flowchart LR
 
 - `Core/Sim`: Runs the seven commands and owns canonical integer state and pickup effects.
 - `Core/Replay`: Stores command bytes and handles step-by-step replay navigation.
+- `Core/AutomataDomainTypes`: Owns canonical command, effect, and terminal-reason types shared by simulation adapters.
 - `AI/`: Generates deterministic, AP-budgeted single-player command queues.
 - `Audio/`: Owns persistent terminal ambience and context-driven music crossfades.
-- `Game/` and `Net/`: Handle submissions, replication, sessions, replay storage, and desync checks.
-- `UI/` and `Visual/`: Contain the UMG screens and the presentation-only arena actors.
+- `Game/` and `Net/`: Handle submission state, atomic resolved-round replication, sessions, replay storage, and client desync checks.
+- `UI/` and `Visual/`: Contain UMG screens, arena layout, and composed plan/combat presentation components.
 
 Local and network play both go through `AAWGameMode::HandleSubmission()`. The server validates the commands, runs the simulation, and replicates the accepted commands, seed, outcome, and final hash.
 
@@ -107,7 +108,7 @@ $Project = "$PWD\AutomataWar.uproject"
   -TestExit="Automation Test Queue Empty" -unattended -nop4 -nosplash -nullrhi
 ```
 
-The test suite covers command execution, tank-relative turns, deterministic hashes, replay round trips, invalid replay commands, payload limits, labels, and replay navigation.
+The test suite covers command execution, submission replacement and timeout behavior, tank-relative turns, deterministic hashes, resolved-round conversion, replay round trips, invalid replay commands, desync rejection, payload limits, labels, and replay navigation.
 
 ## Credits
 

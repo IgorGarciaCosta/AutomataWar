@@ -6,7 +6,7 @@
  */
 
 #include "AutomataWar/Core/AutomataRules.h"
-#include "AutomataWar/Game/AWMatchTypes.h"
+#include "AutomataWar/Core/AutomataDomainTypes.h"
 #include <array>
 #include <cstdint>
 #include <vector>

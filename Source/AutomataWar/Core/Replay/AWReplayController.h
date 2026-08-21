@@ -6,6 +6,7 @@
  */
 
 #include "AutomataWar/Core/Sim/AutomataSimulation.h"
+#include "AutomataReplay.h"
 #include <vector>
 
 namespace Automata
@@ -14,14 +15,8 @@ namespace Automata
     class FAWReplayController
     {
     public:
-        /** Re-simulate a replay from its complete canonical starting state. */
-        bool Initialize(const TArray<EAWCommand> &CommandsA, const TArray<EAWCommand> &CommandsB, uint64_t Seed,
-                        int32_t InitialActionPointsA = InitialActionPoints,
-                        int32_t InitialActionPointsB = InitialActionPoints,
-                        const FAWRobotEffects &InitialEffectsA = {},
-                        const FAWRobotEffects &InitialEffectsB = {},
-                        int32_t StartingRobot = 0,
-                        TConstArrayView<uint8> InitialState = {});
+        /** Re-simulate a replay from one complete canonical payload. */
+        bool Initialize(const ReplayData &Data);
         bool IsValid() const { return bValid_; }
 
         int32_t GetTotalSteps() const { return static_cast<int32_t>(snapshots_.size()); }

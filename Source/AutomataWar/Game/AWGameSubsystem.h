@@ -91,12 +91,9 @@ public:
     UFUNCTION(BlueprintCallable, Category = "AutomataWar|Replay")
     bool SaveReplay(const FString &Filename);
 
-    /** Load a replay by filename; returns commands and seed for re-simulation. */
+    /** Load a replay by filename as one complete re-simulation record. */
     UFUNCTION(BlueprintCallable, Category = "AutomataWar|Replay")
-    bool LoadReplay(const FString &Filename, TArray<EAWCommand> &OutCommands0, TArray<EAWCommand> &OutCommands1,
-                    int64 &OutSeed, int32 &OutStartingSlot, int32 &OutActionPoints0, int32 &OutActionPoints1,
-                    FAWRobotEffects &OutEffects0, FAWRobotEffects &OutEffects1,
-                    TArray<uint8> &OutInitialState, FString &OutError);
+    bool LoadReplay(const FString &Filename, FAWResolvedRound &OutRound, FString &OutError);
 
     /** Delete a replay. */
     UFUNCTION(BlueprintCallable, Category = "AutomataWar|Replay")

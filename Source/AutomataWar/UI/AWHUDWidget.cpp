@@ -13,19 +13,13 @@
 #include "AutomataWar/Visual/AWPlanVisualizationSubsystem.h"
 #include "AutomataWar/Visual/AWVisualTypes.h"
 #include "Components/Border.h"
-#include "Components/Button.h"
 #include "Components/TextBlock.h"
 #include "Components/WidgetSwitcher.h"
 #include "Kismet/GameplayStatics.h"
 #include "Kismet/KismetSystemLibrary.h"
 #include "GameFramework/GameStateBase.h"
 #include "EngineUtils.h"
-#include "Misc/CommandLine.h"
-#include "Misc/Paths.h"
-#include "Misc/Parse.h"
 #include "Sound/SoundBase.h"
-#include "TimerManager.h"
-#include "UnrealClient.h"
 
 namespace
 {
@@ -63,6 +57,7 @@ void UAWHUDWidget::NativeConstruct()
         if (AAWGameState *GS = World->GetGameState<AAWGameState>())
         {
             GS->OnPhaseChanged.AddDynamic(this, &UAWHUDWidget::OnPhaseChanged);
+            GS->OnResolvedRoundChanged.AddDynamic(this, &UAWHUDWidget::OnResolvedRoundChanged);
         }
     }
     if (UAWGameSubsystem *Sub = GetSubsystem())
@@ -77,175 +72,7 @@ void UAWHUDWidget::NativeConstruct()
         PlayerController->OnWithdrawalResult.AddDynamic(this, &UAWHUDWidget::OnWithdrawalResult);
     }
     ShowScreen(InitialScreen);
-
-#if !UE_BUILD_SHIPPING
-    FString CaptureMode;
-    if (FParse::Value(FCommandLine::Get(), TEXT("AutomataCapture="), CaptureMode))
-    {
-        float ScreenshotDelay = 1.f;
-        FParse::Value(FCommandLine::Get(), TEXT("AutomataCaptureDelay="), ScreenshotDelay);
-        if (CaptureMode.Equals(TEXT("Programming"), ESearchCase::IgnoreCase))
-        {
-            StartLocalMatch();
-        }
-        else if (CaptureMode.Equals(TEXT("ProgrammingExpanded"), ESearchCase::IgnoreCase))
-        {
-            bSinglePlayer = true;
-            PendingDifficulty = EAWDifficulty::Normal;
-            OnStartMatch(EAWArenaSize::Expanded);
-        }
-        else if (CaptureMode.Equals(TEXT("Difficulty"), ESearchCase::IgnoreCase))
-        {
-            OnSinglePlayerNav();
-        }
-        else if (CaptureMode.Equals(TEXT("LocalVersusDifficulty"), ESearchCase::IgnoreCase))
-        {
-            OnLocalMatch();
-        }
-        else if (CaptureMode.Equals(TEXT("LocalVersusArena"), ESearchCase::IgnoreCase))
-        {
-            OnLocalMatch();
-            OnDifficultySelected(EAWDifficulty::Normal);
-        }
-        else if (CaptureMode.Equals(TEXT("ArenaSelection"), ESearchCase::IgnoreCase))
-        {
-            OnDifficultySelected(EAWDifficulty::Normal);
-        }
-        else if (CaptureMode.Equals(TEXT("SinglePlayerReplay"), ESearchCase::IgnoreCase))
-        {
-            bSinglePlayer = true;
-            PendingDifficulty = EAWDifficulty::Hard;
-            OnStartMatch(EAWArenaSize::Standard);
-            if (AAWPlayerController *PlayerController = Cast<AAWPlayerController>(GetOwningPlayer()))
-                PlayerController->SubmitCommands(0, {EAWCommand::Wait});
-        }
-        else if (CaptureMode.Equals(TEXT("PlanProjection"), ESearchCase::IgnoreCase) ||
-                 CaptureMode.Equals(TEXT("PlanProjectionRemoved"), ESearchCase::IgnoreCase))
-        {
-            StartLocalMatch();
-            if (UUserWidget *Panel = Cast<UUserWidget>(ReplayAutopsyScreenWidget->GetWidgetFromName(TEXT("ProgrammingP1PanelWidget"))))
-            {
-                const TCHAR *Buttons[] = {
-                    TEXT("ProgrammingMoveButton"), TEXT("ProgrammingTurnLeftButton"),
-                    TEXT("ProgrammingMoveButton"), TEXT("ProgrammingFireButton"),
-                    TEXT("ProgrammingChargeShieldButton")};
-                for (const TCHAR *ButtonName : Buttons)
-                    if (UButton *Button = Cast<UButton>(Panel->GetWidgetFromName(ButtonName)))
-                        Button->OnClicked.Broadcast();
-
-                if (CaptureMode.Equals(TEXT("PlanProjectionRemoved"), ESearchCase::IgnoreCase))
-                    if (UButton *RemoveButton = Cast<UButton>(Panel->GetWidgetFromName(TEXT("ProgrammingRemoveActionButton"))))
-                    {
-                        RemoveButton->OnClicked.Broadcast();
-                        RemoveButton->OnClicked.Broadcast();
-                    }
-            }
-            ScreenshotDelay = 1.2f;
-        }
-        else if (CaptureMode.Equals(TEXT("ProgrammingSubmitted"), ESearchCase::IgnoreCase) ||
-                 CaptureMode.Equals(TEXT("ProgrammingReturned"), ESearchCase::IgnoreCase))
-        {
-            StartLocalMatch();
-            if (UUserWidget *Panel = Cast<UUserWidget>(ReplayAutopsyScreenWidget->GetWidgetFromName(TEXT("ProgrammingP1PanelWidget"))))
-            {
-                if (UButton *MoveButton = Cast<UButton>(Panel->GetWidgetFromName(TEXT("ProgrammingMoveButton"))))
-                    MoveButton->OnClicked.Broadcast();
-                if (UButton *SubmitButton = Cast<UButton>(Panel->GetWidgetFromName(TEXT("ProgrammingSubmitButton"))))
-                    SubmitButton->OnClicked.Broadcast();
-
-                if (CaptureMode.Equals(TEXT("ProgrammingReturned"), ESearchCase::IgnoreCase))
-                {
-                    ScreenshotDelay = 1.4f;
-                    TWeakObjectPtr<UUserWidget> WeakPanel = Panel;
-                    FTimerHandle ReturnTimer;
-                    GetWorld()->GetTimerManager().SetTimer(
-                        ReturnTimer,
-                        FTimerDelegate::CreateWeakLambda(this, [WeakPanel]()
-                                                         {
-                                                             if (UUserWidget *ProgrammingPanel = WeakPanel.Get())
-                                                                 if (UButton *ReturnButton = Cast<UButton>(ProgrammingPanel->GetWidgetFromName(TEXT("ProgrammingReturnToPlanningButton"))))
-                                                                     ReturnButton->OnClicked.Broadcast(); }),
-                        0.7f, false);
-                }
-            }
-        }
-        else if (CaptureMode.Equals(TEXT("Replay"), ESearchCase::IgnoreCase))
-        {
-            StartLocalMatch();
-            if (AAWPlayerController *PlayerController = Cast<AAWPlayerController>(GetOwningPlayer()))
-            {
-                PlayerController->SubmitCommands(0, {EAWCommand::Fire, EAWCommand::Move, EAWCommand::Fire});
-                PlayerController->SubmitCommands(1, {EAWCommand::TurnRight, EAWCommand::Move, EAWCommand::Fire});
-            }
-        }
-        else if (CaptureMode.Equals(TEXT("MatchResult"), ESearchCase::IgnoreCase) ||
-                 CaptureMode.Equals(TEXT("MatchResultReturn"), ESearchCase::IgnoreCase))
-        {
-            StartLocalMatch();
-            ShowScreen(EAWScreen::ReplayAutopsy);
-            if (MatchResultScrim)
-                MatchResultScrim->SetVisibility(ESlateVisibility::Visible);
-            if (MatchResultPopupWidget)
-                MatchResultPopupWidget->ShowResult(0, 0, EAWMatchEndReason::Health, true);
-            if (MatchResultPopupWidgetPlayerTwo)
-                MatchResultPopupWidgetPlayerTwo->ShowResult(0, 1, EAWMatchEndReason::Health, true);
-            if (CaptureMode.Equals(TEXT("MatchResultReturn"), ESearchCase::IgnoreCase))
-            {
-                ScreenshotDelay = 1.4f;
-                TWeakObjectPtr<UAWMatchResultPopupWidget> WeakPopup = MatchResultPopupWidget;
-                FTimerHandle ReturnTimer;
-                GetWorld()->GetTimerManager().SetTimer(
-                    ReturnTimer,
-                    FTimerDelegate::CreateWeakLambda(this, [WeakPopup]()
-                                                     {
-                                                         if (UAWMatchResultPopupWidget *Popup = WeakPopup.Get())
-                                                             if (UButton *ReturnButton = Cast<UButton>(Popup->GetWidgetFromName(TEXT("MatchResultReturnButton"))))
-                                                                 ReturnButton->OnClicked.Broadcast(); }),
-                    0.7f, false);
-            }
-        }
-        else if (CaptureMode.Equals(TEXT("MuzzleVFX"), ESearchCase::IgnoreCase) ||
-                 CaptureMode.Equals(TEXT("ImpactVFX"), ESearchCase::IgnoreCase))
-        {
-            StartLocalMatch();
-            if (AAWPlayerController *PlayerController = Cast<AAWPlayerController>(GetOwningPlayer()))
-            {
-                PlayerController->SubmitCommands(0, {EAWCommand::Fire});
-                PlayerController->SubmitCommands(1, {EAWCommand::Fire});
-            }
-        }
-        else if (CaptureMode.Equals(TEXT("ShieldVFX"), ESearchCase::IgnoreCase))
-        {
-            StartLocalMatch();
-            if (AAWPlayerController *PlayerController = Cast<AAWPlayerController>(GetOwningPlayer()))
-            {
-                PlayerController->SubmitCommands(0, {EAWCommand::ChargeShield});
-                PlayerController->SubmitCommands(1, {EAWCommand::Wait});
-            }
-        }
-
-        if (FParse::Param(FCommandLine::Get(), TEXT("AutomataCaptureScreenshot")))
-        {
-            const FString ScreenshotPath = FPaths::ProjectSavedDir() / TEXT("Screenshots") /
-                                           FString::Printf(TEXT("HUD_%s.png"), *CaptureMode);
-            FTimerHandle ScreenshotTimer;
-            GetWorld()->GetTimerManager().SetTimer(
-                ScreenshotTimer,
-                FTimerDelegate::CreateLambda([ScreenshotPath]()
-                                             { FScreenshotRequest::RequestScreenshot(ScreenshotPath, true, false); }),
-                ScreenshotDelay, false);
-            if (FParse::Param(FCommandLine::Get(), TEXT("AutomataCaptureExit")))
-            {
-                FTimerHandle ExitTimer;
-                GetWorld()->GetTimerManager().SetTimer(
-                    ExitTimer,
-                    FTimerDelegate::CreateLambda([]()
-                                                 { FPlatformMisc::RequestExit(false); }),
-                    ScreenshotDelay + 0.75f, false);
-            }
-        }
-    }
-#endif
+    RunCaptureMode();
 }
 
 void UAWHUDWidget::NativeDestruct()
@@ -269,6 +96,7 @@ void UAWHUDWidget::NativeDestruct()
         if (AAWGameState *GS = World->GetGameState<AAWGameState>())
         {
             GS->OnPhaseChanged.RemoveDynamic(this, &UAWHUDWidget::OnPhaseChanged);
+            GS->OnResolvedRoundChanged.RemoveDynamic(this, &UAWHUDWidget::OnResolvedRoundChanged);
         }
     }
     if (UAWGameSubsystem *Sub = GetSubsystem())
@@ -547,14 +375,7 @@ void UAWHUDWidget::OnPhaseChanged(EAWMatchPhase NewPhase)
             PlanVisualization->ClearAllPlans();
         SetAudioContext(EAWAudioContext::Replay);
         PlayUISound(AWVisualAssets::SFX_MatchEnd);
-        InitializeReplayFromGameState();
-        if (AAWGameState *GS = GetWorld()->GetGameState<AAWGameState>(); GS && ReplayAutopsyScreenWidget)
-        {
-            bMatchResultPending = GS->Outcome.bMatchEnded;
-            const bool bCanAdvanceRound = CanAdvanceToNextRound(
-                GS->Phase, GS->Outcome, GS->RevealedCommands0, GS->RevealedCommands1);
-            ReplayAutopsyScreenWidget->SetProgrammingMode(false, bCanAdvanceRound);
-        }
+        OnResolvedRoundChanged();
         ShowScreen(EAWScreen::ReplayAutopsy);
         break;
     default:
@@ -562,11 +383,35 @@ void UAWHUDWidget::OnPhaseChanged(EAWMatchPhase NewPhase)
     }
 }
 
+void UAWHUDWidget::OnResolvedRoundChanged()
+{
+    AAWGameState *GS = GetWorld() ? GetWorld()->GetGameState<AAWGameState>() : nullptr;
+    if (!GS)
+        return;
+    if (GS->Phase == EAWMatchPhase::Programming)
+    {
+        InitializePlanningArenaFromGameState();
+        return;
+    }
+    if (GS->Phase != EAWMatchPhase::ReplayAutopsy || !GS->ResolvedRound.IsReadyForReplay())
+        return;
+
+    InitializeReplayFromGameState();
+    bMatchResultPending = GS->ResolvedRound.Outcome.bMatchEnded;
+    if (ReplayAutopsyScreenWidget)
+    {
+        const bool bCanAdvanceRound = CanAdvanceToNextRound(
+            GS->Phase, GS->ResolvedRound.Outcome,
+            GS->ResolvedRound.Commands0, GS->ResolvedRound.Commands1);
+        ReplayAutopsyScreenWidget->SetProgrammingMode(false, bCanAdvanceRound);
+    }
+}
+
 void UAWHUDWidget::ShowPendingMatchResult()
 {
     AAWGameState *GS = GetWorld() ? GetWorld()->GetGameState<AAWGameState>() : nullptr;
     if (!bMatchResultPending || !GS || !MatchResultPopupWidget ||
-        !CanRevealMatchResult(GS->Phase, GS->Outcome, true))
+        !CanRevealMatchResult(GS->Phase, GS->ResolvedRound.Outcome, true))
         return;
 
     bMatchResultPending = false;
@@ -578,13 +423,14 @@ void UAWHUDWidget::ShowPendingMatchResult()
     if (MatchResultScrim)
         MatchResultScrim->SetVisibility(ESlateVisibility::Visible);
     MatchResultPopupWidget->ShowResult(
-        GS->Outcome.WinnerSlot, bLocalMultiplayer ? 0 : ViewerSlot,
-        GS->Outcome.EndReason, bLocalMultiplayer);
+        GS->ResolvedRound.Outcome.WinnerSlot, bLocalMultiplayer ? 0 : ViewerSlot,
+        GS->ResolvedRound.Outcome.EndReason, bLocalMultiplayer);
     if (MatchResultPopupWidgetPlayerTwo)
     {
         if (bLocalMultiplayer)
             MatchResultPopupWidgetPlayerTwo->ShowResult(
-                GS->Outcome.WinnerSlot, 1, GS->Outcome.EndReason, true);
+                GS->ResolvedRound.Outcome.WinnerSlot, 1,
+                GS->ResolvedRound.Outcome.EndReason, true);
         else
             MatchResultPopupWidgetPlayerTwo->SetVisibility(ESlateVisibility::Collapsed);
     }
@@ -842,7 +688,9 @@ void UAWHUDWidget::OnSubmitP2() { OnSubmitSlot(1); }
 void UAWHUDWidget::OnNextRound()
 {
     const AAWGameState *GS = GetWorld() ? GetWorld()->GetGameState<AAWGameState>() : nullptr;
-    if (!GS || !CanAdvanceToNextRound(GS->Phase, GS->Outcome, GS->RevealedCommands0, GS->RevealedCommands1))
+    if (!GS || !CanAdvanceToNextRound(
+                   GS->Phase, GS->ResolvedRound.Outcome,
+                   GS->ResolvedRound.Commands0, GS->ResolvedRound.Commands1))
         return;
 
     bReplayPlaying = false;
@@ -862,13 +710,10 @@ void UAWHUDWidget::InitializeReplayFromGameState()
     if (!World)
         return;
     AAWGameState *GS = World->GetGameState<AAWGameState>();
-    if (!GS)
+    if (!GS || !GS->ResolvedRound.IsReadyForReplay())
         return;
 
-    if (!InitializeReplay(GS->RevealedCommands0, GS->RevealedCommands1, GS->SimSeed,
-                          GS->ReplayStartActionPoints0, GS->ReplayStartActionPoints1,
-                          GS->ReplayStartEffects0, GS->ReplayStartEffects1, GS->RoundStartingSlot,
-                          GS->ReplayStartArenaState))
+    if (!InitializeReplay(GS->ResolvedRound))
     {
         SetStatus(TEXT("Failed to reconstruct simulation for replay."), true);
     }
@@ -877,11 +722,13 @@ void UAWHUDWidget::InitializeReplayFromGameState()
 void UAWHUDWidget::InitializePlanningArenaFromGameState()
 {
     AAWGameState *GS = GetWorld() ? GetWorld()->GetGameState<AAWGameState>() : nullptr;
-    if (!GS || GS->ReplayStartArenaState.IsEmpty())
+    if (!GS || GS->ResolvedRound.InitialArenaState.IsEmpty())
         return;
 
     Automata::RoundState ArenaState;
-    if (!Automata::DecodeRoundState(GS->ReplayStartArenaState.GetData(), GS->ReplayStartArenaState.Num(), ArenaState))
+    if (!Automata::DecodeRoundState(
+            GS->ResolvedRound.InitialArenaState.GetData(),
+            GS->ResolvedRound.InitialArenaState.Num(), ArenaState))
     {
         SetStatus(TEXT("Failed to load the selected arena."), true);
         return;
@@ -918,29 +765,27 @@ void UAWHUDWidget::InitializePlanningArenaFromGameState()
 bool UAWHUDWidget::BuildPlanningSimConfig(Automata::SimConfig &OutConfig) const
 {
     const AAWGameState *GS = GetWorld() ? GetWorld()->GetGameState<AAWGameState>() : nullptr;
-    if (!GS || GS->ReplayStartArenaState.IsEmpty())
+    if (!GS || GS->ResolvedRound.InitialArenaState.IsEmpty())
         return false;
 
     Automata::RoundState ArenaState;
     if (!Automata::DecodeRoundState(
-            GS->ReplayStartArenaState.GetData(), GS->ReplayStartArenaState.Num(), ArenaState))
+            GS->ResolvedRound.InitialArenaState.GetData(),
+            GS->ResolvedRound.InitialArenaState.Num(), ArenaState))
         return false;
 
     OutConfig = {};
     OutConfig.gridWidth = ArenaState.gridWidth;
     OutConfig.gridHeight = ArenaState.gridHeight;
-    OutConfig.seed = static_cast<uint64>(GS->SimSeed);
-    OutConfig.startingRobot = GS->RoundStartingSlot;
+    OutConfig.seed = static_cast<uint64>(GS->ResolvedRound.Seed);
+    OutConfig.startingRobot = GS->ResolvedRound.StartingSlot;
     OutConfig.initialActionPoints = {GS->GetActionPoints(0), GS->GetActionPoints(1)};
     OutConfig.initialEffects = {GS->GetEffects(0), GS->GetEffects(1)};
     OutConfig.initialState = MoveTemp(ArenaState);
     return true;
 }
 
-bool UAWHUDWidget::InitializeReplay(const TArray<EAWCommand> &CommandsA, const TArray<EAWCommand> &CommandsB, int64 Seed,
-                                    int32 ActionPointsA, int32 ActionPointsB,
-                                    const FAWRobotEffects &EffectsA, const FAWRobotEffects &EffectsB,
-                                    int32 StartingSlot, const TArray<uint8> &InitialState)
+bool UAWHUDWidget::InitializeReplay(const FAWResolvedRound &Round)
 {
     bReplayPlaying = false;
     SetAudioContext(EAWAudioContext::Replay);
@@ -949,8 +794,7 @@ bool UAWHUDWidget::InitializeReplay(const TArray<EAWCommand> &CommandsA, const T
     ReplaySpeed = .1f;
 
     ReplayController = MakeUnique<Automata::FAWReplayController>();
-    if (!ReplayController->Initialize(CommandsA, CommandsB, static_cast<uint64_t>(Seed), ActionPointsA, ActionPointsB,
-                                      EffectsA, EffectsB, StartingSlot, InitialState))
+    if (!ReplayController->Initialize(MakeReplayData(Round)))
         return false;
 
     if (AAWArenaRenderer *Renderer = FindOrSpawnRenderer())
@@ -1125,22 +969,16 @@ void UAWHUDWidget::OnReplayLoad(const FString &Filename)
     if (!Sub)
         return;
 
-    TArray<EAWCommand> Commands0, Commands1;
+    FAWResolvedRound Round;
     FString Error;
-    int64 Seed;
-    int32 StartingSlot, ActionPoints0, ActionPoints1;
-    FAWRobotEffects Effects0, Effects1;
-    TArray<uint8> InitialState;
-    if (!Sub->LoadReplay(Filename, Commands0, Commands1, Seed, StartingSlot,
-                         ActionPoints0, ActionPoints1, Effects0, Effects1, InitialState, Error))
+    if (!Sub->LoadReplay(Filename, Round, Error))
     {
         if (ReplayBrowserScreenWidget)
             ReplayBrowserScreenWidget->SetStatus(Error);
         return;
     }
 
-    if (!InitializeReplay(Commands0, Commands1, Seed, ActionPoints0, ActionPoints1,
-                          Effects0, Effects1, StartingSlot, InitialState))
+    if (!InitializeReplay(Round))
     {
         if (ReplayBrowserScreenWidget)
             ReplayBrowserScreenWidget->SetStatus(TEXT("Failed to resimulate replay."));

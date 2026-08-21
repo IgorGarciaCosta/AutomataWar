@@ -5,7 +5,10 @@ C++ presentation-only visuals for Automata War. Reads simulation snapshots; neve
 ## Structure
 
 - `AWVisualTypes.h/cpp` — Log category, asset soft paths, visual config constants
-- `AWArenaRenderer.h/cpp` — Floor grid, dynamic cover, shot/VFX/audio coordination
+- `AWArenaRenderer.h/cpp` — Arena layout, dynamic cover, tank references, and stable presentation façade
+- `AWCombatEffectsComponent.h/cpp` — Ticking projectiles, shields, Niagara, lights, and spatial SFX
+- `AWPlanProjectionComponent.h/cpp` — Local command ghosts, movement trails, aim lines, and preview shields
+- `AWPlanVisualizationSubsystem.h/cpp` — Deterministic plan re-simulation and retained projection state
 - `AWTankActor.h/cpp` — Level-authored tank mesh, snapshot interpolation, and active-turn ring
 - `AWItem.h/cpp` — Shared pickup presentation used by four data-only Blueprint identities
 - `AWIsometricCamera.h/cpp` — Fixed orthographic scene capture supplying the square HUD arena feed
@@ -23,6 +26,7 @@ C++ presentation-only visuals for Automata War. Reads simulation snapshots; neve
 - Projectile impact uses UE's finite SimpleExplosion system for a lightweight explosion-and-smoke burst
 - Audio: soft-path references; silent when assets absent
 - Interpolation uses frame delta purely for visual smoothness
+- `AAWArenaRenderer` does not tick; only its transient combat-effects component ticks while presentation is active
 - Projectile gameplay resolves instantly in Core; presentation animates a slower bolt, Niagara trail, and growing beam before impact feedback
 - Active shields use a state-owned emissive energy sphere and vanish on one-shot absorption or timed-effect expiry
 - `NS_Destruction` supplies the larger destruction burst, layered with short-lived orange lights

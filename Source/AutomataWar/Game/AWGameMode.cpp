@@ -2,12 +2,11 @@
 #include "AWGameState.h"
 #include "AWPlayerState.h"
 #include "AWPlayerController.h"
+#include "AutomataWar/AI/AWAIPlanner.h"
 #include "AutomataWar/Core/AutomataRules.h"
 #include "AutomataWar/Core/Sim/AutomataSimulation.h"
-#include "AutomataWar/Visual/AWAPItemSpawner.h"
 #include "AutomataWar/Visual/AWSpectatorPawn.h"
 #include "Engine/World.h"
-#include "EngineUtils.h"
 #include "TimerManager.h"
 
 DEFINE_LOG_CATEGORY(LogAutomataNet);
@@ -18,9 +17,6 @@ AAWGameMode::AAWGameMode()
     PlayerStateClass = AAWPlayerState::StaticClass();
     PlayerControllerClass = AAWPlayerController::StaticClass();
     DefaultPawnClass = AAWSpectatorPawn::StaticClass();
-
-    AcceptedCommands[0] = {EAWCommand::Move};
-    AcceptedCommands[1] = {EAWCommand::Move};
 }
 
 void AAWGameMode::InitGame(const FString &MapName, const FString &Options, FString &ErrorMessage)
@@ -54,9 +50,13 @@ void AAWGameMode::Logout(AController *Exiting)
         AAWGameState *GS = GetGameState<AAWGameState>();
         if (GS && GS->Phase != EAWMatchPhase::ReplayAutopsy)
         {
-            // End the match as forfeit for the disconnected player
-            GS->Outcome.bMatchEnded = true;
-            GS->Outcome.WinnerSlot = (Exiting->GetPlayerState<AAWPlayerState>()->CommandSlot == 0) ? 1 : 0;
+            FAWResolvedRound Round = GS->ResolvedRound;
+            Round.Commands0 = {EAWCommand::Wait};
+            Round.Commands1 = {EAWCommand::Wait};
+            Round.Outcome.bMatchEnded = true;
+            Round.Outcome.WinnerSlot = (Exiting->GetPlayerState<AAWPlayerState>()->CommandSlot == 0) ? 1 : 0;
+            Round.bResolved = true;
+            GS->SetResolvedRound(Round);
             SetPhase(EAWMatchPhase::ReplayAutopsy);
         }
     }
@@ -69,29 +69,14 @@ void AAWGameMode::BeginLocalMatch(EAWDifficulty Difficulty, EAWArenaSize ArenaSi
     bLocalMatch = true;
     bSinglePlayerMatch = false;
     SelectedArenaSize = ArenaSize;
-    if (AIController)
-    {
-        AIController->Destroy();
-        AIController = nullptr;
-    }
     GetWorld()->GetTimerManager().ClearTimer(SubmissionTimerHandle);
 
-    AcceptedCommands[0] = {EAWCommand::Move};
-    AcceptedCommands[1] = {EAWCommand::Move};
-    bSlotSubmitted[0] = false;
-    bSlotSubmitted[1] = false;
-    CommittedProgramCosts[0] = 0;
-    CommittedProgramCosts[1] = 0;
+    SubmissionState.ResetForMatch();
     PersistentRoundState = {};
 
-    MatchArenaSeed = 0;
-    for (TActorIterator<AAWAPItemSpawner> It(GetWorld()); It; ++It)
-    {
-        MatchArenaSeed = static_cast<uint64>(It->GetSpawnSeed());
-        break;
-    }
+    MatchArenaSeed = static_cast<uint64>(FMath::Rand()) ^ (static_cast<uint64>(FMath::Rand()) << 32);
     if (MatchArenaSeed == 0)
-        MatchArenaSeed = static_cast<uint64>(FMath::Rand()) ^ (static_cast<uint64>(FMath::Rand()) << 32);
+        MatchArenaSeed = 1;
 
     const FIntPoint GridSize = GetArenaGridSize(SelectedArenaSize);
     Automata::SimConfig ArenaConfig;
@@ -106,26 +91,22 @@ void AAWGameMode::BeginLocalMatch(EAWDifficulty Difficulty, EAWArenaSize ArenaSi
     if (AAWGameState *GS = GetGameState<AAWGameState>())
     {
         const int32 StartingActionPoints = GetStartingActionPoints(Difficulty);
-        GS->RoundNumber = 1;
         GS->SubmissionTimeRemaining = -1.f;
-        GS->RevealedCommands0.Reset();
-        GS->RevealedCommands1.Reset();
-        GS->AuthoritativeHash = 0;
-        GS->SimSeed = static_cast<int64>(MatchArenaSeed);
-        GS->Outcome = FAWMatchOutcome();
         GS->SetActionPoints(0, StartingActionPoints);
         GS->SetActionPoints(1, StartingActionPoints);
-        GS->RoundStartingSlot = ChooseRoundStartingSlot(
-            GS->RoundNumber, GS->GetActionPoints(0), GS->GetActionPoints(1), FMath::RandRange(0, 1));
-        GS->ReplayStartActionPoints0 = StartingActionPoints;
-        GS->ReplayStartActionPoints1 = StartingActionPoints;
         GS->SetEffects(0, {});
         GS->SetEffects(1, {});
-        GS->ReplayStartEffects0 = {};
-        GS->ReplayStartEffects1 = {};
+
+        FAWResolvedRound Round;
+        Round.RoundNumber = 1;
+        Round.StartingSlot = ChooseRoundStartingSlot(
+            Round.RoundNumber, GS->GetActionPoints(0), GS->GetActionPoints(1), FMath::RandRange(0, 1));
+        Round.Seed = static_cast<int64>(MatchArenaSeed);
+        Round.InitialActionPoints0 = StartingActionPoints;
+        Round.InitialActionPoints1 = StartingActionPoints;
         const std::vector<uint8_t> EncodedState = Automata::EncodeRoundState(PersistentRoundState);
-        GS->ReplayStartArenaState.Reset(static_cast<int32>(EncodedState.size()));
-        GS->ReplayStartArenaState.Append(EncodedState.data(), static_cast<int32>(EncodedState.size()));
+        Round.InitialArenaState.Append(EncodedState.data(), static_cast<int32>(EncodedState.size()));
+        GS->SetResolvedRound(Round);
     }
 
     SetPhase(EAWMatchPhase::Programming);
@@ -136,7 +117,6 @@ void AAWGameMode::BeginSinglePlayerMatch(EAWDifficulty Difficulty, EAWArenaSize 
     BeginLocalMatch(Difficulty, ArenaSize);
     bSinglePlayerMatch = true;
     AIDifficulty = Difficulty;
-    EnsureAIController();
 }
 
 FAWValidationResult AAWGameMode::HandleSubmission(int32 Slot, const TArray<EAWCommand> &Commands)
@@ -149,51 +129,17 @@ FAWValidationResult AAWGameMode::HandleSubmission(int32 Slot, const TArray<EAWCo
         return R;
     }
 
-    if (Slot < 0 || Slot > 1)
-    {
-        FAWValidationResult R;
-        R.ErrorMessage = TEXT("Invalid command slot.");
-        return R;
-    }
+    int32 CostDelta = 0;
+    const FAWValidationResult SubmissionResult = SubmissionState.TrySubmit(
+        Slot, Commands, Slot >= 0 && Slot <= 1 ? GS->GetActionPoints(Slot) : 0, CostDelta);
+    if (!SubmissionResult.bSuccess)
+        return SubmissionResult;
 
-    if (Commands.IsEmpty())
-    {
-        FAWValidationResult R;
-        R.ErrorMessage = TEXT("Add at least one action before submitting.");
-        return R;
-    }
-    if (Commands.Num() > Automata::MaxCommands)
-    {
-        FAWValidationResult R;
-        R.ErrorMessage = FString::Printf(TEXT("A program can contain at most %d actions."), Automata::MaxCommands);
-        return R;
-    }
-    for (EAWCommand Command : Commands)
-        if (Command >= EAWCommand::Count)
-        {
-            FAWValidationResult R;
-            R.ErrorMessage = TEXT("Command list contains an invalid action.");
-            return R;
-        }
-
-    const int32 NewProgramCost = GetProgramActionPointCost(Commands);
-    const int32 CostDelta = NewProgramCost - CommittedProgramCosts[Slot];
-    if (CostDelta > GS->GetActionPoints(Slot))
-    {
-        FAWValidationResult R;
-        R.ErrorMessage = FString::Printf(TEXT("Program needs %d more AP; only %d AP available."),
-                                         CostDelta, GS->GetActionPoints(Slot));
-        return R;
-    }
-
-    AcceptedCommands[Slot] = Commands;
     GS->SetActionPoints(Slot, GS->GetActionPoints(Slot) - CostDelta);
-    CommittedProgramCosts[Slot] = NewProgramCost;
-    bSlotSubmitted[Slot] = true;
 
     UE_LOG(LogAutomataGame, Log, TEXT("Slot %d submitted (%d actions)."), Slot, Commands.Num());
 
-    if (bSinglePlayerMatch && Slot == 0 && !bSlotSubmitted[1])
+    if (bSinglePlayerMatch && Slot == 0 && !SubmissionState.IsSubmitted(1))
     {
         const FAWValidationResult AIResult = SubmitAICommands();
         if (!AIResult.bSuccess)
@@ -208,7 +154,7 @@ FAWValidationResult AAWGameMode::HandleSubmission(int32 Slot, const TArray<EAWCo
     }
 
     // Check if both submitted
-    if (bSlotSubmitted[0] && bSlotSubmitted[1])
+    if (SubmissionState.AreBothSubmitted())
     {
         OnBothSubmitted();
     }
@@ -229,30 +175,19 @@ FAWValidationResult AAWGameMode::HandleSubmission(int32 Slot, const TArray<EAWCo
     return Result;
 }
 
-void AAWGameMode::EnsureAIController()
-{
-    if (AIController || !GetWorld())
-        return;
-
-    FActorSpawnParameters SpawnParameters;
-    SpawnParameters.Owner = this;
-    SpawnParameters.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
-    AIController = GetWorld()->SpawnActor<AAWAIController>(AAWAIController::StaticClass(), SpawnParameters);
-}
-
 FAWValidationResult AAWGameMode::SubmitAICommands()
 {
-    EnsureAIController();
     AAWGameState *GS = GetGameState<AAWGameState>();
-    if (!AIController || !GS)
+    if (!GS)
     {
         FAWValidationResult Result;
-        Result.ErrorMessage = TEXT("AI controller unavailable.");
+        Result.ErrorMessage = TEXT("AI planner unavailable.");
         return Result;
     }
 
-    const int32 Seed = HashCombineFast(static_cast<uint32>(GS->RoundNumber), static_cast<uint32>(AIDifficulty));
-    const TArray<EAWCommand> Commands = AIController->GenerateCommandQueue(AIDifficulty, GS->GetActionPoints(1), Seed);
+    const int32 Seed = HashCombineFast(
+        static_cast<uint32>(GS->ResolvedRound.RoundNumber), static_cast<uint32>(AIDifficulty));
+    const TArray<EAWCommand> Commands = AutomataAI::GenerateCommandQueue(AIDifficulty, GS->GetActionPoints(1), Seed);
     return HandleSubmission(1, Commands);
 }
 
@@ -265,15 +200,10 @@ FAWValidationResult AAWGameMode::WithdrawSubmission(int32 Slot)
         Result.ErrorMessage = TEXT("Programs can only be reopened during Programming phase.");
         return Result;
     }
-    if (Slot < 0 || Slot > 1)
-    {
-        Result.ErrorMessage = TEXT("Invalid command slot.");
+    Result = SubmissionState.Withdraw(Slot);
+    if (!Result.bSuccess)
         return Result;
-    }
-
-    bSlotSubmitted[Slot] = false;
-    AcceptedCommands[Slot].Reset();
-    if (!bSlotSubmitted[0] && !bSlotSubmitted[1])
+    if (!SubmissionState.IsSubmitted(0) && !SubmissionState.IsSubmitted(1))
     {
         GetWorld()->GetTimerManager().ClearTimer(SubmissionTimerHandle);
         GS->SubmissionTimeRemaining = -1.f;
@@ -296,20 +226,16 @@ void AAWGameMode::OnSubmissionTimerExpired()
     AAWGameState *GS = GetGameState<AAWGameState>();
     for (int32 i = 0; i < 2; ++i)
     {
-        if (!bSlotSubmitted[i])
+        if (!SubmissionState.IsSubmitted(i))
         {
-            if (GS)
+            int32 CostDelta = 0;
+            const bool bApplyCost = SubmissionState.ExpireSlot(
+                i, GS ? GS->GetActionPoints(i) : 0, CostDelta);
+            if (GS && bApplyCost)
             {
-                const int32 NewProgramCost = GetProgramActionPointCost(AcceptedCommands[i]);
-                const int32 CostDelta = NewProgramCost - CommittedProgramCosts[i];
-                if (CostDelta <= GS->GetActionPoints(i))
-                {
-                    GS->SetActionPoints(i, GS->GetActionPoints(i) - CostDelta);
-                    CommittedProgramCosts[i] = NewProgramCost;
-                }
+                GS->SetActionPoints(i, GS->GetActionPoints(i) - CostDelta);
             }
             UE_LOG(LogAutomataNet, Log, TEXT("Slot %d timer expired, using last accepted commands."), i);
-            bSlotSubmitted[i] = true;
         }
     }
     OnBothSubmitted();
@@ -340,45 +266,47 @@ void AAWGameMode::RunSimulation()
     }
 
     AAWGameState *GS = GetGameState<AAWGameState>();
+    FAWResolvedRound Round;
     if (GS)
     {
-        if (GS->RoundStartingSlot < 0 || GS->RoundStartingSlot > 1)
+        Round = GS->ResolvedRound;
+        if (Round.StartingSlot < 0 || Round.StartingSlot > 1)
         {
-            GS->RoundStartingSlot = ChooseRoundStartingSlot(
-                GS->RoundNumber, GS->GetActionPoints(0), GS->GetActionPoints(1), FMath::RandRange(0, 1));
+            Round.StartingSlot = ChooseRoundStartingSlot(
+                Round.RoundNumber, GS->GetActionPoints(0), GS->GetActionPoints(1), FMath::RandRange(0, 1));
         }
-        Config.startingRobot = GS->RoundStartingSlot;
+        Config.startingRobot = Round.StartingSlot;
         Config.initialActionPoints = {GS->GetActionPoints(0), GS->GetActionPoints(1)};
         Config.initialEffects = {GS->GetEffects(0), GS->GetEffects(1)};
-        GS->ReplayStartActionPoints0 = Config.initialActionPoints[0];
-        GS->ReplayStartActionPoints1 = Config.initialActionPoints[1];
-        GS->ReplayStartEffects0 = Config.initialEffects[0];
-        GS->ReplayStartEffects1 = Config.initialEffects[1];
+        Round.Seed = static_cast<int64>(Seed);
+        Round.InitialActionPoints0 = Config.initialActionPoints[0];
+        Round.InitialActionPoints1 = Config.initialActionPoints[1];
+        Round.InitialEffects0 = Config.initialEffects[0];
+        Round.InitialEffects1 = Config.initialEffects[1];
         const std::vector<uint8_t> EncodedState = Automata::EncodeRoundState(Config.initialState);
-        GS->ReplayStartArenaState.Reset(static_cast<int32>(EncodedState.size()));
+        Round.InitialArenaState.Reset(static_cast<int32>(EncodedState.size()));
         if (!EncodedState.empty())
-            GS->ReplayStartArenaState.Append(EncodedState.data(), static_cast<int32>(EncodedState.size()));
+            Round.InitialArenaState.Append(EncodedState.data(), static_cast<int32>(EncodedState.size()));
         UE_LOG(LogAutomataGame, Log, TEXT("Round %d starts with slot %d."),
-               GS->RoundNumber, GS->RoundStartingSlot);
+               Round.RoundNumber, Round.StartingSlot);
     }
 
     Automata::Simulation Sim;
-    Automata::MatchResult Result = Sim.RunMatch(AcceptedCommands[0], AcceptedCommands[1], Config);
+    Automata::MatchResult Result = Sim.RunMatch(
+        SubmissionState.GetCommands(0), SubmissionState.GetCommands(1), Config);
     PersistentRoundState = Sim.GetFinalState();
     uint64 FinalHash = Sim.GetFinalHash();
 
     // Populate GameState
     if (GS)
     {
-        GS->SimSeed = static_cast<int64>(Seed);
-        GS->AuthoritativeHash = static_cast<int64>(FinalHash);
-        GS->RevealedCommands0 = AcceptedCommands[0];
-        GS->RevealedCommands1 = AcceptedCommands[1];
-
-        GS->Outcome.HP0 = Result.finalHP[0];
-        GS->Outcome.HP1 = Result.finalHP[1];
-        GS->Outcome.bMatchEnded = Result.bMatchEnded;
-        GS->Outcome.EndReason = Result.endReason;
+        Round.AuthoritativeHash = static_cast<int64>(FinalHash);
+        Round.Commands0 = SubmissionState.GetCommands(0);
+        Round.Commands1 = SubmissionState.GetCommands(1);
+        Round.Outcome.HP0 = Result.finalHP[0];
+        Round.Outcome.HP1 = Result.finalHP[1];
+        Round.Outcome.bMatchEnded = Result.bMatchEnded;
+        Round.Outcome.EndReason = Result.endReason;
         GS->SetActionPoints(0, Result.finalActionPoints[0]);
         GS->SetActionPoints(1, Result.finalActionPoints[1]);
         GS->SetEffects(0, Result.finalEffects[0]);
@@ -386,15 +314,17 @@ void AAWGameMode::RunSimulation()
         switch (Result.outcome)
         {
         case Automata::MatchOutcome::Robot0Wins:
-            GS->Outcome.WinnerSlot = 0;
+            Round.Outcome.WinnerSlot = 0;
             break;
         case Automata::MatchOutcome::Robot1Wins:
-            GS->Outcome.WinnerSlot = 1;
+            Round.Outcome.WinnerSlot = 1;
             break;
         default:
-            GS->Outcome.WinnerSlot = -1;
+            Round.Outcome.WinnerSlot = -1;
             break;
         }
+        Round.bResolved = true;
+        GS->SetResolvedRound(Round);
     }
 
     SetPhase(EAWMatchPhase::ReplayAutopsy);
@@ -416,25 +346,26 @@ void AAWGameMode::SetPhase(EAWMatchPhase NewPhase)
 void AAWGameMode::AdvanceToNextRound()
 {
     AAWGameState *GS = GetGameState<AAWGameState>();
-    if (!GS || !CanAdvanceToNextRound(GS->Phase, GS->Outcome, GS->RevealedCommands0, GS->RevealedCommands1))
+    if (!GS || !CanAdvanceToNextRound(
+                   GS->Phase, GS->ResolvedRound.Outcome,
+                   GS->ResolvedRound.Commands0, GS->ResolvedRound.Commands1))
         return;
 
-    GS->RoundNumber++;
-    GS->RoundStartingSlot = ChooseRoundStartingSlot(
-        GS->RoundNumber, GS->GetActionPoints(0), GS->GetActionPoints(1), FMath::RandRange(0, 1));
-    GS->RevealedCommands0.Reset();
-    GS->RevealedCommands1.Reset();
     GS->SubmissionTimeRemaining = -1.f;
-    bSlotSubmitted[0] = false;
-    bSlotSubmitted[1] = false;
-    AcceptedCommands[0].Reset();
-    AcceptedCommands[1].Reset();
-    CommittedProgramCosts[0] = 0;
-    CommittedProgramCosts[1] = 0;
+    SubmissionState.ResetForRound();
 
+    FAWResolvedRound NextRound;
+    NextRound.RoundNumber = GS->ResolvedRound.RoundNumber + 1;
+    NextRound.StartingSlot = ChooseRoundStartingSlot(
+        NextRound.RoundNumber, GS->GetActionPoints(0), GS->GetActionPoints(1), FMath::RandRange(0, 1));
+    NextRound.Seed = static_cast<int64>(MatchArenaSeed);
+    NextRound.InitialActionPoints0 = GS->GetActionPoints(0);
+    NextRound.InitialActionPoints1 = GS->GetActionPoints(1);
+    NextRound.InitialEffects0 = GS->GetEffects(0);
+    NextRound.InitialEffects1 = GS->GetEffects(1);
     const std::vector<uint8_t> EncodedState = Automata::EncodeRoundState(PersistentRoundState);
-    GS->ReplayStartArenaState.Reset(static_cast<int32>(EncodedState.size()));
-    GS->ReplayStartArenaState.Append(EncodedState.data(), static_cast<int32>(EncodedState.size()));
+    NextRound.InitialArenaState.Append(EncodedState.data(), static_cast<int32>(EncodedState.size()));
+    GS->SetResolvedRound(NextRound);
 
     SetPhase(EAWMatchPhase::Programming);
 }

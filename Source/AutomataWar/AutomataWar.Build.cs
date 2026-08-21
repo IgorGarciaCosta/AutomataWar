@@ -11,7 +11,6 @@ public class AutomataWar : ModuleRules
             "Core",
             "CoreUObject",
             "Engine",
-            "AIModule",
             "InputCore",
             "NetCore",
             "UMG",

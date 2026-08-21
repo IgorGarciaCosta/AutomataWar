@@ -30,31 +30,6 @@ AAWAPItemSpawner::AAWAPItemSpawner()
         AcceleratorItemClass = AcceleratorBlueprint.Class;
 }
 
-void AAWAPItemSpawner::BeginPlay()
-{
-    Super::BeginPlay();
-
-    if (SpawnSeed == 0)
-    {
-        const uint64 RandomSeed = static_cast<uint64>(FMath::Rand()) ^ (static_cast<uint64>(FMath::Rand()) << 32);
-        SpawnSeed = static_cast<int64>(RandomSeed & MAX_int64);
-        if (SpawnSeed == 0)
-            SpawnSeed = 1;
-    }
-
-    Automata::SimConfig Config;
-    Config.seed = static_cast<uint64>(SpawnSeed);
-    const TArray<EAWCommand> EmptyCommands;
-    Automata::Simulation Preview;
-    Preview.RunMatch(EmptyCommands, EmptyCommands, Config);
-
-    TArray<Automata::CellType> Grid;
-    Grid.Reserve(Preview.GetGrid().size());
-    for (Automata::CellType Cell : Preview.GetGrid())
-        Grid.Add(Cell);
-    InitializeItems(Config, Grid, {});
-}
-
 void AAWAPItemSpawner::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
     DestroyItems();

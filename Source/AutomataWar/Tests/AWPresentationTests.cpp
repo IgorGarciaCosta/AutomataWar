@@ -36,8 +36,12 @@ bool FReplayControllerSteps::RunTest(const FString &Parameters)
         EAWCommand::Move, EAWCommand::TurnLeft, EAWCommand::Move, EAWCommand::Fire};
     const TArray<EAWCommand> CommandsB = {EAWCommand::TurnRight, EAWCommand::Move};
 
+    Automata::ReplayData Data;
+    Data.seed = 12345;
+    Data.commandsA = CommandsA;
+    Data.commandsB = CommandsB;
     Automata::FAWReplayController Controller;
-    TestTrue(TEXT("Controller initializes"), Controller.Initialize(CommandsA, CommandsB, 12345));
+    TestTrue(TEXT("Controller initializes"), Controller.Initialize(Data));
     TestEqual(TEXT("Starts at first step"), Controller.GetCurrentStep(), 0);
     TestEqual(TEXT("Every queued command receives a replay step"), Controller.GetTotalSteps(), 6);
     Controller.StepForward();
@@ -198,13 +202,13 @@ bool FMatchResultLabels::RunTest(const FString &Parameters)
     TestEqual(TEXT("Solo AP win"), UAWMatchResultPopupWidget::FormatResultText(0, 0, EAWMatchEndReason::ActionPoints, false, MessageEnum).ToString(),
               FString(TEXT("That loser get no munny")));
     TestEqual(TEXT("Solo HP loss"), UAWMatchResultPopupWidget::FormatResultText(1, 0, EAWMatchEndReason::Health, false, MessageEnum).ToString(),
-              FString(TEXT("Wasted, crushed, massacrated")));
+              FString(TEXT("Wasted, crushed, massacred")));
     TestEqual(TEXT("Solo AP loss"), UAWMatchResultPopupWidget::FormatResultText(1, 0, EAWMatchEndReason::ActionPoints, false, MessageEnum).ToString(),
               FString(TEXT("No more moves for you, bro")));
     TestEqual(TEXT("Local P1 viewpoint"), UAWMatchResultPopupWidget::FormatResultText(0, 0, EAWMatchEndReason::Health, true, MessageEnum).ToString(),
               FString(TEXT("P1: You crushed your opponent")));
     TestEqual(TEXT("Local P2 viewpoint"), UAWMatchResultPopupWidget::FormatResultText(0, 1, EAWMatchEndReason::Health, true, MessageEnum).ToString(),
-              FString(TEXT("P2: Wasted, crushed, massacrated")));
+              FString(TEXT("P2: Wasted, crushed, massacred")));
     return true;
 }
 

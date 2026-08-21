@@ -6,58 +6,16 @@
  */
 
 #include "CoreMinimal.h"
-#include "AutomataWar/Core/AutomataRules.h"
+#include "AutomataWar/Core/AutomataDomainTypes.h"
 #include "AWMatchTypes.generated.h"
+
+namespace Automata
+{
+    struct ReplayData;
+}
 
 DECLARE_LOG_CATEGORY_EXTERN(LogAutomataGame, Log, All);
 DECLARE_LOG_CATEGORY_EXTERN(LogAutomataNet, Log, All);
-
-/** Canonical command and pickup effects that may survive into later rounds. */
-USTRUCT(BlueprintType)
-struct FAWRobotEffects
-{
-    GENERATED_BODY()
-
-    /** The next incoming hit is reduced by half. */
-    UPROPERTY(BlueprintReadOnly)
-    bool bShieldCharged = false;
-
-    /** The next move crosses up to two cells. */
-    UPROPERTY(BlueprintReadOnly)
-    bool bAccelerateNextMove = false;
-
-    /** Remaining rounds with bonus projectile damage. */
-    UPROPERTY(BlueprintReadOnly)
-    int32 ExtraAmmoRounds = 0;
-
-    /** Remaining rounds with all incoming damage reduced by half. */
-    UPROPERTY(BlueprintReadOnly)
-    int32 ShieldRounds = 0;
-
-    /** Remaining rounds in which every move crosses up to two cells. */
-    UPROPERTY(BlueprintReadOnly)
-    int32 AcceleratorRounds = 0;
-};
-
-/** Return whether either canonical shield source is currently active. */
-inline constexpr bool HasActiveShield(const FAWRobotEffects &Effects)
-{
-    return Effects.bShieldCharged || Effects.ShieldRounds > 0;
-}
-
-/** One player-selected action, executed relative to the tank's current facing. */
-UENUM(BlueprintType)
-enum class EAWCommand : uint8
-{
-    Move UMETA(DisplayName = "Move"),
-    Fire UMETA(DisplayName = "Fire"),
-    TurnLeft UMETA(DisplayName = "Turn Left"),
-    TurnRight UMETA(DisplayName = "Turn Right"),
-    Wait UMETA(DisplayName = "Wait"),
-    ChargeShield UMETA(DisplayName = "Charge Shield"),
-    Accelerate UMETA(DisplayName = "Accelerate"),
-    Count UMETA(Hidden)
-};
 
 /** Match challenge preset controlling starting AP and single-player AI depth. */
 UENUM(BlueprintType)
@@ -105,75 +63,6 @@ inline FIntPoint GetArenaGridSize(EAWArenaSize ArenaSize)
     }
 }
 
-/** AP reserved while this command is present in a player's program. */
-inline constexpr int32 GetActionPointCost(EAWCommand Command)
-{
-    switch (Command)
-    {
-    case EAWCommand::Move:
-        return Automata::MoveActionPointCost;
-    case EAWCommand::Fire:
-        return Automata::FireActionPointCost;
-    case EAWCommand::TurnLeft:
-    case EAWCommand::TurnRight:
-        return Automata::TurnActionPointCost;
-    case EAWCommand::Wait:
-        return Automata::WaitActionPointCost;
-    case EAWCommand::ChargeShield:
-        return Automata::ChargeShieldActionPointCost;
-    case EAWCommand::Accelerate:
-        return Automata::AccelerateActionPointCost;
-    default:
-        return 0;
-    }
-}
-
-/** Total AP reserved by a complete command program. */
-inline int32 GetProgramActionPointCost(TConstArrayView<EAWCommand> Commands)
-{
-    int32 Cost = 0;
-    for (EAWCommand Command : Commands)
-        Cost += GetActionPointCost(Command);
-    return Cost;
-}
-
-/** Lowest AP balance that can still buy a command whose cost is greater than zero. */
-inline constexpr int32 GetMinimumPositiveActionPointCost()
-{
-    int32 MinimumCost = Automata::InitialActionPoints;
-    for (uint8 Value = 0; Value < static_cast<uint8>(EAWCommand::Count); ++Value)
-    {
-        const int32 Cost = GetActionPointCost(static_cast<EAWCommand>(Value));
-        if (Cost > 0 && Cost < MinimumCost)
-            MinimumCost = Cost;
-    }
-    return MinimumCost;
-}
-
-/** Human-readable label used by command lists and replay views. */
-inline const TCHAR *LexToString(EAWCommand Command)
-{
-    switch (Command)
-    {
-    case EAWCommand::Move:
-        return TEXT("MOVE");
-    case EAWCommand::Fire:
-        return TEXT("FIRE");
-    case EAWCommand::TurnLeft:
-        return TEXT("TURN LEFT");
-    case EAWCommand::TurnRight:
-        return TEXT("TURN RIGHT");
-    case EAWCommand::Wait:
-        return TEXT("WAIT");
-    case EAWCommand::ChargeShield:
-        return TEXT("CHARGE SHIELD");
-    case EAWCommand::Accelerate:
-        return TEXT("ACCELERATE");
-    default:
-        return TEXT("INVALID");
-    }
-}
-
 /**
  * Choose initiative before programming begins.
  * Round one is random; later rounds favor the higher AP balance and use the
@@ -200,15 +89,6 @@ enum class EAWMatchPhase : uint8
     Simulation UMETA(DisplayName = "Simulation"),
     /** Simulation done, results revealed for replay inspection. */
     ReplayAutopsy UMETA(DisplayName = "ReplayAutopsy")
-};
-
-/** Rule that produced a terminal match result and selects its presentation message. */
-UENUM(BlueprintType)
-enum class EAWMatchEndReason : uint8
-{
-    None UMETA(DisplayName = "None"),
-    Health UMETA(DisplayName = "Health"),
-    ActionPoints UMETA(DisplayName = "Action Points")
 };
 
 /** Result of a command-list validation attempt. */
@@ -243,6 +123,78 @@ struct FAWMatchOutcome
     UPROPERTY(BlueprintReadOnly)
     int32 HP1 = 0;
 };
+
+/**
+ * Complete replicated record required to reconstruct and present one resolved round.
+ * The server publishes this as one property so consumers never assemble partial replay inputs.
+ */
+USTRUCT(BlueprintType)
+struct FAWResolvedRound
+{
+    GENERATED_BODY()
+
+    /** One-based match round identifier. */
+    UPROPERTY(BlueprintReadOnly)
+    int32 RoundNumber = 1;
+
+    /** Tank slot whose complete command queue executes first. */
+    UPROPERTY(BlueprintReadOnly)
+    int32 StartingSlot = INDEX_NONE;
+
+    /** Deterministic simulation seed for arena generation and replay. */
+    UPROPERTY(BlueprintReadOnly)
+    int64 Seed = 0;
+
+    /** AP balances after programming costs and before simulation executes. */
+    UPROPERTY(BlueprintReadOnly)
+    int32 InitialActionPoints0 = Automata::InitialActionPoints;
+
+    UPROPERTY(BlueprintReadOnly)
+    int32 InitialActionPoints1 = Automata::InitialActionPoints;
+
+    /** Persistent effects at simulation start. */
+    UPROPERTY(BlueprintReadOnly)
+    FAWRobotEffects InitialEffects0;
+
+    UPROPERTY(BlueprintReadOnly)
+    FAWRobotEffects InitialEffects1;
+
+    /** Compact canonical arena placement at simulation start. */
+    UPROPERTY(BlueprintReadOnly)
+    TArray<uint8> InitialArenaState;
+
+    /** Revealed command queues after authoritative execution. */
+    UPROPERTY(BlueprintReadOnly)
+    TArray<EAWCommand> Commands0;
+
+    UPROPERTY(BlueprintReadOnly)
+    TArray<EAWCommand> Commands1;
+
+    /** Authoritative terminal or non-terminal result for this round. */
+    UPROPERTY(BlueprintReadOnly)
+    FAWMatchOutcome Outcome;
+
+    /** Canonical final-state hash used for client desync verification. */
+    UPROPERTY(BlueprintReadOnly)
+    int64 AuthoritativeHash = 0;
+
+    /** True only after commands, outcome, and hash have been committed together. */
+    UPROPERTY(BlueprintReadOnly)
+    bool bResolved = false;
+
+    /** Return whether all inputs required for deterministic replay are available. */
+    bool IsReadyForReplay() const
+    {
+        return bResolved && !Commands0.IsEmpty() && !Commands1.IsEmpty() &&
+               StartingSlot >= 0 && StartingSlot <= 1;
+    }
+};
+
+/** Convert a reflected round record to the compact Core replay payload. */
+AUTOMATAWAR_API Automata::ReplayData MakeReplayData(const FAWResolvedRound &Round);
+
+/** Convert a decoded Core replay payload to a reflected round record. */
+AUTOMATAWAR_API FAWResolvedRound MakeResolvedRound(Automata::ReplayData Data);
 
 /** Return whether a completed non-terminal round can enter its next programming phase. */
 inline bool CanAdvanceToNextRound(EAWMatchPhase Phase, const FAWMatchOutcome &Outcome,

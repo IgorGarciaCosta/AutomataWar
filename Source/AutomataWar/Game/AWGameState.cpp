@@ -1,4 +1,6 @@
 #include "AWGameState.h"
+#include "AutomataWar/Core/Replay/AutomataReplay.h"
+#include "AutomataWar/Net/AWDesyncDetector.h"
 #include "Net/UnrealNetwork.h"
 
 AAWGameState::AAWGameState()
@@ -10,23 +12,12 @@ void AAWGameState::GetLifetimeReplicatedProps(TArray<FLifetimeProperty> &OutLife
 {
     Super::GetLifetimeReplicatedProps(OutLifetimeProps);
     DOREPLIFETIME(AAWGameState, Phase);
-    DOREPLIFETIME(AAWGameState, RoundNumber);
-    DOREPLIFETIME(AAWGameState, RoundStartingSlot);
     DOREPLIFETIME(AAWGameState, SubmissionTimeRemaining);
-    DOREPLIFETIME(AAWGameState, RevealedCommands0);
-    DOREPLIFETIME(AAWGameState, RevealedCommands1);
-    DOREPLIFETIME(AAWGameState, AuthoritativeHash);
-    DOREPLIFETIME(AAWGameState, SimSeed);
-    DOREPLIFETIME(AAWGameState, Outcome);
+    DOREPLIFETIME(AAWGameState, ResolvedRound);
     DOREPLIFETIME(AAWGameState, ActionPoints0);
     DOREPLIFETIME(AAWGameState, ActionPoints1);
-    DOREPLIFETIME(AAWGameState, ReplayStartActionPoints0);
-    DOREPLIFETIME(AAWGameState, ReplayStartActionPoints1);
     DOREPLIFETIME(AAWGameState, Effects0);
     DOREPLIFETIME(AAWGameState, Effects1);
-    DOREPLIFETIME(AAWGameState, ReplayStartEffects0);
-    DOREPLIFETIME(AAWGameState, ReplayStartEffects1);
-    DOREPLIFETIME(AAWGameState, ReplayStartArenaState);
 }
 
 void AAWGameState::SetActionPoints(int32 Slot, int32 Value)
@@ -45,7 +36,37 @@ void AAWGameState::SetEffects(int32 Slot, const FAWRobotEffects &Effects)
         Effects1 = Effects;
 }
 
+void AAWGameState::SetResolvedRound(const FAWResolvedRound &NewRound)
+{
+    ResolvedRound = NewRound;
+    OnResolvedRoundChanged.Broadcast();
+    ForceNetUpdate();
+}
+
 void AAWGameState::OnRep_Phase()
 {
     OnPhaseChanged.Broadcast(Phase);
+}
+
+void AAWGameState::OnRep_ResolvedRound()
+{
+    if (ResolvedRound.IsReadyForReplay() && ResolvedRound.AuthoritativeHash != 0)
+    {
+        const Automata::ReplayData Data = MakeReplayData(ResolvedRound);
+        Automata::SimConfig Config;
+        Config.seed = Data.seed;
+        Config.startingRobot = Data.startingRobot;
+        Config.initialActionPoints = {Data.initialActionPointsA, Data.initialActionPointsB};
+        Config.initialEffects = {Data.initialEffectsA, Data.initialEffectsB};
+        if (Automata::DecodeRoundState(Data.initialState.data(), Data.initialState.size(), Config.initialState) &&
+            !Config.initialState.grid.empty())
+        {
+            Config.gridWidth = Config.initialState.gridWidth;
+            Config.gridHeight = Config.initialState.gridHeight;
+            FAWDesyncDetector::VerifyMatch(
+                Data.commandsA, Data.commandsB, Config,
+                static_cast<uint64>(ResolvedRound.AuthoritativeHash));
+        }
+    }
+    OnResolvedRoundChanged.Broadcast();
 }

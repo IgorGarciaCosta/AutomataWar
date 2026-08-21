@@ -10,7 +10,7 @@
  */
 
 #include "AutomataWar/Core/AutomataRules.h"
-#include "AutomataWar/Game/AWMatchTypes.h"
+#include "AutomataWar/Core/AutomataDomainTypes.h"
 #include <string>
 #include <vector>
 #include <cstdint>

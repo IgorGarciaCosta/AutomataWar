@@ -1,12 +1,7 @@
-#include "AWAIController.h"
+#include "AWAIPlanner.h"
 
-AAWAIController::AAWAIController()
-{
-    PrimaryActorTick.bCanEverTick = false;
-    bWantsPlayerState = false;
-}
-
-TArray<EAWCommand> AAWAIController::GenerateCommandQueue(EAWDifficulty Difficulty, int32 AvailableActionPoints, int32 Seed)
+TArray<EAWCommand> AutomataAI::GenerateCommandQueue(
+    EAWDifficulty Difficulty, int32 AvailableActionPoints, int32 Seed)
 {
     const EAWCommand Turn = (Seed & 1) == 0 ? EAWCommand::TurnLeft : EAWCommand::TurnRight;
     TArray<EAWCommand> Plan;

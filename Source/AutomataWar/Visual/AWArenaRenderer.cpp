@@ -5,24 +5,15 @@
 
 #include "AWArenaRenderer.h"
 #include "AWAPItemSpawner.h"
+#include "AWCombatEffectsComponent.h"
 #include "AWIsometricCamera.h"
+#include "AWPlanProjectionComponent.h"
 #include "AWTankActor.h"
 #include "AWVisualTypes.h"
 #include "TableObstable.h"
-#include "AutomataWar/UI/AWUITypes.h"
 #include "ProceduralMeshComponent.h"
-#include "Components/StaticMeshComponent.h"
-#include "Components/PointLightComponent.h"
-#include "NiagaraComponent.h"
-#include "NiagaraFunctionLibrary.h"
-#include "NiagaraSystem.h"
-#include "Kismet/GameplayStatics.h"
-#include "Materials/MaterialInstanceDynamic.h"
 #include "Materials/MaterialInterface.h"
-#include "Engine/StaticMesh.h"
 #include "EngineUtils.h"
-#include "Containers/Set.h"
-#include "Sound/SoundBase.h"
 
 namespace
 {
@@ -38,7 +29,7 @@ namespace
 
 AAWArenaRenderer::AAWArenaRenderer()
 {
-    PrimaryActorTick.bCanEverTick = true;
+    PrimaryActorTick.bCanEverTick = false;
 
     USceneComponent *Root = CreateDefaultSubobject<USceneComponent>(TEXT("Root"));
     SetRootComponent(Root);
@@ -49,45 +40,10 @@ AAWArenaRenderer::AAWArenaRenderer()
     FloorMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
     FloorMesh->bUseComplexAsSimpleCollision = false;
 
+    CombatEffects = CreateDefaultSubobject<UAWCombatEffectsComponent>(TEXT("CombatEffects"));
+    PlanProjection = CreateDefaultSubobject<UAWPlanProjectionComponent>(TEXT("PlanProjection"));
+
     ObstacleClass = ATableObstable::StaticClass();
-}
-
-void AAWArenaRenderer::Tick(float DeltaTime)
-{
-    Super::Tick(DeltaTime);
-    for (int32 Index = Projectiles.Num() - 1; Index >= 0; --Index)
-    {
-        FProjectileVisual &Projectile = Projectiles[Index];
-        Projectile.Elapsed += DeltaTime;
-        const float Alpha = FMath::Clamp(Projectile.Elapsed / Projectile.Duration, 0.f, 1.f);
-        const FVector Position = FMath::Lerp(Projectile.Start, Projectile.End, Alpha);
-        if (UStaticMeshComponent *Bolt = Projectile.Bolt.Get())
-            Bolt->SetWorldLocation(Position);
-        UpdateProjectileBeam(Projectile.Beam.Get(), Projectile.Start, Position);
-
-        if (Alpha < 1.f)
-            continue;
-
-        if (Projectile.bShielded)
-            SetShieldActive(Projectile.TargetRobot, Projectile.bShieldRemainsActive);
-        TriggerImpact(Projectile.End);
-        PlaySFX(AWVisualAssets::SFX_Impact, Projectile.End);
-        if (Projectile.bDestroyedTarget)
-        {
-            TriggerDestruction(Projectile.End);
-            PlaySFX(AWVisualAssets::SFX_Destroy, Projectile.End);
-        }
-        if (UNiagaraComponent *Trail = Projectile.Trail.Get())
-            Trail->DeactivateImmediate();
-        if (UStaticMeshComponent *Bolt = Projectile.Bolt.Get())
-            Bolt->DestroyComponent();
-        if (UStaticMeshComponent *Beam = Projectile.Beam.Get())
-            Beam->DestroyComponent();
-        Projectiles.RemoveAtSwap(Index);
-    }
-
-    if (Projectiles.IsEmpty() && bHasPendingFinalShieldState)
-        ApplyPendingFinalShieldState();
 }
 
 void AAWArenaRenderer::BeginPlay()
@@ -97,7 +53,8 @@ void AAWArenaRenderer::BeginPlay()
     ResolveActionPointItemSpawner();
 }
 
-void AAWArenaRenderer::InitializeArena(const Automata::SimConfig &Config, const TArray<Automata::CellType> &Grid,
+void AAWArenaRenderer::InitializeArena(const Automata::SimConfig &Config,
+                                       const TArray<Automata::CellType> &Grid,
                                        const TArray<Automata::SimEvent> &Events)
 {
     ClearAllPlanProjections();
@@ -152,18 +109,21 @@ void AAWArenaRenderer::ResizeArenaPresentation(int32 Width, int32 Height)
         else if (Actor->ActorHasTag(ArenaRailSouthTag) || Actor->ActorHasTag(ArenaRailNorthTag))
         {
             const bool bNorth = Actor->ActorHasTag(ArenaRailNorthTag);
-            Actor->SetActorLocation(FVector(ArenaCenter.X, ArenaOrigin.Y + (bNorth ? Height * CellSize + 75.f : -75.f), Location.Z));
+            Actor->SetActorLocation(FVector(
+                ArenaCenter.X, ArenaOrigin.Y + (bNorth ? Height * CellSize + 75.f : -75.f), Location.Z));
             Actor->SetActorScale3D(FVector(Width + 2.f, Scale.Y, Scale.Z));
         }
         else if (Actor->ActorHasTag(ArenaRailWestTag) || Actor->ActorHasTag(ArenaRailEastTag))
         {
             const bool bEast = Actor->ActorHasTag(ArenaRailEastTag);
-            Actor->SetActorLocation(FVector(ArenaOrigin.X + (bEast ? Width * CellSize + 75.f : -75.f), ArenaCenter.Y, Location.Z));
+            Actor->SetActorLocation(FVector(
+                ArenaOrigin.X + (bEast ? Width * CellSize + 75.f : -75.f), ArenaCenter.Y, Location.Z));
             Actor->SetActorScale3D(FVector(Scale.X, Height + 2.f, Scale.Z));
         }
         else if (Actor->ActorHasTag(ArenaDressingTag))
         {
-            const FTransform &AuthoredTransform = AuthoredDressingTransforms.FindOrAdd(Actor, Actor->GetActorTransform());
+            const FTransform &AuthoredTransform = AuthoredDressingTransforms.FindOrAdd(
+                Actor, Actor->GetActorTransform());
             const FVector AuthoredLocation = AuthoredTransform.GetLocation();
             Actor->SetActorLocation(FVector(
                 ArenaCenter.X + (AuthoredLocation.X - AuthoredCenter.X) * WidthRatio,
@@ -175,22 +135,25 @@ void AAWArenaRenderer::ResizeArenaPresentation(int32 Width, int32 Height)
 
 void AAWArenaRenderer::SetSnapshot(const Automata::StepSnapshot &Snapshot)
 {
-    CurrentSnapshot = Snapshot;
-    bHasSnapshot = true;
-    bHasPendingFinalShieldState = false;
+    CombatEffects->SetSnapshot(Snapshot);
     for (const TPair<int32, TObjectPtr<ATableObstable>> &Entry : Obstacles)
-        if (Entry.Value && Entry.Key >= 0 && static_cast<size_t>(Entry.Key) < Snapshot.obstacleHealth.size())
+        if (Entry.Value && Entry.Key >= 0 &&
+            static_cast<size_t>(Entry.Key) < Snapshot.obstacleHealth.size())
             Entry.Value->SetHealth(Snapshot.obstacleHealth[static_cast<size_t>(Entry.Key)]);
 
     ResolveTankActors();
     if (PlayerOneTank)
-        PlayerOneTank->SetTargetTransform(GridToWorld(Snapshot.robots[0].x, Snapshot.robots[0].y), DirToRotation(Snapshot.robots[0].facing));
+        PlayerOneTank->SetTargetTransform(
+            GridToWorld(Snapshot.robots[0].x, Snapshot.robots[0].y),
+            DirToRotation(Snapshot.robots[0].facing));
     if (PlayerTwoTank)
-        PlayerTwoTank->SetTargetTransform(GridToWorld(Snapshot.robots[1].x, Snapshot.robots[1].y), DirToRotation(Snapshot.robots[1].facing));
-    for (int32 RobotIndex = 0; RobotIndex < 2; ++RobotIndex)
-        SetShieldActive(RobotIndex, HasActiveShield(Snapshot.robots[RobotIndex].effects));
-    const int32 ActiveRobot = Snapshot.robots[0].currentCommand != INDEX_NONE ? 0 : Snapshot.robots[1].currentCommand != INDEX_NONE ? 1
-                                                                                                                                    : INDEX_NONE;
+        PlayerTwoTank->SetTargetTransform(
+            GridToWorld(Snapshot.robots[1].x, Snapshot.robots[1].y),
+            DirToRotation(Snapshot.robots[1].facing));
+    const int32 ActiveRobot = Snapshot.robots[0].currentCommand != INDEX_NONE
+                                  ? 0
+                              : Snapshot.robots[1].currentCommand != INDEX_NONE ? 1
+                                                                                : INDEX_NONE;
     if (PlayerOneTank)
         PlayerOneTank->SetActiveIndicator(ActiveRobot == 0);
     if (PlayerTwoTank)
@@ -201,78 +164,17 @@ void AAWArenaRenderer::SetSnapshot(const Automata::StepSnapshot &Snapshot)
 
 void AAWArenaRenderer::ProcessEvents(const TArray<Automata::SimEvent> &Events, int32 FromStep, int32 ToStep)
 {
-    TMap<int32, FVector> ShotStarts;
-    TSet<int32> ShieldedTargets;
-    for (const Automata::SimEvent &Evt : Events)
-    {
-        if (Evt.step < FromStep || Evt.step > ToStep)
-            continue;
-
-        const auto &Robot = CurrentSnapshot.robots[Evt.robot];
-        FVector Pos = GridToWorld(Robot.x, Robot.y);
-
-        switch (Evt.type)
-        {
-        case Automata::EventType::Fire:
-        {
-            ResolveTankActors();
-            AAWTankActor *Tank = Evt.robot == 0 ? PlayerOneTank.Get() : PlayerTwoTank.Get();
-            const FTransform MuzzleTransform = Tank ? Tank->GetMuzzleTransform() : FTransform(DirToRotation(Robot.facing), Pos + FVector(0, 0, AWVisualConfig::ProjectileZ));
-            ShotStarts.Add(Evt.robot, MuzzleTransform.GetLocation());
-            TriggerMuzzleFlash(Evt.robot);
-            PlaySFX(AWVisualAssets::SFX_Fire, MuzzleTransform.GetLocation());
-            break;
-        }
-        case Automata::EventType::ShotBlocked:
-        {
-            const FVector Start = ShotStarts.FindRef(Evt.robot);
-            SpawnProjectile(Start.IsNearlyZero() ? Pos : Start, GridToWorld(Evt.paramA, Evt.paramB),
-                            INDEX_NONE, false, false);
-            break;
-        }
-        case Automata::EventType::ShieldCharged:
-            SetShieldActive(Evt.robot, true);
-            break;
-        case Automata::EventType::ShieldAbsorbed:
-            SetShieldActive(Evt.robot, true);
-            ShieldedTargets.Add(Evt.robot);
-            break;
-        case Automata::EventType::Hit:
-        {
-            const int32 Shooter = Evt.paramB;
-            const FVector Start = ShotStarts.FindRef(Shooter);
-            SpawnProjectile(Start.IsNearlyZero() ? GridToWorld(CurrentSnapshot.robots[Shooter].x, CurrentSnapshot.robots[Shooter].y) : Start,
-                            Pos, Evt.robot, ShieldedTargets.Contains(Evt.robot),
-                            CurrentSnapshot.robots[Evt.robot].hp <= 0);
-            break;
-        }
-        default:
-            break;
-        }
-    }
+    CombatEffects->ProcessEvents(Events, FromStep, ToStep);
 }
 
 void AAWArenaRenderer::ResetVisuals()
 {
-    bHasSnapshot = false;
-    bHasPendingFinalShieldState = false;
-    SetShieldActive(0, false);
-    SetShieldActive(1, false);
+    CombatEffects->ResetEffects();
     ResolveTankActors();
     if (PlayerOneTank)
         PlayerOneTank->ResetVisual();
     if (PlayerTwoTank)
         PlayerTwoTank->ResetVisual();
-    for (FProjectileVisual &Projectile : Projectiles)
-    {
-        if (UNiagaraComponent *Trail = Projectile.Trail.Get())
-            Trail->DestroyComponent();
-        if (UStaticMeshComponent *Bolt = Projectile.Bolt.Get())
-            Bolt->DestroyComponent();
-        if (UStaticMeshComponent *Beam = Projectile.Beam.Get())
-            Beam->DestroyComponent();
-    }
-    Projectiles.Reset();
     if (ActionPointItemSpawner)
         ActionPointItemSpawner->SetReplayStep(INDEX_NONE);
     for (const TPair<int32, TObjectPtr<ATableObstable>> &Entry : Obstacles)
@@ -284,242 +186,22 @@ void AAWArenaRenderer::UpdatePlanProjection(int32 RobotIndex, const Automata::Ro
                                             const TArray<Automata::StepSnapshot> &Snapshots,
                                             const TArray<Automata::SimEvent> &Events, int32 AnimatedStep)
 {
-    if (RobotIndex < 0 || RobotIndex > 1 || Snapshots.IsEmpty())
-    {
-        ClearPlanProjection(RobotIndex);
-        return;
-    }
-
-    AAWTankActor *ProjectionTank = EnsurePlanProjectionTank(RobotIndex);
-    if (!ProjectionTank)
-        return;
-
-    ClearPlanProjectionGeometry(RobotIndex);
-    bPlanProjectionVisible[RobotIndex] = true;
-    ProjectionTank->SetActorHiddenInGame(false);
-
-    const FVector GhostOffset(0.f, 0.f, 12.f);
-    ProjectionTank->SetTargetTransform(
-        GridToWorld(InitialRobot.x, InitialRobot.y) + GhostOffset,
-        DirToRotation(InitialRobot.facing));
-    const Automata::RobotState &FinalRobot = Snapshots.Last().robots[RobotIndex];
-    ProjectionTank->SetTargetTransform(
-        GridToWorld(FinalRobot.x, FinalRobot.y) + GhostOffset,
-        DirToRotation(FinalRobot.facing));
-
-    ResolveTankActors();
-    AAWTankActor *SourceTank = RobotIndex == 0 ? PlayerOneTank.Get() : PlayerTwoTank.Get();
-    const FLinearColor PlanColor = SourceTank ? SourceTank->GetPlayerColor() : FLinearColor(0.f, 0.85f, 0.95f);
-
-    int32 TrailX = InitialRobot.x;
-    int32 TrailY = InitialRobot.y;
-    for (const Automata::SimEvent &Event : Events)
-    {
-        if (Event.robot != RobotIndex || Event.type != Automata::EventType::Move)
-            continue;
-
-        FVector Start = GridToWorld(TrailX, TrailY);
-        FVector End = GridToWorld(Event.paramA, Event.paramB);
-        Start.Z = AWVisualConfig::FloorZ + 4.f;
-        End.Z = Start.Z;
-        if (UStaticMeshComponent *Beam = CreatePlanBeam(Start, End, PlanColor, 0.62f))
-            PlanTrailComponents[RobotIndex].Add(Beam);
-        TrailX = Event.paramA;
-        TrailY = Event.paramB;
-    }
-
-    for (const Automata::SimEvent &FireEvent : Events)
-    {
-        if (FireEvent.robot != RobotIndex || FireEvent.type != Automata::EventType::Fire)
-            continue;
-
-        const Automata::StepSnapshot *ShotSnapshot = Snapshots.FindByPredicate(
-            [&FireEvent](const Automata::StepSnapshot &Snapshot)
-            { return Snapshot.step == FireEvent.step; });
-        if (!ShotSnapshot)
-            continue;
-
-        const Automata::RobotState &Shooter = ShotSnapshot->robots[RobotIndex];
-        const int32 Direction = static_cast<int32>(Shooter.facing);
-        FVector Start = GridToWorld(Shooter.x, Shooter.y);
-        Start += FVector(Automata::DirDX[Direction], Automata::DirDY[Direction], 0.f) *
-                 (AWVisualConfig::CellSize * 0.45f);
-        Start.Z = AWVisualConfig::ProjectileZ;
-        FVector End = Start;
-        bool bFoundEnd = false;
-
-        for (const Automata::SimEvent &ResultEvent : Events)
-        {
-            if (ResultEvent.step != FireEvent.step)
-                continue;
-            if (ResultEvent.type == Automata::EventType::ShotBlocked && ResultEvent.robot == RobotIndex)
-            {
-                End = GridToWorld(ResultEvent.paramA, ResultEvent.paramB);
-                bFoundEnd = true;
-                break;
-            }
-            if (ResultEvent.type == Automata::EventType::Hit && ResultEvent.paramB == RobotIndex)
-            {
-                const Automata::RobotState &Target = ShotSnapshot->robots[ResultEvent.robot];
-                End = GridToWorld(Target.x, Target.y);
-                bFoundEnd = true;
-                break;
-            }
-        }
-
-        if (bFoundEnd)
-        {
-            End.Z = Start.Z;
-            if (UStaticMeshComponent *Beam = CreatePlanBeam(Start, End, PlanColor, 0.82f))
-                PlanAimComponents[RobotIndex].Add(Beam);
-        }
-
-        if (FireEvent.step == AnimatedStep)
-            TriggerMuzzleFlash(ProjectionTank);
-    }
-
-    SetPlanProjectionShield(RobotIndex, HasActiveShield(FinalRobot.effects));
+    PlanProjection->UpdateProjection(RobotIndex, InitialRobot, Snapshots, Events, AnimatedStep);
 }
 
 void AAWArenaRenderer::SetPlanProjectionVisible(int32 RobotIndex, bool bVisible)
 {
-    if (RobotIndex < 0 || RobotIndex > 1)
-        return;
-
-    bPlanProjectionVisible[RobotIndex] = bVisible;
-    if (AAWTankActor *Tank = PlanProjectionTanks[RobotIndex].Get())
-        Tank->SetActorHiddenInGame(!bVisible);
-    for (TWeakObjectPtr<UStaticMeshComponent> Component : PlanTrailComponents[RobotIndex])
-        if (Component.IsValid())
-            Component->SetVisibility(bVisible, true);
-    for (TWeakObjectPtr<UStaticMeshComponent> Component : PlanAimComponents[RobotIndex])
-        if (Component.IsValid())
-            Component->SetVisibility(bVisible, true);
-    if (UStaticMeshComponent *Shield = PlanShieldEffects[RobotIndex].Get())
-        Shield->SetVisibility(bVisible, true);
+    PlanProjection->SetProjectionVisible(RobotIndex, bVisible);
 }
 
 void AAWArenaRenderer::ClearPlanProjection(int32 RobotIndex)
 {
-    if (RobotIndex < 0 || RobotIndex > 1)
-        return;
-
-    ClearPlanProjectionGeometry(RobotIndex);
-    if (AAWTankActor *Tank = PlanProjectionTanks[RobotIndex].Get())
-        Tank->Destroy();
-    PlanProjectionTanks[RobotIndex].Reset();
-    bPlanProjectionVisible[RobotIndex] = false;
+    PlanProjection->ClearProjection(RobotIndex);
 }
 
 void AAWArenaRenderer::ClearAllPlanProjections()
 {
-    ClearPlanProjection(0);
-    ClearPlanProjection(1);
-}
-
-AAWTankActor *AAWArenaRenderer::EnsurePlanProjectionTank(int32 RobotIndex)
-{
-    if (RobotIndex < 0 || RobotIndex > 1)
-        return nullptr;
-    if (AAWTankActor *ExistingTank = PlanProjectionTanks[RobotIndex].Get())
-        return ExistingTank;
-
-    ResolveTankActors();
-    AAWTankActor *SourceTank = RobotIndex == 0 ? PlayerOneTank.Get() : PlayerTwoTank.Get();
-    if (!SourceTank || !GetWorld())
-        return nullptr;
-
-    const FTransform SpawnTransform = SourceTank->GetActorTransform();
-    AAWTankActor *ProjectionTank = GetWorld()->SpawnActorDeferred<AAWTankActor>(
-        SourceTank->GetClass(), SpawnTransform, this, nullptr,
-        ESpawnActorCollisionHandlingMethod::AlwaysSpawn);
-    if (!ProjectionTank)
-        return nullptr;
-
-    ProjectionTank->ConfigureAsPlanProjection(*SourceTank);
-    UGameplayStatics::FinishSpawningActor(ProjectionTank, SpawnTransform);
-    ProjectionTank->SetActorHiddenInGame(true);
-    PlanProjectionTanks[RobotIndex] = ProjectionTank;
-    return ProjectionTank;
-}
-
-UStaticMeshComponent *AAWArenaRenderer::CreatePlanBeam(const FVector &Start, const FVector &End,
-                                                       const FLinearColor &Color, float Opacity)
-{
-    UStaticMesh *Cube = LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Cube.Cube"));
-    UMaterialInterface *EffectMaterial = LoadObject<UMaterialInterface>(nullptr, AWVisualAssets::M_Effect);
-    if (!Cube || !EffectMaterial)
-        return nullptr;
-
-    UStaticMeshComponent *Beam = NewObject<UStaticMeshComponent>(this);
-    Beam->SetupAttachment(GetRootComponent());
-    Beam->SetStaticMesh(Cube);
-    Beam->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-    Beam->SetCastShadow(false);
-    Beam->SetReceivesDecals(false);
-    Beam->SetTranslucentSortPriority(15);
-    AddInstanceComponent(Beam);
-    Beam->RegisterComponent();
-
-    UMaterialInstanceDynamic *Material = UMaterialInstanceDynamic::Create(EffectMaterial, Beam);
-    Material->SetVectorParameterValue(TEXT("EmissiveColor"), Color * 7.f);
-    Material->SetScalarParameterValue(TEXT("Opacity"), Opacity);
-    Beam->SetMaterial(0, Material);
-    UpdateProjectileBeam(Beam, Start, End);
-    return Beam;
-}
-
-void AAWArenaRenderer::SetPlanProjectionShield(int32 RobotIndex, bool bActive)
-{
-    if (RobotIndex < 0 || RobotIndex > 1)
-        return;
-    if (!bActive)
-    {
-        if (UStaticMeshComponent *Shield = PlanShieldEffects[RobotIndex].Get())
-            Shield->DestroyComponent();
-        PlanShieldEffects[RobotIndex].Reset();
-        return;
-    }
-    if (PlanShieldEffects[RobotIndex].IsValid())
-        return;
-
-    AAWTankActor *Tank = PlanProjectionTanks[RobotIndex].Get();
-    UStaticMesh *Sphere = LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Sphere.Sphere"));
-    UMaterialInterface *ShieldMaterial = LoadObject<UMaterialInterface>(nullptr, AWVisualAssets::M_ShieldEnergy);
-    if (!Tank || !Sphere || !ShieldMaterial)
-        return;
-
-    UStaticMeshComponent *Shield = NewObject<UStaticMeshComponent>(Tank);
-    Shield->SetupAttachment(Tank->GetRootComponent());
-    Shield->SetStaticMesh(Sphere);
-    Shield->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-    Shield->SetCastShadow(false);
-    Shield->SetReceivesDecals(false);
-    Shield->SetRelativeScale3D(FVector(1.35f));
-    Shield->SetTranslucentSortPriority(21);
-    Tank->AddInstanceComponent(Shield);
-    Shield->RegisterComponent();
-
-    UMaterialInstanceDynamic *Material = UMaterialInstanceDynamic::Create(ShieldMaterial, Shield);
-    Material->SetVectorParameterValue(TEXT("ShieldColor"), Tank->GetPlayerColor() * 5.f);
-    Material->SetScalarParameterValue(TEXT("Opacity"), 0.24f);
-    Shield->SetMaterial(0, Material);
-    PlanShieldEffects[RobotIndex] = Shield;
-}
-
-void AAWArenaRenderer::ClearPlanProjectionGeometry(int32 RobotIndex)
-{
-    if (RobotIndex < 0 || RobotIndex > 1)
-        return;
-    for (TWeakObjectPtr<UStaticMeshComponent> Component : PlanTrailComponents[RobotIndex])
-        if (Component.IsValid())
-            Component->DestroyComponent();
-    for (TWeakObjectPtr<UStaticMeshComponent> Component : PlanAimComponents[RobotIndex])
-        if (Component.IsValid())
-            Component->DestroyComponent();
-    PlanTrailComponents[RobotIndex].Reset();
-    PlanAimComponents[RobotIndex].Reset();
-    SetPlanProjectionShield(RobotIndex, false);
+    PlanProjection->ClearAllProjections();
 }
 
 void AAWArenaRenderer::BuildFloorGrid(int32 Width, int32 Height)
@@ -633,218 +315,14 @@ void AAWArenaRenderer::SpawnCoverVisuals(int32 Width, int32 Height, const TArray
     }
 }
 
-void AAWArenaRenderer::TriggerMuzzleFlash(int32 RobotIdx)
-{
-    ResolveTankActors();
-    AAWTankActor *Tank = RobotIdx == 0 ? PlayerOneTank.Get() : PlayerTwoTank.Get();
-    TriggerMuzzleFlash(Tank);
-}
-
 void AAWArenaRenderer::TriggerMuzzleFlash(AAWTankActor *Tank)
 {
-    if (!Tank)
-        return;
-
-    UNiagaraSystem *NS = LoadObject<UNiagaraSystem>(nullptr, AWVisualAssets::NS_MuzzleFlash);
-    if (NS)
-    {
-        if (UNiagaraComponent *MuzzleFlash = UNiagaraFunctionLibrary::SpawnSystemAttached(
-                NS, Tank->GetMuzzleComponent(), Tank->GetMuzzleSocketName(), FVector::ZeroVector,
-                FRotator::ZeroRotator, EAttachLocation::SnapToTarget, true))
-            ScheduleComponentDestruction(MuzzleFlash, AWVisualConfig::MuzzleFlashLifespan);
-    }
-    else
-    {
-        SpawnTransientLight(Tank->GetMuzzleTransform().GetLocation(), 4000.f, 200.f, FColor::Yellow, AWVisualConfig::TransientVFXLifespan);
-    }
-}
-
-void AAWArenaRenderer::TriggerImpact(FVector WorldPos)
-{
-    UNiagaraSystem *NS = LoadObject<UNiagaraSystem>(nullptr, AWVisualAssets::NS_Impact);
-    if (NS)
-    {
-        if (UNiagaraComponent *Impact = UNiagaraFunctionLibrary::SpawnSystemAtLocation(
-                GetWorld(), NS, WorldPos, FRotator::ZeroRotator, FVector(0.8f)))
-            ScheduleComponentDestruction(Impact, AWVisualConfig::ImpactVFXLifespan);
-    }
-    else
-    {
-        SpawnTransientLight(WorldPos, 5000.f, 150.f, FColor::Orange, AWVisualConfig::TransientVFXLifespan);
-    }
-}
-
-void AAWArenaRenderer::TriggerDestruction(FVector WorldPos)
-{
-    UNiagaraSystem *NS = LoadObject<UNiagaraSystem>(nullptr, AWVisualAssets::NS_Destruction);
-    if (NS)
-    {
-        UNiagaraFunctionLibrary::SpawnSystemAtLocation(GetWorld(), NS, WorldPos, FRotator::ZeroRotator,
-                                                       FVector(1.45f), true, true);
-        UNiagaraFunctionLibrary::SpawnSystemAtLocation(GetWorld(), NS, WorldPos + FVector(0.f, 0.f, 35.f),
-                                                       FRotator(0.f, 90.f, 0.f), FVector(0.85f), true, true);
-        SpawnTransientLight(WorldPos, 18000.f, 500.f, FColor(255, 72, 18), 0.45f);
-        SpawnTransientLight(WorldPos + FVector(0.f, 0.f, 80.f), 7000.f, 300.f, FColor(255, 170, 60), 1.1f);
-    }
-    else
-    {
-        SpawnTransientLight(WorldPos, 15000.f, 400.f, FColor::Red, AWVisualConfig::TransientVFXLifespan * 2.f);
-    }
-}
-
-void AAWArenaRenderer::SetShieldActive(int32 RobotIdx, bool bActive)
-{
-    if (RobotIdx < 0 || RobotIdx > 1)
-        return;
-
-    if (!bActive)
-    {
-        if (UStaticMeshComponent *ShieldEffect = ShieldEffects[RobotIdx].Get())
-            ShieldEffect->DestroyComponent();
-        ShieldEffects[RobotIdx].Reset();
-        return;
-    }
-    if (ShieldEffects[RobotIdx].IsValid())
-        return;
-
-    ResolveTankActors();
-    AAWTankActor *Tank = RobotIdx == 0 ? PlayerOneTank.Get() : PlayerTwoTank.Get();
-    UStaticMesh *Sphere = LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Sphere.Sphere"));
-    UMaterialInterface *ShieldMaterial = LoadObject<UMaterialInterface>(nullptr, AWVisualAssets::M_ShieldEnergy);
-    if (!Tank || !Sphere || !ShieldMaterial)
-        return;
-
-    UStaticMeshComponent *ShieldEffect = NewObject<UStaticMeshComponent>(Tank);
-    ShieldEffect->SetupAttachment(Tank->GetRootComponent());
-    ShieldEffect->SetStaticMesh(Sphere);
-    ShieldEffect->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-    ShieldEffect->SetCastShadow(false);
-    ShieldEffect->SetReceivesDecals(false);
-    ShieldEffect->SetRelativeScale3D(FVector(1.35f));
-    ShieldEffect->SetTranslucentSortPriority(10);
-    Tank->AddInstanceComponent(ShieldEffect);
-    ShieldEffect->RegisterComponent();
-
-    UMaterialInstanceDynamic *DynamicShieldMaterial = UMaterialInstanceDynamic::Create(ShieldMaterial, ShieldEffect);
-    DynamicShieldMaterial->SetVectorParameterValue(TEXT("ShieldColor"), FLinearColor(0.02f, 4.f, 8.f, 1.f));
-    DynamicShieldMaterial->SetScalarParameterValue(TEXT("Opacity"), 0.22f);
-    ShieldEffect->SetMaterial(0, DynamicShieldMaterial);
-    ShieldEffects[RobotIdx] = ShieldEffect;
+    CombatEffects->TriggerMuzzleFlash(Tank);
 }
 
 void AAWArenaRenderer::SetFinalEffects(const std::array<FAWRobotEffects, 2> &FinalEffects)
 {
-    for (int32 RobotIndex = 0; RobotIndex < 2; ++RobotIndex)
-        PendingFinalShieldState[RobotIndex] = HasActiveShield(FinalEffects[RobotIndex]);
-    bHasPendingFinalShieldState = true;
-    if (Projectiles.IsEmpty())
-        ApplyPendingFinalShieldState();
-}
-
-void AAWArenaRenderer::ApplyPendingFinalShieldState()
-{
-    for (int32 RobotIndex = 0; RobotIndex < 2; ++RobotIndex)
-        SetShieldActive(RobotIndex, PendingFinalShieldState[RobotIndex]);
-    bHasPendingFinalShieldState = false;
-}
-
-void AAWArenaRenderer::SpawnProjectile(FVector Start, FVector End, int32 TargetRobot,
-                                       bool bShielded, bool bDestroyedTarget)
-{
-    UStaticMesh *Sphere = LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Sphere.Sphere"));
-    UStaticMesh *Cube = LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Cube.Cube"));
-    if (!Sphere || !Cube)
-        return;
-
-    UStaticMeshComponent *Bolt = NewObject<UStaticMeshComponent>(this);
-    Bolt->SetupAttachment(GetRootComponent());
-    Bolt->SetStaticMesh(Sphere);
-    Bolt->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-    Bolt->SetWorldScale3D(FVector(0.11f));
-    Bolt->SetWorldLocation(Start);
-    AddInstanceComponent(Bolt);
-    Bolt->RegisterComponent();
-
-    UStaticMeshComponent *Beam = NewObject<UStaticMeshComponent>(this);
-    Beam->SetupAttachment(GetRootComponent());
-    Beam->SetStaticMesh(Cube);
-    Beam->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-    AddInstanceComponent(Beam);
-    Beam->RegisterComponent();
-
-    if (UMaterialInterface *EffectMaterial = LoadObject<UMaterialInterface>(nullptr, AWVisualAssets::M_Effect))
-    {
-        UMaterialInstanceDynamic *ProjectileMaterial = UMaterialInstanceDynamic::Create(EffectMaterial, this);
-        ProjectileMaterial->SetVectorParameterValue(TEXT("EmissiveColor"), FLinearColor(8.f, 1.8f, 0.15f, 1.f));
-        ProjectileMaterial->SetScalarParameterValue(TEXT("Opacity"), 0.92f);
-        Bolt->SetMaterial(0, ProjectileMaterial);
-        Beam->SetMaterial(0, ProjectileMaterial);
-    }
-
-    UNiagaraComponent *Trail = nullptr;
-    if (UNiagaraSystem *TrailSystem = LoadObject<UNiagaraSystem>(nullptr, AWVisualAssets::NS_ProjectileTrail))
-        Trail = UNiagaraFunctionLibrary::SpawnSystemAttached(TrailSystem, Bolt, NAME_None,
-                                                             FVector::ZeroVector, FRotator::ZeroRotator,
-                                                             EAttachLocation::SnapToTarget, true);
-
-    FProjectileVisual Projectile;
-    Projectile.Bolt = Bolt;
-    Projectile.Beam = Beam;
-    Projectile.Trail = Trail;
-    Projectile.Start = Start;
-    Projectile.End = End;
-    Projectile.Duration = FMath::Clamp(FVector::Distance(Start, End) / AWVisualConfig::ProjectileSpeed,
-                                       AWVisualConfig::ProjectileMinDuration, AWVisualConfig::ProjectileMaxDuration);
-    Projectile.TargetRobot = TargetRobot;
-    Projectile.bShielded = bShielded;
-    Projectile.bShieldRemainsActive = TargetRobot >= 0 && TargetRobot < 2 &&
-                                      HasActiveShield(CurrentSnapshot.robots[TargetRobot].effects);
-    Projectile.bDestroyedTarget = bDestroyedTarget;
-    Projectiles.Add(Projectile);
-    UpdateProjectileBeam(Beam, Start, Start);
-}
-
-void AAWArenaRenderer::UpdateProjectileBeam(UStaticMeshComponent *Beam, const FVector &Start, const FVector &End)
-{
-    if (!Beam)
-        return;
-
-    const FVector Delta = End - Start;
-    const float Length = Delta.Size();
-    Beam->SetWorldLocation((Start + End) * 0.5f);
-    Beam->SetWorldRotation(Delta.IsNearlyZero() ? FRotator::ZeroRotator : Delta.Rotation());
-    Beam->SetWorldScale3D(FVector(FMath::Max(0.001f, Length / 100.f),
-                                  AWVisualConfig::ProjectileBeamThickness,
-                                  AWVisualConfig::ProjectileBeamThickness));
-}
-
-void AAWArenaRenderer::SpawnTransientLight(FVector WorldPos, float Intensity, float Radius, FColor Color, float Lifespan)
-{
-    UPointLightComponent *Light = NewObject<UPointLightComponent>(this);
-    Light->SetupAttachment(GetRootComponent());
-    Light->SetWorldLocation(WorldPos);
-    Light->SetIntensity(Intensity);
-    Light->SetAttenuationRadius(Radius);
-    Light->SetLightColor(Color);
-    Light->RegisterComponent();
-    ScheduleComponentDestruction(Light, Lifespan);
-}
-
-void AAWArenaRenderer::ScheduleComponentDestruction(UActorComponent *Component, float Lifespan)
-{
-    FTimerHandle Handle;
-    TWeakObjectPtr<UActorComponent> WeakComponent = Component;
-    GetWorld()->GetTimerManager().SetTimer(Handle, [WeakComponent]()
-                                           { if (WeakComponent.IsValid()) WeakComponent->DestroyComponent(); }, Lifespan, false);
-}
-
-void AAWArenaRenderer::PlaySFX(const TCHAR *SoftPath, FVector Location)
-{
-    USoundBase *Sound = LoadObject<USoundBase>(nullptr, SoftPath);
-    if (Sound)
-    {
-        UGameplayStatics::PlaySoundAtLocation(GetWorld(), Sound, Location);
-    }
+    CombatEffects->SetFinalEffects(FinalEffects);
 }
 
 FVector AAWArenaRenderer::GridToWorld(int32 X, int32 Y) const

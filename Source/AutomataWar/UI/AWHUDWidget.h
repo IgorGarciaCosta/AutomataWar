@@ -79,10 +79,16 @@ protected:
     EAWScreen InitialScreen = EAWScreen::MainMenu;
 
 private:
+    /** Drive non-shipping presentation capture modes requested on the command line. */
+    void RunCaptureMode();
+
     void OnScreenAction(EAWUIAction Action);
 
     UFUNCTION()
     void OnPhaseChanged(EAWMatchPhase NewPhase);
+    /** Initialize planning or replay presentation when a complete round record changes. */
+    UFUNCTION()
+    void OnResolvedRoundChanged();
 
     UFUNCTION()
     void OnErrorReceived(const FString &Message);
@@ -158,11 +164,7 @@ private:
     bool BuildPlanningSimConfig(Automata::SimConfig &OutConfig) const;
     /** Reveal a pending terminal result after the visual replay has completed. */
     void ShowPendingMatchResult();
-    bool InitializeReplay(const TArray<EAWCommand> &CommandsA, const TArray<EAWCommand> &CommandsB, int64 Seed,
-                          int32 ActionPointsA = Automata::InitialActionPoints,
-                          int32 ActionPointsB = Automata::InitialActionPoints,
-                          const FAWRobotEffects &EffectsA = {}, const FAWRobotEffects &EffectsB = {},
-                          int32 StartingSlot = 0, const TArray<uint8> &InitialState = {});
+    bool InitializeReplay(const FAWResolvedRound &Round);
     void UpdateReplayUI();
     void UpdateArenaFromReplay();
 
